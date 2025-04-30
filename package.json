@@ -1,7 +1,7 @@
 {
   "name": "mtrl-addons",
   "version": "0.1.0",
-  "description": "Additional components and utilities for the mtrl library, featuring specialized components, and extended functionality for modern applications",
+  "description": "Additional components and utilities for the mtrl system, featuring forms, specialized elements, and extended functionality for modern applications",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -16,6 +16,8 @@
     "dist"
   ],
   "scripts": {
+    "build": "bun run ./build.js",
+    "dev": "bun run ./build.js --watch",
     "test": "bun test",
     "prepublishOnly": "bun run build"
   },
