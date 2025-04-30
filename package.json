@@ -1,0 +1,45 @@
+{
+  "name": "mtrl-addons",
+  "version": "0.1.0",
+  "description": "Additional components and utilities for the mtrl library, featuring specialized components, and extended functionality for modern applications",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/floor/mtrl-addons.git"
+  },
+  "keywords": [
+    "mtrl",
+    "addons",
+    "components", 
+    "forms",
+    "ui"
+  ],
+  "author": "floor",
+  "license": "MIT",
+  "peerDependencies": {
+    "mtrl": "^0.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "bun-types": "^1.0.0",
+    "mtrl": "^0.2.8",
+    "standard": "^17.0.0",
+    "typescript": "^5.0.0"
+  }
+}
