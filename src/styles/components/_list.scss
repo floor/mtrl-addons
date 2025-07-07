@@ -1,0 +1,51 @@
+// mtrl-addons List Component Styles
+// Based on mtrl/src/styles/components/_list.scss
+// Only addons-specific enhancements that don't exist in base mtrl
+
+// Import mtrl base styles
+@use "../../mtrl/src/styles/abstract/base" as base;
+@use "../../mtrl/src/styles/abstract/variables" as v;
+@use "../../mtrl/src/styles/abstract/functions" as f;
+@use "../../mtrl/src/styles/abstract/mixins" as m;
+@use "../../mtrl/src/styles/abstract/theme" as t;
+
+// Component variables following mtrl pattern
+$base-component: "#{base.$prefix}-list";
+$addons-component: "#{base.$prefix}-list-addons";
+
+// Addons-specific enhancements only
+.#{$base-component}.#{$addons-component} {
+  // Collection data management integration (scroll optimization)
+  &[data-addons="true"] {
+    // Enhanced scroll performance for large lists
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+
+    // Optimized scrollbar for addons lists
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 3px;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.4);
+      }
+    }
+  }
+
+  // Future addons-specific features:
+  // - Advanced data grid functionality
+  // - Tree view capabilities
+  // - Advanced filtering/sorting UI
+  // - Custom selection modes beyond what mtrl provides
+  // - Integration with external data sources
+  // - Advanced virtualization strategies
+}
