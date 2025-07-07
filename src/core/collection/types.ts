@@ -67,6 +67,11 @@ export interface CollectionConfig<T extends CollectionItem = CollectionItem> {
    */
   initialCapacity?: number;
 
+  /**
+   * Page size for pagination
+   */
+  pageSize?: number;
+
   // NO UI properties: container, template, className, ariaLabel
 }
 
@@ -259,6 +264,38 @@ export interface AggregateOperation {
 }
 
 /**
+ * Base collection interface (minimal core)
+ * Only essential data operations - everything else is added via plugins
+ */
+export interface BaseCollection<T extends CollectionItem = CollectionItem> {
+  // Core data access
+  getItems(): T[];
+  getItem(id: string): T | undefined;
+  getSize(): number;
+  getTotalCount(): number;
+
+  // Basic state
+  isLoading(): boolean;
+  getError(): Error | null;
+
+  // State management (for plugins)
+  getState(): any;
+  setState(newState: any): void;
+
+  // Event system (for plugins)
+  subscribe(observer: (payload: any) => void): () => void;
+  emit(event: string, data: any): void;
+
+  // Lifecycle
+  destroy(): void;
+
+  // Plugin internals (not part of public API)
+  _config: CollectionConfig<T>;
+  _stateStore: any;
+  _eventEmitter: any;
+}
+
+/**
  * Main collection interface (PURE DATA MANAGEMENT)
  */
 export interface Collection<T extends CollectionItem = CollectionItem> {
@@ -287,7 +324,7 @@ export interface Collection<T extends CollectionItem = CollectionItem> {
   getTotalCount(): number;
   isLoading(): boolean;
   getError(): Error | null;
-  hasMore(): boolean;
+  hasNext(): boolean;
   getCurrentPage(): number;
 
   // Data persistence

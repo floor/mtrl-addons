@@ -14,10 +14,10 @@ import type {
   CollectionAdapter,
   AdapterParams,
   AdapterResponse,
-  CollectionDataEvents,
   CollectionPlugin,
   AggregateOperation,
 } from "./types";
+import { CollectionDataEvents } from "./types";
 
 import {
   createCollectionState,
@@ -70,6 +70,9 @@ export function createCollection<T extends CollectionItem = CollectionItem>(
   let hasMore = true;
   let isLoadingMore = false;
 
+  // Track what data we have loaded (simple approach)
+  let totalItemsExpected = 0;
+
   // Installed plugins
   const installedPlugins = new Map<string, CollectionPlugin>();
 
@@ -78,7 +81,7 @@ export function createCollection<T extends CollectionItem = CollectionItem>(
     if (!isDestroyed) {
       // Emit data events based on state changes
       if (state.loading && !stateStore.get().loading) {
-        eventEmitter.emit(CollectionEvents.LOADING_END, {
+        eventEmitter.emit(CollectionDataEvents.LOADING_END, {
           reason: "state-change",
         });
       }
@@ -199,13 +202,32 @@ export function createCollection<T extends CollectionItem = CollectionItem>(
     const gotFullPage = itemsLength === pageSize;
     const apiTotal = response.meta?.total;
 
+    console.log(`${DATA_LOGGING.PREFIX} determineHasMore debug:`, {
+      apiTotal,
+      apiHasNext,
+      gotFullPage,
+      itemsLength,
+      pageSize,
+      currentItemsLength: stateStore.get().items.length,
+    });
+
     // Use multiple indicators to determine if there's more data
     if (apiTotal !== undefined) {
       const currentState = stateStore.get();
-      return currentState.items.length + itemsLength < apiTotal;
+      const result = currentState.items.length + itemsLength < apiTotal;
+      console.log(
+        `${DATA_LOGGING.PREFIX} Using apiTotal logic: ${currentState.items.length} + ${itemsLength} < ${apiTotal} = ${result}`
+      );
+      return result;
     } else if (apiHasNext !== undefined) {
+      console.log(
+        `${DATA_LOGGING.PREFIX} Using apiHasNext logic: ${apiHasNext}`
+      );
       return apiHasNext;
     } else {
+      console.log(
+        `${DATA_LOGGING.PREFIX} Using gotFullPage logic: ${gotFullPage}`
+      );
       return gotFullPage;
     }
   };
@@ -418,6 +440,48 @@ export function createCollection<T extends CollectionItem = CollectionItem>(
         throw new Error("No adapter configured");
       }
 
+      // Calculate what data range this page represents
+      const startIndex = (page - 1) * pageSize;
+      const endIndex = startIndex + pageSize - 1;
+
+      const currentState = stateStore.get();
+      const currentItems = currentState.items;
+
+      // Check if we already have this data
+      const hasData = currentItems.length > endIndex;
+
+      if (hasData) {
+        console.log(
+          `${DATA_LOGGING.PREFIX} Data already loaded for page ${page} (items ${startIndex}-${endIndex})`
+        );
+
+        // Return the subset we already have
+        const pageItems = currentItems.slice(startIndex, startIndex + pageSize);
+
+        currentPage = page;
+
+        // Emit items loaded event
+        eventEmitter.emit(
+          CollectionEvents.ITEMS_LOADED,
+          createEventPayload.itemsLoaded(pageItems, {
+            page,
+            total: totalItemsExpected,
+          })
+        );
+
+        return {
+          items: pageItems,
+          meta: {
+            total: totalItemsExpected,
+            page: page,
+            hasNext: hasMore,
+            hasPrev: page > 1,
+          },
+        };
+      }
+
+      console.log(`${DATA_LOGGING.PREFIX} Loading page ${page} from adapter`);
+
       try {
         eventEmitter.emit(
           CollectionEvents.LOADING_START,
@@ -437,9 +501,21 @@ export function createCollection<T extends CollectionItem = CollectionItem>(
 
         const processedItems = applyDataTransformations(response.items);
 
+        // Add to existing items (append if sequential)
+        let updatedItems: T[];
+        if (startIndex === currentItems.length) {
+          // Sequential loading - just append
+          updatedItems = [...currentItems, ...processedItems];
+        } else {
+          // Non-sequential - need to handle gaps (could be complex)
+          updatedItems = [...currentItems, ...processedItems];
+        }
+
+        totalItemsExpected = response.meta?.total || updatedItems.length;
+
         stateStore.set({
-          items: processedItems,
-          totalCount: response.meta?.total || processedItems.length,
+          items: updatedItems,
+          totalCount: totalItemsExpected,
           loading: false,
           error: null,
         });
@@ -544,7 +620,7 @@ export function createCollection<T extends CollectionItem = CollectionItem>(
       return stateStore.get().error;
     },
 
-    hasMore(): boolean {
+    hasNext(): boolean {
       return hasMore;
     },
 
@@ -568,10 +644,15 @@ export function createCollection<T extends CollectionItem = CollectionItem>(
     },
 
     async clearCache(): Promise<void> {
-      // Will be implemented by cache plugins
-      console.warn(
-        `${DATA_LOGGING.PREFIX} Clear cache method requires cache plugin`
-      );
+      // Clear the multi-page cache
+      pageCache.clear();
+      console.log(`${DATA_LOGGING.PREFIX} Page cache cleared`);
+
+      // Emit cache cleared event
+      eventEmitter.emit(CollectionEvents.CACHE_CLEARED, {
+        reason: "manual-clear",
+        timestamp: Date.now(),
+      });
     },
 
     async sync(): Promise<void> {

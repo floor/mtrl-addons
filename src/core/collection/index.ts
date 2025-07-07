@@ -1,108 +1,40 @@
 /**
- * Collection System (Pure Data Layer)
+ * Collection System - Composition-Based Architecture
  *
- * Main exports for the mtrl-addons collection data management system.
- * This is a pure data layer with zero UI concerns.
+ * Following the blueprint with functional composition and plugin system
  */
 
-// Core collection factory
-export { createCollection } from "./collection";
+import type { CollectionItem } from "./types";
 
-// Types and interfaces
+// New composition-based architecture exports
+export { createCollection, createDataCollection } from "./collection-composer";
+export { createBaseCollection } from "./base-collection";
+
+// Plugin exports
+export { withLoading } from "./features/api/loading";
+export { withDataOperations } from "./features/operations/data-operations";
+
+// Core types
 export type {
   Collection,
+  BaseCollection,
   CollectionConfig,
   CollectionItem,
-  CollectionObserver,
-  CollectionUnsubscribe,
   CollectionAdapter,
   AdapterParams,
   AdapterResponse,
-  CollectionEventPayload,
-  CollectionDataEvents,
-  CollectionPlugin,
-  AggregateOperation,
-  PersistenceConfig,
-  CacheConfig,
-  WebWorkerConfig,
-  PrefetchConfig,
-  ValidationConfig,
-  ValidationError,
-  WorkerTask,
-  WorkerResult,
 } from "./types";
 
-// State management
-export {
-  createCollectionState,
-  createInitialDataState,
-  stateUtils,
-} from "./state";
+// Events and state
+export { CollectionDataEvents } from "./types";
+export { CollectionEvents, createEventPayload } from "./events";
+export { createCollectionState } from "./state";
 
-export type {
-  CollectionDataState,
-  StateStore,
-  StateChangeListener,
-} from "./state";
-
-// Event system
-export {
-  CollectionEvents,
-  createCollectionEventEmitter,
-  createEventPayload,
-  eventUtils,
-} from "./events";
-
-export type { CollectionEventEmitter } from "./events";
-
-// Data constants
-export {
-  DATA_PAGINATION,
-  DATA_CACHE,
-  DATA_PERSISTENCE,
-  WEB_WORKERS,
-  DATA_VALIDATION,
-  DATA_TRANSFORMATION,
-  API_ADAPTER,
-  BACKGROUND_PROCESSING,
-  DATA_LOGGING,
-  COLLECTION_STATE,
-  EVENT_TIMING,
-  DATA_AGGREGATION,
-  DATA_SEARCH,
-  COLLECTION_DEFAULTS,
-} from "./constants";
-
-// Import for utility functions
-import type { CollectionItem, CollectionAdapter, AdapterParams } from "./types";
-import { createCollection } from "./collection";
-
-// Future plugin exports (when implemented)
-// export { localStorage, indexedDB, webWorkers } from './features/persistence';
-// export { withValidation, withTransformation } from './features/validation';
-// export { memoryCache, lruCache } from './features/caching';
+// Constants
+export * from "./constants";
 
 /**
- * Quick start utility for creating a basic data collection
- */
-export function createDataCollection<T extends CollectionItem>(options: {
-  items?: T[];
-  adapter?: CollectionAdapter<T>;
-  transform?: (item: any) => T;
-  validate?: (item: T) => boolean;
-  pageSize?: number;
-}) {
-  return createCollection({
-    items: options.items,
-    adapter: options.adapter,
-    transform: options.transform,
-    validate: options.validate,
-    initialCapacity: options.pageSize || 20,
-  });
-}
-
-/**
- * Utility for creating a simple REST adapter
+ * Quick start utility for creating a simple REST adapter
  */
 export function createRestAdapter<T extends CollectionItem>(
   baseUrl: string,
@@ -111,9 +43,9 @@ export function createRestAdapter<T extends CollectionItem>(
     timeout?: number;
     transform?: (response: any) => { items: T[]; meta?: any };
   } = {}
-): CollectionAdapter<T> {
+) {
   return {
-    async read(params: AdapterParams = {}) {
+    async read(params: any = {}) {
       const url = new URL(baseUrl);
 
       // Add query parameters
@@ -169,5 +101,4 @@ export function createRestAdapter<T extends CollectionItem>(
   };
 }
 
-// NO UI exports: templates, DOM utilities, virtual scrolling, etc.
-// Those belong to List Manager and List Component layers
+// Collection architecture is now complete!

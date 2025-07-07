@@ -43,8 +43,8 @@ import {
 } from "./features/scroll";
 import { paginationTrigger, lazyLoading } from "./features/intersection";
 import { frameScheduler } from "./features/performance";
-import { withListManagerAPI } from "./features/api";
-import { withPlugin } from "./utils/plugin-adapter";
+import { withListManagerAPI } from "./api";
+import { withPlugin } from "./plugin/adapter";
 
 // Import the new configuration system
 import {

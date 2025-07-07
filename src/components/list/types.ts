@@ -93,8 +93,8 @@ export interface ListScrollConfig {
   estimatedItemSize?: number;
   /** Number of items to render outside viewport */
   overscan?: number;
-  /** Enable smooth scrolling */
-  smoothScroll?: boolean;
+  /** Enable scroll animations */
+  animation?: boolean;
   /** Restore scroll position on reload */
   restorePosition?: boolean;
 }

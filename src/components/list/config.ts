@@ -267,7 +267,7 @@ const DEFAULT_CONFIG: Partial<ListConfig> = {
     itemSize: "auto",
     estimatedItemSize: 50,
     overscan: VIRTUAL_SCROLLING.DEFAULT_OVERSCAN,
-    smoothScroll: false,
+    animation: false,
     restorePosition: false,
   },
 
@@ -455,7 +455,7 @@ export const getListManagerConfig = (config: ListConfig) => ({
 
   // Scroll behavior
   scroll: {
-    smooth: config.scroll?.smoothScroll ?? false,
+    smooth: config.scroll?.animation ?? true,
     restore: config.scroll?.restorePosition ?? false,
     ...config.listManager?.scroll,
   },

@@ -43,11 +43,19 @@ export const withOrchestration =
 
     // Create Collection (Data Layer)
     const collectionConfig = getCollectionConfig(config);
-    const collection = createDataCollection<T>(collectionConfig);
+    const collection = createDataCollection<T>(collectionConfig as any);
 
     // Create List Manager (Performance Layer)
     const listManagerConfig = getListManagerConfig(config);
     const listManager = createListManager(listManagerConfig);
+
+    // Set initial scroll animation state from config
+    if (config.scroll?.animation !== undefined) {
+      listManager.setScrollAnimation(config.scroll.animation);
+      console.log(
+        `🎬 [ORCHESTRATION] Set initial scroll animation to: ${config.scroll.animation}`
+      );
+    }
 
     // Add fallback for missing methods
     if (!listManager.getViewportInfo) {
@@ -238,6 +246,10 @@ export const withOrchestration =
     const renderItems = (): void => {
       const { renderRange } = state;
       const items = collection.getItems();
+      const pageSize = collectionConfig.pageSize || 20;
+
+      console.log(`🎨 [ORCHESTRATION] Rendering items for range:`, renderRange);
+      console.log(`📦 [ORCHESTRATION] Available items:`, items.length);
 
       // Clear existing rendered items
       renderContainer.innerHTML = "";
@@ -248,12 +260,37 @@ export const withOrchestration =
         virtualIndex <= renderRange.end;
         virtualIndex++
       ) {
-        // Map virtual index to physical array index
-        const pageSize = collectionConfig.pageSize || 20;
-        const physicalIndex = virtualIndex % pageSize;
-        const item = items[physicalIndex];
+        // Calculate which page this virtual index belongs to
+        const pageNumber = Math.floor(virtualIndex / pageSize) + 1;
+        const indexInPage = virtualIndex % pageSize;
 
-        if (!item) continue;
+        // Find the item in the collection by matching the expected ID pattern
+        // Since the Collection doesn't handle sparse data properly, we need to find items by ID
+        const expectedItemId = (virtualIndex + 1).toString(); // API uses 1-based IDs
+
+        let item = items.find((item: any) => item.id === expectedItemId);
+
+        // If not found by ID, try direct access for sequential data
+        if (!item && virtualIndex < items.length) {
+          item = items[virtualIndex];
+          // Verify this is the correct item by checking ID
+          if (item && item.id !== expectedItemId) {
+            item = undefined;
+          }
+        }
+
+        if (!item) {
+          console.log(
+            `⚠️ [ORCHESTRATION] No item found for virtual index ${virtualIndex} (expected ID: ${expectedItemId}) in ${items.length} total items`
+          );
+          continue;
+        }
+
+        console.log(
+          `✅ [ORCHESTRATION] Virtual index ${virtualIndex} → ${
+            item.name || item.title || "Unknown"
+          } (ID: ${item.id})`
+        );
 
         // Create item wrapper
         const itemWrapper = document.createElement("div");
@@ -289,6 +326,10 @@ export const withOrchestration =
         renderContainer.children
       ) as HTMLElement[];
       positionItemsForOrientation(itemElements, renderRange);
+
+      console.log(
+        `✅ [ORCHESTRATION] Rendered ${itemElements.length} items for virtual indices ${renderRange.start}-${renderRange.end}`
+      );
 
       // Emit render complete event
       const originalEmit = (component as any).emit;
@@ -465,7 +506,10 @@ export const withOrchestration =
                   pendingScrollOperation
                 );
 
-                if (pendingScrollOperation.type === "scrollToIndex") {
+                if (
+                  pendingScrollOperation.type === "scrollToIndex" ||
+                  pendingScrollOperation.type === "scrollToPage"
+                ) {
                   handleScrollToIndexViewportUpdate(
                     pendingScrollOperation.index,
                     pendingScrollOperation.alignment,
@@ -539,37 +583,57 @@ export const withOrchestration =
       const items = collection.getItems();
       const itemHeight = 50; // TODO: Get from configuration or size manager
       const containerHeight = component.element.clientHeight || 400;
+      const pageSize = collectionConfig.pageSize || 20;
+
+      console.log(
+        `🎯 [VIEWPORT-UPDATE] Calculating viewport for index ${index}, alignment: ${alignment}`
+      );
+      console.log(
+        `📊 [VIEWPORT-UPDATE] Available items: ${items.length}, pageSize: ${pageSize}`
+      );
 
       // Calculate the visible item count for proper buffering
       const visibleItemCount = Math.ceil(containerHeight / itemHeight);
       const overscan = 5; // Buffer for smooth scrolling
 
-      // Calculate the proper start index based on alignment
+      // Calculate which page this index belongs to
+      const targetPage = Math.floor(index / pageSize) + 1;
+      const pageStartIndex = (targetPage - 1) * pageSize;
+      const pageEndIndex = pageStartIndex + pageSize - 1;
+
+      console.log(
+        `📄 [VIEWPORT-UPDATE] Target page: ${targetPage}, page range: ${pageStartIndex}-${pageEndIndex}`
+      );
+
+      // Calculate the proper start index based on alignment within the current page
       let startIndex: number;
       switch (alignment) {
         case "center":
-          startIndex = Math.max(0, index - Math.floor(visibleItemCount / 2));
+          startIndex = Math.max(
+            pageStartIndex,
+            index - Math.floor(visibleItemCount / 2)
+          );
           break;
         case "end":
-          startIndex = Math.max(0, index - visibleItemCount + 1);
+          startIndex = Math.max(pageStartIndex, index - visibleItemCount + 1);
           break;
         case "start":
         default:
           // For "start" alignment, target index should be at the beginning of viewport
-          startIndex = Math.max(0, index);
+          startIndex = Math.max(pageStartIndex, index);
           break;
       }
 
-      // Calculate end index with proper buffering
-      // Add overscan before and after, but adjust based on alignment
-      let endIndex: number;
-      if (alignment === "start") {
-        // For start alignment, add overscan only at the end
-        endIndex = startIndex + visibleItemCount + overscan;
-      } else {
-        // For center/end alignment, add overscan at both ends
-        endIndex = startIndex + visibleItemCount + overscan * 2;
-      }
+      // Calculate end index, but constrain to current page + small buffer
+      let endIndex = startIndex + visibleItemCount + overscan;
+
+      // Don't render beyond the current page unless we have the data
+      // For now, limit to current page since we load one page at a time
+      endIndex = Math.min(endIndex, pageEndIndex + overscan);
+
+      console.log(
+        `📐 [VIEWPORT-UPDATE] Calculated render range: ${startIndex}-${endIndex}`
+      );
 
       // Calculate scroll position to align with start of visible range
       const scrollTop = Math.max(0, startIndex * itemHeight);
@@ -583,15 +647,42 @@ export const withOrchestration =
       };
       state.renderRange = { ...state.visibleRange };
 
+      console.log(`📊 [VIEWPORT-UPDATE] Updated state:`, {
+        scrollTop: state.scrollTop,
+        visibleRange: state.visibleRange,
+        renderRange: state.renderRange,
+      });
+
       // Apply container scrolling with configurable behavior
       if (component.element) {
         // Use explicit animate parameter if provided, otherwise use List Manager's scroll animation control
         const animationEnabled =
           animate !== undefined ? animate : listManager.getScrollAnimation();
+
+        console.log(
+          `🎬 [VIEWPORT-UPDATE] Animation control: animate=${animate}, listManagerState=${listManager.getScrollAnimation()}, final=${animationEnabled}`
+        );
+
+        // CRITICAL: Always set scroll-behavior CSS to ensure the animation setting is respected
+        // This is necessary because SCSS or other CSS might override the behavior
+        component.element.style.scrollBehavior = animationEnabled
+          ? "smooth"
+          : "unset";
+        component.element.style.setProperty(
+          "scroll-behavior",
+          animationEnabled ? "smooth" : "unset"
+        );
+
         if (component.element.scrollTo && animationEnabled) {
+          console.log(
+            `🎬 [VIEWPORT-UPDATE] Using smooth scrollTo() to ${scrollTop}px`
+          );
           component.element.scrollTo({ top: scrollTop, behavior: "smooth" });
         } else {
-          // Instant scroll (no animation)
+          // Instant scroll (no animation) - CSS is now forced to auto/unset
+          console.log(
+            `🎬 [VIEWPORT-UPDATE] Using instant scrollTop to ${scrollTop}px`
+          );
           component.element.scrollTop = scrollTop;
         }
       }
@@ -692,13 +783,33 @@ export const withOrchestration =
 
               // Use List Manager's scroll animation control
               const animationEnabled = listManager.getScrollAnimation();
+
+              console.log(
+                `🎬 [LIST-MANAGER-EVENT] Animation state: ${animationEnabled}`
+              );
+
+              // CRITICAL: Always set scroll-behavior CSS to ensure the animation setting is respected
+              component.element.style.scrollBehavior = animationEnabled
+                ? "smooth"
+                : "unset";
+              component.element.style.setProperty(
+                "scroll-behavior",
+                animationEnabled ? "smooth" : "unset"
+              );
+
               if (component.element.scrollTo && animationEnabled) {
+                console.log(
+                  `🎬 [LIST-MANAGER-EVENT] Using smooth scrollTo() to ${state.scrollTop}px`
+                );
                 component.element.scrollTo({
                   top: state.scrollTop,
                   behavior: "smooth",
                 });
               } else {
-                // Instant scroll (no animation)
+                // Instant scroll (no animation) - CSS is now forced to auto
+                console.log(
+                  `🎬 [LIST-MANAGER-EVENT] Using instant scrollTop to ${state.scrollTop}px`
+                );
                 component.element.scrollTop = state.scrollTop;
               }
             }
@@ -780,8 +891,7 @@ export const withOrchestration =
           : "unset";
         component.element.style.setProperty(
           "scroll-behavior",
-          animationEnabled ? "smooth" : "unset",
-          "important"
+          animationEnabled ? "smooth" : "unset"
         );
       }
 
@@ -826,8 +936,9 @@ export const withOrchestration =
       },
 
       // Data operations
-      loadData: () => collection.loadPage?.(1),
-      reload: () => collection.refresh?.(),
+      loadData: () =>
+        collection.loadPage?.(1)?.then(() => {}) || Promise.resolve(),
+      reload: () => collection.refresh?.()?.then(() => {}) || Promise.resolve(),
       clear: () => collection.clearItems?.(),
       addItems: (items: T[], position: "start" | "end" = "end") => {
         collection.addItems(items);
@@ -880,17 +991,6 @@ export const withOrchestration =
             `🎬 [ORCHESTRATION] Temporarily overriding animation to: ${animate}`
           );
           listManager.setScrollAnimation(animate);
-          // Update CSS scroll-behavior to override SCSS
-          if (component.element) {
-            component.element.style.scrollBehavior = animate
-              ? "smooth"
-              : "unset";
-            component.element.style.setProperty(
-              "scroll-behavior",
-              animate ? "smooth" : "unset",
-              "important"
-            );
-          }
         }
 
         try {
@@ -921,7 +1021,7 @@ export const withOrchestration =
               `📄 [ORCHESTRATION] Loading page ${targetPage} (pageSize: ${pageSize})`
             );
 
-            // Load the required page
+            // Load the required page (Collection handles caching internally)
             await collection.loadPage?.(targetPage);
 
             // Wait a bit for data to be processed
@@ -931,7 +1031,7 @@ export const withOrchestration =
               `✅ [ORCHESTRATION] Data already available, scrolling to index ${index}`
             );
             // Handle scrolling directly in orchestration layer
-            handleScrollToIndexViewportUpdate(index, alignment);
+            handleScrollToIndexViewportUpdate(index, alignment, animate);
           }
 
           return Promise.resolve();
@@ -942,17 +1042,6 @@ export const withOrchestration =
               `🎬 [ORCHESTRATION] Restoring animation state to: ${originalAnimationState}`
             );
             listManager.setScrollAnimation(originalAnimationState);
-            // Restore CSS scroll-behavior
-            if (component.element) {
-              component.element.style.scrollBehavior = originalAnimationState
-                ? "smooth"
-                : "unset";
-              component.element.style.setProperty(
-                "scroll-behavior",
-                originalAnimationState ? "smooth" : "unset",
-                "important"
-              );
-            }
           }
         }
       },
@@ -972,23 +1061,9 @@ export const withOrchestration =
         // If animate parameter is provided, temporarily override animation setting
         if (animate !== undefined && animate !== originalAnimationState) {
           listManager.setScrollAnimation(animate);
-          // Update CSS scroll-behavior to override SCSS
-          if (component.element) {
-            component.element.style.scrollBehavior = animate
-              ? "smooth"
-              : "unset";
-            component.element.style.setProperty(
-              "scroll-behavior",
-              animate ? "smooth" : "unset",
-              "important"
-            );
-          }
         }
 
         try {
-          // Load the target page
-          await collection.loadPage?.(page);
-
           // Calculate the starting index for this page
           const pageSize = collectionConfig.pageSize || 25;
           const startIndex = (page - 1) * pageSize;
@@ -997,25 +1072,44 @@ export const withOrchestration =
             `📍 [ORCHESTRATION] Scrolling to page ${page} start index: ${startIndex}`
           );
 
-          // Handle scrolling directly in orchestration layer to respect animation state
-          handleScrollToIndexViewportUpdate(startIndex, alignment);
+          // Check if we need to load data for this page
+          const currentItemCount = collection.getSize?.() || 0;
+          const needsData = startIndex >= currentItemCount;
+
+          if (needsData) {
+            console.log(
+              `🔄 [ORCHESTRATION] Need to load page ${page} data first`
+            );
+
+            // Store the pending scroll operation (like scrollToIndex does)
+            pendingScrollOperation = {
+              type: "scrollToPage",
+              index: startIndex,
+              alignment,
+              animate,
+            };
+
+            // Load the target page (Collection handles caching internally)
+            await collection.loadPage?.(page);
+
+            // The viewport update will be handled when items:loaded fires and applies pendingScrollOperation
+          } else {
+            console.log(
+              `✅ [ORCHESTRATION] Data already available for page ${page}, scrolling directly`
+            );
+
+            // Data is already available, scroll immediately
+            await collection.loadPage?.(page); // This will emit items:loaded but use cached data
+
+            // Apply scroll immediately since data is available
+            handleScrollToIndexViewportUpdate(startIndex, alignment, animate);
+          }
 
           return Promise.resolve();
         } finally {
           // Restore original animation state if we changed it
           if (animate !== undefined && animate !== originalAnimationState) {
             listManager.setScrollAnimation(originalAnimationState);
-            // Restore CSS scroll-behavior
-            if (component.element) {
-              component.element.style.scrollBehavior = originalAnimationState
-                ? "smooth"
-                : "unset";
-              component.element.style.setProperty(
-                "scroll-behavior",
-                originalAnimationState ? "smooth" : "unset",
-                "important"
-              );
-            }
           }
         }
       },
@@ -1035,17 +1129,6 @@ export const withOrchestration =
         // If animate parameter is provided, temporarily override animation setting
         if (animate !== undefined && animate !== originalAnimationState) {
           listManager.setScrollAnimation(animate);
-          // Update CSS scroll-behavior to override SCSS
-          if (component.element) {
-            component.element.style.scrollBehavior = animate
-              ? "smooth"
-              : "unset";
-            component.element.style.setProperty(
-              "scroll-behavior",
-              animate ? "smooth" : "unset",
-              "important"
-            );
-          }
         }
 
         try {
@@ -1061,7 +1144,7 @@ export const withOrchestration =
             );
 
             // Handle scrolling directly in orchestration layer to respect animation state
-            handleScrollToIndexViewportUpdate(index, alignment);
+            handleScrollToIndexViewportUpdate(index, alignment, animate);
 
             return Promise.resolve();
           }
@@ -1075,17 +1158,6 @@ export const withOrchestration =
           // Restore original animation state if we changed it
           if (animate !== undefined && animate !== originalAnimationState) {
             listManager.setScrollAnimation(originalAnimationState);
-            // Restore CSS scroll-behavior
-            if (component.element) {
-              component.element.style.scrollBehavior = originalAnimationState
-                ? "smooth"
-                : "unset";
-              component.element.style.setProperty(
-                "scroll-behavior",
-                originalAnimationState ? "smooth" : "unset",
-                "important"
-              );
-            }
           }
         }
       },
@@ -1112,8 +1184,7 @@ export const withOrchestration =
           component.element.style.scrollBehavior = enabled ? "smooth" : "unset";
           component.element.style.setProperty(
             "scroll-behavior",
-            enabled ? "smooth" : "unset",
-            "important"
+            enabled ? "smooth" : "unset"
           );
         }
 
@@ -1148,7 +1219,7 @@ export const withOrchestration =
       isSelected: (index: number) => state.selectedIndices.includes(index),
 
       // Additional methods expected by showcase
-      hasMore: () => collection.hasMore?.() || false,
+      hasNext: () => collection.hasNext?.() || false,
       getSelectedIds: () => {
         const items = collection.getItems?.() || [];
         return state.selectedIndices.map((i) => items[i]?.id).filter(Boolean);
