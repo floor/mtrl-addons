@@ -299,6 +299,14 @@ function createElement(options: Record<string, any> = {}): HTMLElement {
     element.className = options.class;
   }
 
+  if (options.style) {
+    if (typeof options.style === "string") {
+      element.setAttribute("style", options.style);
+    } else if (typeof options.style === "object") {
+      Object.assign(element.style, options.style);
+    }
+  }
+
   if (options.textContent) {
     element.textContent = options.textContent;
   }
@@ -352,6 +360,11 @@ function createComponentInstance(
 
     // Use events over event (events is preferred)
     const finalEventsConfig = eventsConfig || event;
+
+    // If style is a string, always pass it through to the component
+    if (styleConfig && typeof styleConfig === "string") {
+      cleanOptions.style = styleConfig;
+    }
 
     // Create component
     const isClass =
