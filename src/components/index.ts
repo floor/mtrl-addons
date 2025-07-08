@@ -32,7 +32,7 @@ export {
 } from "./list";
 
 // List features
-export { withOrchestration } from "./list/features/orchestration";
+export { withListManager } from "./list/features/list-manager";
 export { withAPI } from "./list/api";
 
 // Components will be exported here as they're added

@@ -3,11 +3,11 @@
 // Only addons-specific enhancements that don't exist in base mtrl
 
 // Import mtrl base styles
-@use "../../mtrl/src/styles/abstract/base" as base;
-@use "../../mtrl/src/styles/abstract/variables" as v;
-@use "../../mtrl/src/styles/abstract/functions" as f;
-@use "../../mtrl/src/styles/abstract/mixins" as m;
-@use "../../mtrl/src/styles/abstract/theme" as t;
+@use "../../../../mtrl/src/styles/abstract/base" as base;
+@use "../../../../mtrl/src/styles/abstract/variables" as v;
+@use "../../../../mtrl/src/styles/abstract/functions" as f;
+@use "../../../../mtrl/src/styles/abstract/mixins" as m;
+@use "../../../../mtrl/src/styles/abstract/theme" as t;
 
 // Component variables following mtrl pattern
 $base-component: "#{base.$prefix}-list";

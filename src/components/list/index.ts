@@ -35,5 +35,5 @@ export {
 } from "./config";
 
 // Feature exports
-export { withOrchestration } from "./features/orchestration";
+export { withListManager } from "./features/list-manager";
 export { withAPI } from "./api";

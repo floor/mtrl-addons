@@ -23,6 +23,7 @@ export {
 
 // List-specific features
 export { withApi } from "./api";
+export { withListManager } from "./list-manager";
 
 // Future list-specific features will be exported here
 // export { withVirtualScroll } from './virtual-scroll';

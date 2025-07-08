@@ -11,6 +11,10 @@ import type { ElementConfig } from "mtrl/src/core/compose";
 import type { ListComponent } from "./types";
 import { DATA_PAGINATION } from "../../core/collection/constants";
 import { VIRTUAL_SCROLLING } from "../../core/list-manager/constants";
+import {
+  convertRenderItemToTemplate,
+  getDefaultTemplate,
+} from "../../core/list-manager/features/viewport/template";
 
 /**
  * Default configuration for the mtrl-addons List component
@@ -117,6 +121,20 @@ export function createBaseConfig<T extends ListItem = ListItem>(
       ...config.virtualScroll,
     },
   } as Required<ListConfig<T>>;
+
+  // Convert renderItem object to template function if provided
+  if (
+    (config as any).renderItem &&
+    typeof (config as any).renderItem === "object" &&
+    !mergedConfig.template
+  ) {
+    console.log(
+      "🔄 [MTRL-ADDONS-LIST] Converting renderItem object to template function"
+    );
+    mergedConfig.template = convertRenderItemToTemplate(
+      (config as any).renderItem
+    );
+  }
 
   // Validate selection configuration
   if (
@@ -427,6 +445,9 @@ export const getListManagerConfig = (config: ListConfig) => ({
   // Container
   container: config.container,
 
+  // Collection configuration
+  collection: getCollectionConfig(config),
+
   // Template configuration
   template: {
     template: config.template,
@@ -497,108 +518,16 @@ export const getListManagerConfig = (config: ListConfig) => ({
  * Creates styling configuration
  */
 export const getStylingConfig = (config: ListConfig) => ({
-  prefix: config.prefix || "mtrl",
-  componentName: config.componentName || "list",
-  variant: config.variant || "default",
+  className: config.className || LIST_CLASSES.BASE,
+  style: config.style || {},
   density: config.density || "default",
-  className: config.className,
+  variant: config.variant || "default",
 });
 
 /**
- * Gets default item template if none provided
+ * Gets the complete element configuration for the list
  */
-export const getDefaultTemplate = <T = any>(): ((
-  item: T,
-  index: number
-) => string) => {
-  return (item: T, index: number) => {
-    if (typeof item === "string") {
-      return `<div class="mtrl-list-item__content">${item}</div>`;
-    }
-
-    if (typeof item === "object" && item !== null) {
-      // Try common properties
-      const obj = item as any;
-      const text =
-        obj.text || obj.title || obj.name || obj.label || String(item);
-      const subtitle = obj.subtitle || obj.description || obj.secondary;
-
-      return `
-        <div class="mtrl-list-item__content">
-          <div class="mtrl-list-item__primary">${text}</div>
-          ${
-            subtitle
-              ? `<div class="mtrl-list-item__secondary">${subtitle}</div>`
-              : ""
-          }
-        </div>
-      `;
-    }
-
-    return `<div class="mtrl-list-item__content">${String(item)}</div>`;
-  };
-};
-
-/**
- * Gets loading template
- */
-export const getLoadingTemplate = (config: ListConfig): string => {
-  if (typeof config.loadingTemplate === "string") {
-    return config.loadingTemplate;
-  }
-
-  if (typeof config.loadingTemplate === "function") {
-    const result = config.loadingTemplate();
-    return typeof result === "string" ? result : result.outerHTML;
-  }
-
-  return `
-    <div class="mtrl-list__loading">
-      <div class="mtrl-list__loading-spinner"></div>
-      <div class="mtrl-list__loading-text">Loading...</div>
-    </div>
-  `;
-};
-
-/**
- * Gets empty template
- */
-export const getEmptyTemplate = (config: ListConfig): string => {
-  if (typeof config.emptyTemplate === "string") {
-    return config.emptyTemplate;
-  }
-
-  if (typeof config.emptyTemplate === "function") {
-    const result = config.emptyTemplate();
-    return typeof result === "string" ? result : result.outerHTML;
-  }
-
-  return `
-    <div class="mtrl-list__empty">
-      <div class="mtrl-list__empty-icon">📋</div>
-      <div class="mtrl-list__empty-text">No items to display</div>
-    </div>
-  `;
-};
-
-/**
- * Gets error template
- */
-export const getErrorTemplate = (config: ListConfig, error: Error): string => {
-  if (typeof config.errorTemplate === "string") {
-    return config.errorTemplate;
-  }
-
-  if (typeof config.errorTemplate === "function") {
-    const result = config.errorTemplate(error);
-    return typeof result === "string" ? result : result.outerHTML;
-  }
-
-  return `
-    <div class="mtrl-list__error">
-      <div class="mtrl-list__error-icon">⚠️</div>
-      <div class="mtrl-list__error-text">Error loading data</div>
-      <div class="mtrl-list__error-message">${error.message}</div>
-    </div>
-  `;
-};
+export const getCompleteElementConfig = (config: ListConfig) => ({
+  ...getElementConfig(config),
+  ...getStylingConfig(config),
+});

@@ -30,7 +30,7 @@ import {
 import { withApi } from "./features/api";
 import { createBaseConfig, getElementConfig } from "./config";
 import { LIST_CLASSES } from "./constants";
-import { withOrchestration } from "./features/orchestration";
+import { withListManager } from "./features/list-manager";
 import { withAPI, getApiConfig } from "./api";
 
 /**
@@ -140,15 +140,15 @@ export const createList = <T = any>(
 ): ListComponent<T> => {
   try {
     // Validate and create base configuration
-    const baseConfig = createBaseConfig(config);
+    const baseConfig = createBaseConfig(config as any);
 
-    console.log(`📋 Creating List component with 3-layer architecture:
-    - Collection (Data): ${
+    console.log(`📋 Creating List component with simplified architecture:
+    - List Manager (with built-in Collection): ${
       baseConfig.items && baseConfig.items.length > 0 ? "Static" : "API"
     } data source
-    - List Manager (Performance): Virtual=true, Pool size=100
-    - List Component (Presentation): Template=${!!baseConfig.template}, Selection=${!!baseConfig
-      .selection?.enabled}`);
+    - Virtual scrolling: true, Element recycling: true
+    - Template: ${!!baseConfig.template}, Selection: ${!!baseConfig.selection
+      ?.enabled}`);
 
     // Create the List component through functional composition
     const component = pipe(
@@ -158,7 +158,7 @@ export const createList = <T = any>(
       withElement(getElementConfig(baseConfig)), // DOM element creation
 
       // 2. Core integration layer
-      withOrchestration<T>(baseConfig), // 3-layer architecture orchestration
+      withListManager<T>(baseConfig as any), // Simplified List Manager with built-in Collection
 
       // 3. Component lifecycle
       withLifecycle(), // Lifecycle management
@@ -172,7 +172,7 @@ export const createList = <T = any>(
       // Data events
       if (baseConfig.on.onLoadMore) {
         component.on("load:more", ({ direction }: { direction: string }) => {
-          baseConfig.on!.onLoadMore!(direction);
+          baseConfig.on!.onLoadMore!(direction as any);
         });
       }
 
@@ -187,7 +187,7 @@ export const createList = <T = any>(
             scrollTop: number;
             direction: string;
           }) => {
-            baseConfig.on!.onScroll!(scrollTop, direction);
+            baseConfig.on!.onScroll!(scrollTop, direction as any);
           }
         );
       }
@@ -213,7 +213,10 @@ export const createList = <T = any>(
             selectedItems: T[];
             selectedIndices: number[];
           }) => {
-            baseConfig.on!.onSelectionChange!(selectedItems, selectedIndices);
+            baseConfig.on!.onSelectionChange!(
+              selectedItems as any,
+              selectedIndices
+            );
           }
         );
       }
