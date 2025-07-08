@@ -34,7 +34,11 @@ import {
 
 import { orientationManager } from "./features/orientation";
 import { pipe, createBase, withEvents } from "mtrl/src/core/compose";
-import { windowBasedViewport, itemSizeManager } from "./features/viewport";
+import {
+  virtualViewport,
+  scrollbar,
+  itemSizeManager,
+} from "./features/viewport";
 import { elementRecyclingPool } from "./features/recycling";
 import {
   programmaticScroll,
@@ -43,6 +47,8 @@ import {
 } from "./features/scroll";
 import { paginationTrigger, lazyLoading } from "./features/intersection";
 import { frameScheduler } from "./features/performance";
+import { rendering } from "./features/rendering";
+// import { viewportManager } from "./features/viewport-manager"; // Replaced with windowBasedViewport
 import { withListManagerAPI } from "./api";
 import { withPlugin } from "./plugin/adapter";
 
@@ -93,8 +99,56 @@ export const createListManager = (
       // Core features (order matters)
       withPlugin(orientationManager(featureConfigs.orientation())), // Orientation first - affects all other features
 
-      // Viewport management
-      withPlugin(windowBasedViewport(featureConfigs.viewport())),
+      // Rendering feature - depends on orientation
+      withPlugin(
+        rendering({
+          template:
+            listManagerConfig.template?.template ||
+            ((item: any, index: number) =>
+              `<div class="mtrl-list-item__content">${
+                item.name || item.id || `Item ${index}`
+              }</div>`),
+          itemHeight: listManagerConfig.virtual.estimatedItemHeight || 50,
+          orientation: {
+            orientation: listManagerConfig.orientation.orientation,
+            reverse: listManagerConfig.orientation.reverse,
+            crossAxisAlignment:
+              listManagerConfig.orientation.crossAxisAlignment,
+          },
+          prefix: listManagerConfig.prefix,
+          debug: listManagerConfig.debug,
+        })
+      ),
+
+      // Virtual viewport management - depends on rendering, works with custom scrollbar
+      withPlugin(
+        virtualViewport({
+          itemHeight: listManagerConfig.virtual.estimatedItemHeight || 50,
+          estimatedItemHeight:
+            listManagerConfig.virtual.estimatedItemHeight || 50,
+          overscan: 5,
+          bufferSize: 2,
+          prefix: listManagerConfig.prefix,
+          debug: true, // Enable debug logging to see what's happening
+        })
+      ),
+
+      // Scrollbar for unlimited dataset representation - depends on viewport
+      withPlugin(
+        scrollbar({
+          enabled: true,
+          trackWidth: 12,
+          thumbMinHeight: 20,
+          thumbColor: "#999999",
+          trackColor: "#f0f0f0",
+          borderRadius: 6,
+          fadeTimeout: 1500,
+          itemHeight: listManagerConfig.virtual.estimatedItemHeight || 50,
+          totalItems: 0, // Will be updated dynamically
+        })
+      ),
+
+      // Size management for items
       withPlugin(itemSizeManager(featureConfigs.itemSize())),
 
       // Element management
@@ -111,7 +165,6 @@ export const createListManager = (
         ? withPlugin(
             smoothScroll({
               enabled: true,
-              duration: SCROLL.DEFAULT_EASING_DURATION,
               ...featureConfigs.scroll(),
             })
           )
@@ -143,7 +196,7 @@ export const createListManager = (
         ? withPlugin(frameScheduler(featureConfigs.performance()))
         : passthrough,
 
-      // Apply API
+      // API layer LAST - after all plugins are attached so API can access them
       withListManagerAPI({
         prefix: listManagerConfig.prefix,
         componentName: listManagerConfig.componentName,

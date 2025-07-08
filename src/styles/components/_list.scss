@@ -13,6 +13,17 @@
 $base-component: "#{base.$prefix}-list";
 $addons-component: "#{base.$prefix}-list-addons";
 
+// Scrollbar variables
+$scrollbar-track-width: 8px;
+$scrollbar-thumb-min-height: 20px;
+$scrollbar-border-radius: 4px;
+$scrollbar-track-color: rgba(0, 0, 0, 0.1);
+$scrollbar-thumb-color: rgba(0, 0, 0, 0.3);
+$scrollbar-thumb-hover-color: rgba(0, 0, 0, 0.5);
+$scrollbar-thumb-active-color: rgba(0, 0, 0, 0.6);
+$scrollbar-transition: all 0.2s ease;
+$scrollbar-fade-transition: opacity 0.2s ease;
+
 // Addons-specific enhancements only
 .#{$base-component}.#{$addons-component} {
   // Collection data management integration (scroll optimization)
@@ -20,23 +31,99 @@ $addons-component: "#{base.$prefix}-list-addons";
     // Enhanced scroll performance for large lists
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
+    position: relative; // Required for custom scrollbar positioning
 
-    // Optimized scrollbar for addons lists
+    // Hide native scrollbar completely for custom scrollbar
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
     &::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+      display: none;
     }
 
-    &::-webkit-scrollbar-track {
-      background: transparent;
+    // Scrollbar track
+    .#{base.$prefix}-list__scrollbar.#{base.$prefix}-list__scrollbar-track {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: $scrollbar-track-width;
+      height: 100%;
+      background: $scrollbar-track-color;
+      opacity: 0;
+      transition: $scrollbar-fade-transition;
+      z-index: 1000;
+      cursor: pointer;
+
+      // Show on hover or interaction
+      &:hover,
+      &.#{base.$prefix}-list__scrollbar--scrolling,
+      &.#{base.$prefix}-list__scrollbar--dragging {
+        opacity: 1;
+      }
+
+      // Custom scrollbar thumb
+      .#{base.$prefix}-list__scrollbar-thumb {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        min-height: $scrollbar-thumb-min-height;
+        background: $scrollbar-thumb-color;
+        border-radius: $scrollbar-border-radius;
+        cursor: pointer;
+        transition: $scrollbar-transition;
+
+        &:hover {
+          background: $scrollbar-thumb-hover-color;
+        }
+
+        &:active,
+        &.#{base.$prefix}-list__scrollbar-thumb--dragging {
+          background: $scrollbar-thumb-active-color;
+          transition: none;
+        }
+      }
     }
 
-    &::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 3px;
+    // Show scrollbar on container hover
+    &:hover
+      .#{base.$prefix}-list__scrollbar.#{base.$prefix}-list__scrollbar-track {
+      opacity: 1;
+    }
 
-      &:hover {
-        background: rgba(0, 0, 0, 0.4);
+    // Viewport styling for custom scrollbar compatibility
+    .#{base.$prefix}-list__viewport {
+      // Ensure viewport takes full height
+      height: 100%;
+      overflow: hidden; // Let custom scrollbar handle scrolling
+      position: relative;
+
+      // Scrollbar-enabled state
+      &.#{base.$prefix}-list__scrollbar-enabled {
+        // Specific adjustments when scrollbar is present
+        padding-right: $scrollbar-track-width;
+      }
+    }
+  }
+
+  // Dark theme support for scrollbar
+  @media (prefers-color-scheme: dark) {
+    &[data-addons="true"] {
+      .#{base.$prefix}-list__scrollbar.#{base.$prefix}-list__scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+
+        .#{base.$prefix}-list__scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.3);
+
+          &:hover {
+            background: rgba(255, 255, 255, 0.5);
+          }
+
+          &:active,
+          &.#{base.$prefix}-list__scrollbar-thumb--dragging {
+            background: rgba(255, 255, 255, 0.6);
+          }
+        }
       }
     }
   }

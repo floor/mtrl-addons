@@ -30,20 +30,58 @@ const createMockListManager = (
   },
 
   emit(event: string, data?: any) {
-    // Use component's event system if available
+    // Forward to the component's basic event system from withEvents()
     if ("emit" in component && typeof component.emit === "function") {
-      component.emit(event, data);
+      (component as any).emit(event, data);
     } else {
-      console.log(`🔧 [PLUGIN-ADAPTER] Event: ${event}`, data);
+      console.warn(
+        `⚠️ [PLUGIN-ADAPTER] No emit method available on component for event: ${event}`
+      );
     }
   },
 
   subscribe(callback: (event: any) => void) {
-    // Use component's event system if available
-    if ("subscribe" in component && typeof component.subscribe === "function") {
-      return component.subscribe(callback);
+    // Use the basic event system from withEvents() instead of the full subscribe API
+    if ("on" in component && typeof component.on === "function") {
+      // For plugins, we need to listen to ALL events, so we create a unified listener
+      // that converts the basic event system to the observer pattern
+      const eventTypes = [
+        "viewport:changed",
+        "virtual:range:changed",
+        "scroll:position:changed",
+        "scroll:animation:changed",
+        "orientation:dimensions:changed",
+      ];
+
+      const unsubscribers: (() => void)[] = [];
+
+      // Subscribe to each event type and convert to observer pattern
+      eventTypes.forEach((eventType) => {
+        const result = (component as any).on(eventType, (data: any) => {
+          // Convert to observer pattern format
+          const observerPayload = {
+            event: eventType,
+            data: data,
+            timestamp: Date.now(),
+            source: "list-manager",
+          };
+          callback(observerPayload);
+        });
+
+        // Store unsubscriber if it's a function (mtrl event system might return unsubscriber)
+        if (typeof result === "function") {
+          unsubscribers.push(result);
+        }
+      });
+
+      // Return combined unsubscriber
+      return () => {
+        unsubscribers.forEach((unsub) => unsub());
+      };
     } else {
-      // Return empty unsubscribe function
+      console.error(
+        `❌ [PLUGIN-ADAPTER] No event system available on component`
+      );
       return () => {};
     }
   },

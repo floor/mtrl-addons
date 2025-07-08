@@ -46,7 +46,6 @@ export interface ListManagerConfig<T extends VirtualItem = VirtualItem> {
     itemHeight?: number | "auto";
     estimatedItemHeight?: number;
     overscan?: number;
-    windowSize?: number;
   };
 
   /** Element recycling configuration */
@@ -123,10 +122,9 @@ export interface ListManagerConfig<T extends VirtualItem = VirtualItem> {
  * Virtual scrolling configuration
  */
 export interface VirtualizationConfig {
-  strategy: "window-based" | "infinite-scroll" | "custom-scrollbar";
+  strategy: "virtual" | "infinite-scroll";
 
-  // Window-based settings
-  windowSize?: number;
+  // Virtual viewport settings
   bufferSize?: number;
   overscan?: number;
 
@@ -134,8 +132,8 @@ export interface VirtualizationConfig {
   threshold?: number;
   rootMargin?: string;
 
-  // Custom scrollbar settings
-  customScrollbar?: {
+  // Scrollbar settings
+  scrollbar?: {
     enabled: boolean;
     trackHeight?: number;
     thumbMinHeight?: number;
@@ -526,7 +524,6 @@ export interface ListManager<T extends VirtualItem = VirtualItem> {
   // Virtual scrolling
   setItems(items: T[]): void;
   getVisibleItems(): T[];
-  getVisibleRange(): { startIndex: number; endIndex: number };
   scrollToIndex(
     index: number,
     align?: "start" | "center" | "end",
@@ -550,6 +547,30 @@ export interface ListManager<T extends VirtualItem = VirtualItem> {
     callback: (viewport: ViewportInfo) => void
   ): ListManagerUnsubscribe;
 
+  // Viewport calculations and scroll operations
+  calculateViewportForIndex(
+    index: number,
+    alignment?: "start" | "center" | "end",
+    totalItems?: number
+  ): {
+    visibleRange: { start: number; end: number; count: number };
+    scrollTop: number;
+  };
+  handleScrollToIndex(
+    index: number,
+    alignment?: "start" | "center" | "end",
+    animate?: boolean
+  ): void;
+  setupVirtualContainer(): void;
+  calculateVirtualScrollMetrics(targetIndex: number): {
+    scrollTop: number;
+    virtualOffset: number;
+  };
+  getVisibleRange(): { start: number; end: number; count: number };
+  getRenderRange(): { start: number; end: number; count: number };
+  getScrollTop(): number;
+  setTotalItems(count: number): void;
+
   // Height measurement
   measureHeight(item: T): number;
   estimateHeight(item: T): number;
@@ -567,6 +588,8 @@ export interface ListManager<T extends VirtualItem = VirtualItem> {
 
   // Template rendering
   renderItem(item: T, index: number): HTMLElement;
+  renderItems(range: { start: number; end: number; count: number }): void;
+  setTemplate(template: (item: T, index: number) => string | HTMLElement): void;
   updateItem(element: HTMLElement, item: T, index: number): void;
 
   // Events

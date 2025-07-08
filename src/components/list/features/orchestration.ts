@@ -8,6 +8,7 @@ import {
 import { createDataCollection } from "../../../core/collection";
 import type { CollectionItem } from "../../../core/collection/types";
 import { createListManager } from "../../../core/list-manager";
+import type { VirtualItem } from "../../../core/list-manager/types";
 import { LIST_CLASSES } from "../constants";
 
 /**
@@ -41,6 +42,9 @@ export const withOrchestration =
       animate?: boolean;
     } | null = null;
 
+    // Get template function early
+    const template = config.template || getDefaultTemplate<T>();
+
     // Create Collection (Data Layer)
     const collectionConfig = getCollectionConfig(config);
     const collection = createDataCollection<T>(collectionConfig as any);
@@ -54,6 +58,16 @@ export const withOrchestration =
       listManager.setScrollAnimation(config.scroll.animation);
       console.log(
         `🎬 [ORCHESTRATION] Set initial scroll animation to: ${config.scroll.animation}`
+      );
+    }
+
+    // Set template on List Manager immediately if available
+    if (listManager.setTemplate && template) {
+      console.log(
+        `🎨 [ORCHESTRATION] Setting template on List Manager during initialization`
+      );
+      listManager.setTemplate(
+        template as (item: VirtualItem, index: number) => string | HTMLElement
       );
     }
 
@@ -74,20 +88,8 @@ export const withOrchestration =
       });
     }
 
-    // Get template function
-    const template = config.template || getDefaultTemplate<T>();
-
-    // Create render container inside the list element
-    const renderContainer = document.createElement("div");
-    renderContainer.className = `${
-      config.prefix || "mtrl"
-    }-list__render-container`;
-    renderContainer.style.cssText = `
-      position: relative;
-      width: 100%;
-      height: 100%;
-    `;
-    component.element.appendChild(renderContainer);
+    // Note: Render container is now managed by List Manager's rendering plugin
+    // No need to create it manually in orchestration
 
     /**
      * Apply orientation styling to the list container
@@ -158,183 +160,23 @@ export const withOrchestration =
     };
 
     /**
-     * Position items for current orientation
-     */
-    const positionItemsForOrientation = (
-      itemElements: HTMLElement[],
-      range: any
-    ): void => {
-      const orientation = config.orientation?.orientation || "vertical";
-      const isHorizontal = orientation === "horizontal";
-      const reverse = config.orientation?.reverse || false;
-      const itemHeight = 50; // TODO: Get from size manager
-
-      itemElements.forEach((element, index) => {
-        const actualIndex = range.start + index;
-        let position = 0; // Initialize position variable
-
-        if (isHorizontal) {
-          // Horizontal positioning
-          position = actualIndex * itemHeight;
-          if (reverse) {
-            const totalWidth = state.totalItems * itemHeight;
-            position = totalWidth - position - itemHeight;
-          }
-
-          element.style.position = "absolute";
-          element.style.left = "0";
-          element.style.top = "0";
-          element.style.width = `${itemHeight}px`;
-
-          // Cross-axis alignment - combine with existing transform
-          const translateX = `translateX(${Math.max(0, position)}px)`;
-          switch (config.orientation?.crossAxisAlignment) {
-            case "center":
-              element.style.top = "50%";
-              element.style.transform = `${translateX} translateY(-50%)`;
-              break;
-            case "end":
-              element.style.bottom = "0";
-              element.style.top = "auto";
-              element.style.transform = translateX;
-              break;
-            case "stretch":
-              element.style.height = "100%";
-              element.style.transform = translateX;
-              break;
-            case "start":
-            default:
-              element.style.top = "0";
-              element.style.transform = translateX;
-              break;
-          }
-        } else {
-          // Vertical positioning (existing logic)
-          position = actualIndex * itemHeight;
-          if (reverse) {
-            const totalHeight = state.totalItems * itemHeight;
-            position = totalHeight - position - itemHeight;
-          }
-
-          element.style.position = "absolute";
-          element.style.top = "0";
-          element.style.left = "0";
-          element.style.right = "0";
-          element.style.height = `${itemHeight}px`;
-          // Use transform for better performance (TanStack Virtual approach)
-          element.style.transform = `translateY(${Math.max(0, position)}px)`;
-        }
-
-        element.setAttribute("data-virtual-index", actualIndex.toString());
-        element.setAttribute("data-virtual-offset", position.toString());
-
-        // Add orientation-specific classes
-        element.classList.add(
-          `${config.prefix || "mtrl"}-list-item--${orientation}`
-        );
-        if (reverse) {
-          element.classList.add(
-            `${config.prefix || "mtrl"}-list-item--reversed`
-          );
-        }
-      });
-    };
-
-    /**
-     * Render items in the current render range
+     * Render items - now delegated to List Manager
      */
     const renderItems = (): void => {
       const { renderRange } = state;
-      const items = collection.getItems();
-      const pageSize = collectionConfig.pageSize || 20;
-
-      console.log(`🎨 [ORCHESTRATION] Rendering items for range:`, renderRange);
-      console.log(`📦 [ORCHESTRATION] Available items:`, items.length);
-
-      // Clear existing rendered items
-      renderContainer.innerHTML = "";
-
-      // Render items in range
-      for (
-        let virtualIndex = renderRange.start;
-        virtualIndex <= renderRange.end;
-        virtualIndex++
-      ) {
-        // Calculate which page this virtual index belongs to
-        const pageNumber = Math.floor(virtualIndex / pageSize) + 1;
-        const indexInPage = virtualIndex % pageSize;
-
-        // Find the item in the collection by matching the expected ID pattern
-        // Since the Collection doesn't handle sparse data properly, we need to find items by ID
-        const expectedItemId = (virtualIndex + 1).toString(); // API uses 1-based IDs
-
-        let item = items.find((item: any) => item.id === expectedItemId);
-
-        // If not found by ID, try direct access for sequential data
-        if (!item && virtualIndex < items.length) {
-          item = items[virtualIndex];
-          // Verify this is the correct item by checking ID
-          if (item && item.id !== expectedItemId) {
-            item = undefined;
-          }
-        }
-
-        if (!item) {
-          console.log(
-            `⚠️ [ORCHESTRATION] No item found for virtual index ${virtualIndex} (expected ID: ${expectedItemId}) in ${items.length} total items`
-          );
-          continue;
-        }
-
-        console.log(
-          `✅ [ORCHESTRATION] Virtual index ${virtualIndex} → ${
-            item.name || item.title || "Unknown"
-          } (ID: ${item.id})`
-        );
-
-        // Create item wrapper
-        const itemWrapper = document.createElement("div");
-        itemWrapper.className = `${config.prefix || "mtrl"}-list-item`;
-        itemWrapper.setAttribute("data-index", virtualIndex.toString());
-        itemWrapper.setAttribute("role", "listitem");
-
-        // Add selection styling
-        if (state.selectedIndices.includes(virtualIndex)) {
-          itemWrapper.classList.add(
-            `${config.prefix || "mtrl"}-list-item--selected`
-          );
-        }
-
-        // Render item content
-        const content = template(item, virtualIndex);
-        if (typeof content === "string") {
-          itemWrapper.innerHTML = content;
-        } else {
-          itemWrapper.appendChild(content);
-        }
-
-        // Add click handler
-        itemWrapper.addEventListener("click", (event) => {
-          handleItemClick(item, virtualIndex, event);
-        });
-
-        renderContainer.appendChild(itemWrapper);
-      }
-
-      // Position items using orientation-aware positioning
-      const itemElements = Array.from(
-        renderContainer.children
-      ) as HTMLElement[];
-      positionItemsForOrientation(itemElements, renderRange);
 
       console.log(
-        `✅ [ORCHESTRATION] Rendered ${itemElements.length} items for virtual indices ${renderRange.start}-${renderRange.end}`
+        `🎨 [ORCHESTRATION] Delegating rendering to List Manager for range:`,
+        renderRange
       );
 
-      // Emit render complete event
-      const originalEmit = (component as any).emit;
-      if (originalEmit) {
-        originalEmit.call(component, "render:complete", { renderRange });
+      // Delegate to List Manager's rendering plugin
+      if (listManager.renderItems) {
+        listManager.renderItems(renderRange);
+      } else {
+        console.warn(
+          `⚠️ [ORCHESTRATION] List Manager doesn't have renderItems method`
+        );
       }
     };
 
@@ -416,7 +258,7 @@ export const withOrchestration =
      * Update visual selection state
      */
     const updateItemSelection = (): void => {
-      const itemElements = renderContainer.querySelectorAll(`[data-index]`);
+      const itemElements = component.element.querySelectorAll(`[data-index]`);
 
       itemElements.forEach((element) => {
         const index = parseInt(element.getAttribute("data-index") || "0", 10);
@@ -451,49 +293,61 @@ export const withOrchestration =
             state.isEmpty = items.length === 0;
             state.isLoading = false;
 
-            // Update List Manager with new items
+            // Pass items and template to List Manager
             console.log(
-              `🔄 [ORCHESTRATION] Updating List Manager with ${items.length} items`
-            );
-            listManager.setItems?.(
-              items.map((item: any, index: number) => ({
-                id: String(index),
-                data: item,
-              }))
+              `🔄 [ORCHESTRATION] Passing ${items.length} items to List Manager`
             );
 
-            // For initial load, we need to calculate and set viewport range
+            // CRITICAL: Set total dataset size FIRST before setting items
+            const totalDatasetSize = collection.getTotalCount?.() || 0;
+            console.log(
+              `🔧 [ORCHESTRATION] Setting total dataset size FIRST: ${totalDatasetSize} items`
+            );
+            if (listManager.setTotalItems) {
+              listManager.setTotalItems(totalDatasetSize);
+            }
+
+            // THEN set the actual loaded items
+            if (listManager.setItems) {
+              listManager.setItems(items);
+            } else {
+              console.error(
+                `❌ [ORCHESTRATION] listManager.setItems is not available!`
+              );
+            }
+
+            // Set template on List Manager if it has the method
+            if (listManager.setTemplate && template) {
+              listManager.setTemplate(
+                template as (
+                  item: VirtualItem,
+                  index: number
+                ) => string | HTMLElement
+              );
+            }
+
+            // For initial load, let the List Manager handle viewport calculations
             console.log(
               `🎯 [ORCHESTRATION] Checking if this is initial load...`
             );
             if (state.visibleRange.count === 0) {
               console.log(
-                `🏁 [ORCHESTRATION] Initial load detected - calculating initial viewport`
+                `🏁 [ORCHESTRATION] Initial load detected - delegating to List Manager`
               );
 
-              // Calculate initial viewport
-              const containerHeight = component.element.clientHeight || 400;
-              const itemHeight = 50;
-              const initialCount = Math.ceil(containerHeight / itemHeight) + 10; // Add buffer
-
-              state.visibleRange = {
-                start: 0,
-                end: Math.min(initialCount - 1, items.length - 1),
-                count: Math.min(initialCount, items.length),
-              };
-              state.renderRange = { ...state.visibleRange };
-
-              console.log(
-                `📊 [ORCHESTRATION] Initial viewport calculated:`,
-                state.visibleRange
-              );
-              console.log(`🎨 [ORCHESTRATION] Triggering initial render...`);
-
-              // Set virtual total height for proper scrollbar sizing
+              // Set virtual total height for proper scrollbar sizing FIRST
               setVirtualTotalHeight();
 
-              // Trigger initial render
-              renderItems();
+              // Let the List Manager/virtual viewport calculate the ranges
+              // The virtual viewport will emit virtual:range:changed event with proper ranges
+              console.log(
+                `📊 [ORCHESTRATION] Initial load: virtual viewport will emit range events, no manual rendering needed`
+              );
+
+              // Don't set ranges manually - let the virtual viewport handle it
+              // The setItems call above will trigger the virtual viewport to calculate ranges
+              // and emit virtual:range:changed event
+              // The virtual:range:changed event handler will handle rendering
             } else {
               console.log(
                 `🔄 [ORCHESTRATION] Subsequent load - rendering with current viewport`
@@ -573,125 +427,65 @@ export const withOrchestration =
     };
 
     /**
-     * Handle scroll to index viewport updates
+     * Handle scroll to index viewport updates - now delegated to List Manager
      */
     const handleScrollToIndexViewportUpdate = (
       index: number,
       alignment: string = "start",
       animate?: boolean
     ): void => {
-      const items = collection.getItems();
-      const itemHeight = 50; // TODO: Get from configuration or size manager
-      const containerHeight = component.element.clientHeight || 400;
-      const pageSize = collectionConfig.pageSize || 20;
-
       console.log(
-        `🎯 [VIEWPORT-UPDATE] Calculating viewport for index ${index}, alignment: ${alignment}`
-      );
-      console.log(
-        `📊 [VIEWPORT-UPDATE] Available items: ${items.length}, pageSize: ${pageSize}`
+        `🎯 [VIEWPORT-UPDATE] Delegating viewport calculation to List Manager for index ${index}, alignment: ${alignment}`
       );
 
-      // Calculate the visible item count for proper buffering
-      const visibleItemCount = Math.ceil(containerHeight / itemHeight);
-      const overscan = 5; // Buffer for smooth scrolling
-
-      // Calculate which page this index belongs to
-      const targetPage = Math.floor(index / pageSize) + 1;
-      const pageStartIndex = (targetPage - 1) * pageSize;
-      const pageEndIndex = pageStartIndex + pageSize - 1;
-
+      // Set total items on List Manager for viewport calculations
+      const totalItems = collection.getTotalCount?.() || 0;
       console.log(
-        `📄 [VIEWPORT-UPDATE] Target page: ${targetPage}, page range: ${pageStartIndex}-${pageEndIndex}`
+        `🎯 [VIEWPORT-UPDATE] Using total dataset size: ${totalItems} items`
       );
-
-      // Calculate the proper start index based on alignment within the current page
-      let startIndex: number;
-      switch (alignment) {
-        case "center":
-          startIndex = Math.max(
-            pageStartIndex,
-            index - Math.floor(visibleItemCount / 2)
-          );
-          break;
-        case "end":
-          startIndex = Math.max(pageStartIndex, index - visibleItemCount + 1);
-          break;
-        case "start":
-        default:
-          // For "start" alignment, target index should be at the beginning of viewport
-          startIndex = Math.max(pageStartIndex, index);
-          break;
+      if (listManager.setTotalItems) {
+        listManager.setTotalItems(totalItems);
       }
 
-      // Calculate end index, but constrain to current page + small buffer
-      let endIndex = startIndex + visibleItemCount + overscan;
+      // Delegate to List Manager's viewport management
+      if (listManager.handleScrollToIndex) {
+        listManager.handleScrollToIndex(index, alignment as any, animate);
+      } else {
+        console.warn(
+          `⚠️ [VIEWPORT-UPDATE] List Manager doesn't have handleScrollToIndex method`
+        );
+        return;
+      }
 
-      // Don't render beyond the current page unless we have the data
-      // For now, limit to current page since we load one page at a time
-      endIndex = Math.min(endIndex, pageEndIndex + overscan);
-
-      console.log(
-        `📐 [VIEWPORT-UPDATE] Calculated render range: ${startIndex}-${endIndex}`
-      );
-
-      // Calculate scroll position to align with start of visible range
-      const scrollTop = Math.max(0, startIndex * itemHeight);
-
-      // Update state
-      state.scrollTop = scrollTop;
-      state.visibleRange = {
-        start: startIndex,
-        end: endIndex,
-        count: endIndex - startIndex + 1,
-      };
-      state.renderRange = { ...state.visibleRange };
-
-      console.log(`📊 [VIEWPORT-UPDATE] Updated state:`, {
-        scrollTop: state.scrollTop,
-        visibleRange: state.visibleRange,
-        renderRange: state.renderRange,
-      });
-
-      // Apply container scrolling with configurable behavior
-      if (component.element) {
-        // Use explicit animate parameter if provided, otherwise use List Manager's scroll animation control
-        const animationEnabled =
-          animate !== undefined ? animate : listManager.getScrollAnimation();
+      // Update orchestration state from List Manager
+      if (
+        listManager.getVisibleRange &&
+        listManager.getRenderRange &&
+        listManager.getScrollTop
+      ) {
+        state.visibleRange = listManager.getVisibleRange();
+        state.renderRange = listManager.getRenderRange();
+        state.scrollTop = listManager.getScrollTop();
 
         console.log(
-          `🎬 [VIEWPORT-UPDATE] Animation control: animate=${animate}, listManagerState=${listManager.getScrollAnimation()}, final=${animationEnabled}`
+          `📊 [VIEWPORT-UPDATE] Updated orchestration state from List Manager:`,
+          {
+            scrollTop: state.scrollTop,
+            visibleRange: state.visibleRange,
+            renderRange: state.renderRange,
+          }
         );
-
-        // CRITICAL: Always set scroll-behavior CSS to ensure the animation setting is respected
-        // This is necessary because SCSS or other CSS might override the behavior
-        component.element.style.scrollBehavior = animationEnabled
-          ? "smooth"
-          : "unset";
-        component.element.style.setProperty(
-          "scroll-behavior",
-          animationEnabled ? "smooth" : "unset"
-        );
-
-        if (component.element.scrollTo && animationEnabled) {
-          console.log(
-            `🎬 [VIEWPORT-UPDATE] Using smooth scrollTo() to ${scrollTop}px`
-          );
-          component.element.scrollTo({ top: scrollTop, behavior: "smooth" });
-        } else {
-          // Instant scroll (no animation) - CSS is now forced to auto/unset
-          console.log(
-            `🎬 [VIEWPORT-UPDATE] Using instant scrollTop to ${scrollTop}px`
-          );
-          component.element.scrollTop = scrollTop;
-        }
       }
 
-      // Set virtual total height for scrolling
-      setVirtualTotalHeight();
-
-      // Trigger re-render with new range
-      renderItems();
+      // Trigger re-render with new range (only if we have valid ranges)
+      if (state.renderRange && typeof state.renderRange.start === "number") {
+        renderItems();
+      } else {
+        console.log(
+          `🔍 [ORCHESTRATION] Skipping render after viewport update - invalid range:`,
+          state.renderRange
+        );
+      }
 
       // Emit viewport change event
       if (originalEmit) {
@@ -703,56 +497,28 @@ export const withOrchestration =
     };
 
     /**
-     * Set virtual total height using proper TanStack Virtual approach
-     * Sets inner container height to enable scrolling to virtual positions
+     * Set virtual total height - now delegated to List Manager
      */
     const setVirtualTotalHeight = (): void => {
-      const itemHeight = 50;
-      const estimatedTotalItems = 1000000; // Large number for infinite scrolling
-      const maxBrowserHeight = 10000000; // 10M pixels - safe browser limit
-      const totalHeight = Math.min(
-        estimatedTotalItems * itemHeight,
-        maxBrowserHeight
+      console.log(
+        `🔧 [VIRTUAL-HEIGHT] Delegating to List Manager viewport manager`
       );
 
-      // CRITICAL: Ensure outer container has FIXED height (not 100%)
-      if (component.element) {
-        const currentHeight = getComputedStyle(component.element).height;
-        const currentStyleHeight = component.element.style.height;
-
-        // Force a fixed height for virtual scrolling - be aggressive about it
-        if (
-          currentHeight === "auto" ||
-          currentHeight === "100%" ||
-          currentStyleHeight === "100%" ||
-          currentStyleHeight === "" ||
-          parseInt(currentHeight) === 0 ||
-          currentHeight.includes("%")
-        ) {
-          // FORCE a fixed height for virtual scrolling
-          component.element.style.height = "400px";
-          component.element.style.setProperty("height", "400px", "important");
-          console.log(
-            `🔧 [VIRTUAL-HEIGHT] FORCED outer container height to 400px (was: computed=${currentHeight}, style=${currentStyleHeight})`
-          );
-        }
-
-        // Ensure overflow is set correctly
-        component.element.style.overflow = "hidden auto";
-        component.element.style.setProperty(
-          "overflow",
-          "hidden auto",
-          "important"
-        );
+      // Set total dataset size for proper scrollbar representation
+      const totalItems = collection.getTotalCount?.() || 0;
+      console.log(
+        `🔧 [VIRTUAL-HEIGHT] Setting total dataset size: ${totalItems} items`
+      );
+      if (listManager.setTotalItems) {
+        listManager.setTotalItems(totalItems);
       }
 
-      // Set render container height directly (TanStack Virtual approach)
-      if (renderContainer) {
-        renderContainer.style.height = `${totalHeight}px`;
-        renderContainer.style.position = "relative";
-        renderContainer.style.width = "100%";
-        console.log(
-          `🔧 [VIRTUAL-HEIGHT] Set inner container height to ${totalHeight}px`
+      // Delegate to List Manager's viewport management
+      if (listManager.setupVirtualContainer) {
+        listManager.setupVirtualContainer();
+      } else {
+        console.warn(
+          `⚠️ [VIRTUAL-HEIGHT] List Manager doesn't have setupVirtualContainer method`
         );
       }
     };
@@ -761,9 +527,24 @@ export const withOrchestration =
      * Handle List Manager events
      */
     const setupListManagerEvents = (): void => {
+      console.log(`🔧 [ORCHESTRATION] Setting up List Manager event handlers`);
+
       // Subscribe to list manager events using the observer pattern
-      listManager.subscribe((payload: any) => {
+      console.log(`🔧 [ORCHESTRATION] Subscribing to listManager events...`);
+      console.log(
+        `🔧 [ORCHESTRATION] listManager.subscribe exists:`,
+        !!listManager.subscribe
+      );
+
+      const subscriptionResult = listManager.subscribe((payload: any) => {
         console.log(`📡 [ORCHESTRATION] List Manager event:`, payload);
+
+        // Special debug for virtual:range:changed events
+        if (payload.event === "virtual:range:changed") {
+          console.log(
+            `🔥 [ORCHESTRATION] RECEIVED virtual:range:changed event!`
+          );
+        }
 
         // Handle different event types
         switch (payload.event) {
@@ -775,47 +556,74 @@ export const withOrchestration =
             state.scrollTop =
               payload.data?.scrollTop || payload.viewport?.scrollTop;
 
-            // Apply actual container scrolling if scroll position changed
-            if (state.scrollTop !== undefined && component.element) {
+            console.log(
+              `🔄 [ORCHESTRATION] Viewport changed - source: ${payload.data?.source}, scrollTop: ${state.scrollTop}`
+            );
+
+            // For custom scrollbar and wheel scroll, we don't apply additional native scrolling
+            // The viewport handles its own positioning
+            if (
+              payload.data?.source === "scrollbar" ||
+              payload.data?.source === "wheel-scroll"
+            ) {
               console.log(
-                `🔄 [ORCHESTRATION] Applying container scroll to ${state.scrollTop}px`
+                `🎯 [ORCHESTRATION] ${payload.data?.source} event - skipping additional native scroll (viewport manages positioning)`
               );
-
-              // Use List Manager's scroll animation control
-              const animationEnabled = listManager.getScrollAnimation();
-
-              console.log(
-                `🎬 [LIST-MANAGER-EVENT] Animation state: ${animationEnabled}`
-              );
-
-              // CRITICAL: Always set scroll-behavior CSS to ensure the animation setting is respected
-              component.element.style.scrollBehavior = animationEnabled
-                ? "smooth"
-                : "unset";
-              component.element.style.setProperty(
-                "scroll-behavior",
-                animationEnabled ? "smooth" : "unset"
-              );
-
-              if (component.element.scrollTo && animationEnabled) {
+              // Don't apply additional native scrolling for these events
+              // The viewport manages its own positioning
+            } else {
+              // For other sources (like programmatic scrolling), apply native scrolling
+              if (state.scrollTop !== undefined && component.element) {
                 console.log(
-                  `🎬 [LIST-MANAGER-EVENT] Using smooth scrollTo() to ${state.scrollTop}px`
+                  `🔄 [ORCHESTRATION] Applying native scroll to ${state.scrollTop}px`
                 );
-                component.element.scrollTo({
-                  top: state.scrollTop,
-                  behavior: "smooth",
-                });
-              } else {
-                // Instant scroll (no animation) - CSS is now forced to auto
+
+                // Use List Manager's scroll animation control
+                const animationEnabled = listManager.getScrollAnimation();
+
                 console.log(
-                  `🎬 [LIST-MANAGER-EVENT] Using instant scrollTop to ${state.scrollTop}px`
+                  `🎬 [LIST-MANAGER-EVENT] Animation state: ${animationEnabled}`
                 );
-                component.element.scrollTop = state.scrollTop;
+
+                // CRITICAL: Always set scroll-behavior CSS to ensure the animation setting is respected
+                component.element.style.scrollBehavior = animationEnabled
+                  ? "smooth"
+                  : "unset";
+                component.element.style.setProperty(
+                  "scroll-behavior",
+                  animationEnabled ? "smooth" : "unset"
+                );
+
+                if (component.element.scrollTo && animationEnabled) {
+                  console.log(
+                    `🎬 [LIST-MANAGER-EVENT] Using smooth scrollTo() to ${state.scrollTop}px`
+                  );
+                  component.element.scrollTo({
+                    top: state.scrollTop,
+                    behavior: "smooth",
+                  });
+                } else {
+                  // Instant scroll (no animation) - CSS is now forced to auto
+                  console.log(
+                    `🎬 [LIST-MANAGER-EVENT] Using instant scrollTop to ${state.scrollTop}px`
+                  );
+                  component.element.scrollTop = state.scrollTop;
+                }
               }
             }
 
-            // Re-render if render range changed
-            renderItems();
+            // Re-render if render range changed (only if we have valid ranges)
+            if (
+              state.renderRange &&
+              typeof state.renderRange.start === "number"
+            ) {
+              renderItems();
+            } else {
+              console.log(
+                `🔍 [ORCHESTRATION] Skipping render - invalid or missing range:`,
+                state.renderRange
+              );
+            }
 
             // Emit viewport change
             if (originalEmit) {
@@ -866,6 +674,143 @@ export const withOrchestration =
             );
             break;
 
+          case "virtual:range:changed":
+            console.log(
+              `🎯 [ORCHESTRATION] Handling virtual range change: ${JSON.stringify(
+                payload.data
+              )}`
+            );
+            console.log(`🔍 [ORCHESTRATION] Full payload structure:`, {
+              event: payload.event,
+              hasData: !!payload.data,
+              dataKeys: payload.data ? Object.keys(payload.data) : [],
+              visibleRange: payload.data?.visibleRange,
+              renderRange: payload.data?.renderRange,
+              action: payload.data?.action,
+              source: payload.data?.source,
+            });
+
+            // Check if we need to load more data for this range
+            const currentItemCount = collection.getSize?.() || 0;
+            const totalItemCount = collection.getTotalCount?.() || 0;
+            const renderRange = payload.data?.renderRange || {
+              start: 0,
+              end: 0,
+            };
+            const visibleRange = payload.data?.visibleRange || {
+              start: 0,
+              end: 0,
+            };
+
+            // Update the current render range in state IMMEDIATELY
+            state.renderRange = renderRange;
+            state.visibleRange = visibleRange;
+
+            console.log(
+              `📊 [ORCHESTRATION] Range analysis: visible(${visibleRange.start}-${visibleRange.end}), render(${renderRange.start}-${renderRange.end}), current=${currentItemCount}, total=${totalItemCount}, action=${payload.data?.action}`
+            );
+
+            // 🎯 SCROLLBAR OPTIMIZATION: Only trigger data loading for specific actions
+            const shouldTriggerDataLoading =
+              payload.data?.action === "drag-end" ||
+              payload.data?.action === "scroll" ||
+              payload.data?.action === "setItems" ||
+              payload.data?.action === "setTotalDatasetSize" ||
+              (!payload.data?.action && payload.data?.source !== "scrollbar"); // Fallback, but exclude scrollbar without action
+
+            // Explicitly exclude drag actions
+            const isDragAction = payload.data?.action === "drag";
+            if (isDragAction) {
+              console.log(
+                `🚫 [ORCHESTRATION] Skipping data loading for drag action (scrollbar optimization)`
+              );
+              renderItems(); // Still render with existing data
+              break;
+            }
+
+            if (!shouldTriggerDataLoading) {
+              console.log(
+                `🚫 [ORCHESTRATION] Skipping data loading for action: ${payload.data?.action} (scrollbar drag optimization)`
+              );
+              // Still render with existing data, but don't trigger new data loads
+              renderItems();
+              break;
+            }
+
+            console.log(
+              `✅ [ORCHESTRATION] Data loading allowed for action: ${payload.data?.action}`
+            );
+
+            // For drag-end events and native scroll, we need to be more strategic about data loading
+            // Load the page that contains the visible range start
+            if (
+              payload.data?.action === "drag-end" ||
+              payload.data?.action === "scroll"
+            ) {
+              const pageSize = collectionConfig.pageSize || 20;
+              const targetPage = Math.floor(visibleRange.start / pageSize) + 1;
+              const currentPage = Math.floor(currentItemCount / pageSize);
+
+              console.log(
+                `🎯 [ORCHESTRATION] ${payload.data?.action}: targeting page ${targetPage} for visible range ${visibleRange.start}-${visibleRange.end} (current page: ${currentPage})`
+              );
+
+              // Always load the page containing the visible range start
+              if (
+                targetPage !== currentPage ||
+                visibleRange.start >= currentItemCount
+              ) {
+                console.log(
+                  `🔄 [ORCHESTRATION] Loading page ${targetPage} for ${payload.data?.action} position`
+                );
+                collection.loadPage?.(targetPage);
+              } else {
+                console.log(
+                  `✅ [ORCHESTRATION] Target page ${targetPage} already loaded`
+                );
+                // Data is already available, just re-render
+                renderItems();
+              }
+            } else {
+              // For non-drag-end events, use the original logic
+              // If we need items beyond what's currently loaded, request more data
+              if (
+                renderRange.end >= currentItemCount &&
+                currentItemCount < totalItemCount
+              ) {
+                const pageSize = collectionConfig.pageSize || 20;
+                const targetPage = Math.floor(renderRange.end / pageSize) + 1;
+                const currentPage = Math.floor(currentItemCount / pageSize);
+
+                console.log(
+                  `🔄 [ORCHESTRATION] Need to load page ${targetPage} (current page: ${currentPage}) for range ${renderRange.start}-${renderRange.end}`
+                );
+
+                // Load the required page
+                collection.loadPage?.(targetPage);
+              } else {
+                console.log(
+                  `✅ [ORCHESTRATION] Data already available for range ${renderRange.start}-${renderRange.end}`
+                );
+                // Always trigger re-render to update visible items
+                renderItems();
+              }
+
+              // CRITICAL: Always render if we have valid ranges, regardless of data loading logic
+              if (
+                renderRange.end >= renderRange.start &&
+                renderRange.start >= 0
+              ) {
+                console.log(
+                  `🎨 [ORCHESTRATION] FORCE RENDER: Valid ranges detected (${renderRange.start}-${renderRange.end}), triggering render`
+                );
+                renderItems();
+              }
+            }
+
+            // State already updated above
+            break;
+
           default:
             // Handle other events if needed
             console.log(
@@ -874,6 +819,14 @@ export const withOrchestration =
             break;
         }
       });
+
+      console.log(
+        `🔧 [ORCHESTRATION] Subscription result:`,
+        subscriptionResult
+      );
+      console.log(
+        `🔧 [ORCHESTRATION] List Manager event handlers setup complete`
+      );
     };
 
     /**
@@ -895,11 +848,15 @@ export const withOrchestration =
         );
       }
 
-      // Setup event handlers
+      // CRITICAL: Setup event handlers BEFORE loading data
+      // This ensures we capture all events from the start
+      console.log(
+        `🔧 [ORCHESTRATION] Setting up event handlers BEFORE data loading`
+      );
       setupCollectionEvents();
       setupListManagerEvents();
 
-      // Load initial data
+      // Load initial data AFTER event handlers are set up
       if (config.items && config.items.length > 0) {
         // Static data
         collection.addItems(config.items);
@@ -1167,7 +1124,7 @@ export const withOrchestration =
         return Promise.resolve();
       },
       scrollToBottom: () => {
-        const totalItems = collection.getSize?.() || 0;
+        const totalItems = collection.getTotalCount?.() || 0;
         if (totalItems > 0) {
           handleScrollToIndexViewportUpdate(totalItems - 1, "end");
         }

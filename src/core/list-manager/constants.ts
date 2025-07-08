@@ -5,26 +5,19 @@
  */
 
 /**
- * Virtual scrolling constants
+ * Virtual scrolling constants - unified virtual viewport + custom scrollbar strategy
  */
 export const VIRTUAL_SCROLLING = {
-  // Window-based strategy
-  DEFAULT_WINDOW_SIZE: 10,
-  DEFAULT_BUFFER_SIZE: 5,
+  // Virtual viewport strategy
   DEFAULT_OVERSCAN: 2,
-  MIN_WINDOW_SIZE: 5,
-  MAX_WINDOW_SIZE: 100,
-
-  // Infinite scroll strategy
-  DEFAULT_THRESHOLD: 0.8,
-  DEFAULT_ROOT_MARGIN: "200px",
-  MIN_THRESHOLD: 0.1,
-  MAX_THRESHOLD: 1.0,
+  DEFAULT_BUFFER_SIZE: 5,
+  MIN_OVERSCAN: 1,
+  MAX_OVERSCAN: 10,
 
   // Custom scrollbar strategy
-  CUSTOM_SCROLLBAR: {
-    DEFAULT_TRACK_HEIGHT: 20,
-    DEFAULT_THUMB_MIN_HEIGHT: 40,
+  SCROLLBAR: {
+    DEFAULT_TRACK_WIDTH: 12,
+    DEFAULT_THUMB_MIN_HEIGHT: 20,
     DEFAULT_THUMB_MAX_HEIGHT: 200,
     THUMB_PADDING: 4,
     TRACK_PADDING: 2,
@@ -253,11 +246,11 @@ export const CLASSES = {
   PERFORMANCE_WARNING: "performance--warning",
   PERFORMANCE_CRITICAL: "performance--critical",
 
-  // Custom scrollbar
-  CUSTOM_SCROLLBAR: "custom-scrollbar",
-  SCROLLBAR_TRACK: "scrollbar-track",
-  SCROLLBAR_THUMB: "scrollbar-thumb",
-  SCROLLBAR_CORNER: "scrollbar-corner",
+  // Scrollbar (inside mtrl-list element)
+  SCROLLBAR: "list__scrollbar",
+  SCROLLBAR_TRACK: "list__scrollbar-track",
+  SCROLLBAR_THUMB: "list__scrollbar-thumb",
+  SCROLLBAR_CORNER: "list__scrollbar-corner",
 } as const;
 
 /**
@@ -340,9 +333,8 @@ export const LOGGING = {
  * List Manager defaults for initialization
  */
 export const LIST_MANAGER_DEFAULTS = {
-  // Virtual scrolling
-  VIRTUALIZATION_STRATEGY: "window-based",
-  WINDOW_SIZE: VIRTUAL_SCROLLING.DEFAULT_WINDOW_SIZE,
+  // Virtual scrolling - unified strategy
+  VIRTUALIZATION_STRATEGY: "virtual",
   BUFFER_SIZE: VIRTUAL_SCROLLING.DEFAULT_BUFFER_SIZE,
   OVERSCAN: VIRTUAL_SCROLLING.DEFAULT_OVERSCAN,
 

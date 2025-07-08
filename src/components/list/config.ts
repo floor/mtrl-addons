@@ -427,6 +427,14 @@ export const getListManagerConfig = (config: ListConfig) => ({
   // Container
   container: config.container,
 
+  // Template configuration
+  template: {
+    template: config.template,
+  },
+
+  // Component prefix
+  prefix: config.prefix || "mtrl",
+
   // Orientation configuration
   orientation: {
     orientation: config.orientation?.orientation || "vertical",

@@ -93,7 +93,7 @@ export function createHighPerformanceList<T extends VirtualItem>(options: {
   template: (item: T, index: number) => HTMLElement | string;
   estimatedHeight?: number;
   enableDynamicHeight?: boolean;
-  enableCustomScrollbar?: boolean;
+  enableScrollbar?: boolean;
   performanceTarget?: "smooth" | "fast" | "extreme";
 }) {
   const performanceConfig = getPerformanceConfig(
@@ -102,15 +102,13 @@ export function createHighPerformanceList<T extends VirtualItem>(options: {
 
   return createListManager({
     virtualization: {
-      strategy: options.enableCustomScrollbar
-        ? "custom-scrollbar"
-        : "window-based",
+      strategy: options.enableScrollbar ? "scrollbar" : "window-based",
       windowSize: performanceConfig.windowSize,
       bufferSize: performanceConfig.bufferSize,
       overscan: performanceConfig.overscan,
       enableGPUAcceleration: true,
       debounceMs: performanceConfig.debounceMs,
-      customScrollbar: options.enableCustomScrollbar
+      scrollbar: options.enableScrollbar
         ? {
             enabled: true,
             trackHeight: 20,

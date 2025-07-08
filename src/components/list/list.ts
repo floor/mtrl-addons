@@ -143,13 +143,12 @@ export const createList = <T = any>(
     const baseConfig = createBaseConfig(config);
 
     console.log(`📋 Creating List component with 3-layer architecture:
-    - Collection (Data): ${baseConfig.items ? "Static" : "API"} data source
-    - List Manager (Performance): Virtual=${
-      baseConfig.scroll?.virtual
-    }, Pool size=${baseConfig.listManager?.recycling?.maxPoolSize}
-    - List Component (Presentation): Template=${!!baseConfig.template}, Selection=${
-      baseConfig.selection?.enabled
-    }`);
+    - Collection (Data): ${
+      baseConfig.items && baseConfig.items.length > 0 ? "Static" : "API"
+    } data source
+    - List Manager (Performance): Virtual=true, Pool size=100
+    - List Component (Presentation): Template=${!!baseConfig.template}, Selection=${!!baseConfig
+      .selection?.enabled}`);
 
     // Create the List component through functional composition
     const component = pipe(
