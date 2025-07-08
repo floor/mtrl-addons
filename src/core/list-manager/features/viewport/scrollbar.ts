@@ -146,11 +146,14 @@ export const scrollbar = (
 
       scrollbarThumb.style.top = `${thumbTop}px`;
 
-      console.log(`📍 [SCROLLBAR] Position updated:`, {
-        scrollRatio,
-        thumbTop,
-        maxThumbTop,
-      });
+      // Only log position updates when not dragging to keep console clean
+      if (!isDragging) {
+        console.log(`📍 [SCROLLBAR] Position updated:`, {
+          scrollRatio,
+          thumbTop,
+          maxThumbTop,
+        });
+      }
     };
 
     /**
@@ -220,7 +223,9 @@ export const scrollbar = (
       addClass(scrollbarThumb, "list__scrollbar-thumb--dragging");
       showScrollbar();
 
-      console.log(`🖱️ [SCROLLBAR] Thumb drag started at ratio: ${scrollRatio}`);
+      console.log(
+        `🚨 [SCROLLBAR-DRAG] === DRAG SESSION STARTED === ratio: ${scrollRatio}`
+      );
     };
 
     /**
@@ -242,31 +247,24 @@ export const scrollbar = (
         Math.min(1, dragStartScrollRatio + deltaRatio)
       );
 
-      // Update position immediately
+      // Update position immediately (visual only)
       updateScrollbarPosition(newScrollRatio);
 
-      // Calculate and emit virtual scroll position
-      const virtualScrollTop =
-        getVirtualPositionFromScrollRatio(newScrollRatio);
-
-      // 🎯 DRAG OPTIMIZATION: Emit drag events WITHOUT action to avoid data loading
-      // Only the final drag-end event will trigger data loading
-      listManager.emit(ListManagerEvents.VIEWPORT_CHANGED, {
-        scrollTop: virtualScrollTop,
-        scrollRatio: newScrollRatio,
-        source: "scrollbar",
-        action: "drag", // Mark as drag to prevent data loading
-      });
-
-      console.log(
-        `🖱️ [SCROLLBAR] Dragging to ratio: ${newScrollRatio}, virtual: ${virtualScrollTop}px (no data loading during drag)`
-      );
+      // 🎯 NO EVENTS DURING DRAG: Don't emit anything until drag stops
+      // (removed verbose dragging logs to keep console clean)
     };
 
     /**
      * Handle scrollbar thumb drag end
      */
     const handleThumbMouseUp = (): void => {
+      if (!isDragging) {
+        console.log(
+          `🚨 [SCROLLBAR-DRAG] === IGNORING MOUSE UP - NOT DRAGGING ===`
+        );
+        return;
+      }
+
       isDragging = false;
 
       document.removeEventListener("mousemove", handleThumbDrag);
@@ -277,9 +275,11 @@ export const scrollbar = (
       removeClass(scrollbarThumb, "list__scrollbar-thumb--dragging");
       hideScrollbar();
 
-      console.log(`🖱️ [SCROLLBAR] Thumb drag ended at ratio: ${scrollRatio}`);
+      console.log(
+        `🚨 [SCROLLBAR-DRAG] === DRAG SESSION ENDED === ratio: ${scrollRatio}`
+      );
 
-      // Calculate final virtual position and emit a final viewport change event
+      // Calculate final virtual position and emit immediately when drag stops
       const finalVirtualScrollTop =
         getVirtualPositionFromScrollRatio(scrollRatio);
       const finalStartIndex = Math.floor(
@@ -287,10 +287,10 @@ export const scrollbar = (
       );
 
       console.log(
-        `📍 [SCROLLBAR] Final position: virtualScrollTop=${finalVirtualScrollTop}px, startIndex=${finalStartIndex}, totalItems=${scrollbarConfig.totalItems}`
+        `🚨 [SCROLLBAR-DRAG] === FINAL API REQUEST TRIGGER === virtualScrollTop=${finalVirtualScrollTop}px, startIndex=${finalStartIndex}, totalItems=${scrollbarConfig.totalItems}`
       );
 
-      // Emit final viewport change event to ensure range calculations are updated
+      // Emit final viewport change event when drag stops
       listManager.emit(ListManagerEvents.VIEWPORT_CHANGED, {
         scrollTop: finalVirtualScrollTop,
         scrollRatio: scrollRatio,
@@ -362,10 +362,17 @@ export const scrollbar = (
         if (payload.data?.source === "wheel-scroll-scrollbar-update") {
           const newScrollRatio = payload.data?.scrollRatio;
           if (newScrollRatio !== undefined) {
-            updateScrollbarPosition(newScrollRatio);
-            console.log(
-              `📍 [SCROLLBAR] Position updated from wheel scroll: ratio=${newScrollRatio}`
-            );
+            // 🚫 PREVENT INFINITE LOOP: Don't update scrollbar position during drag
+            if (!isDragging) {
+              updateScrollbarPosition(newScrollRatio);
+              console.log(
+                `📍 [SCROLLBAR] Position updated from wheel scroll: ratio=${newScrollRatio}`
+              );
+            } else {
+              console.log(
+                `🚫 [SCROLLBAR] Skipping position update during drag: ratio=${newScrollRatio}`
+              );
+            }
           }
         }
       }
@@ -388,18 +395,42 @@ export const scrollbar = (
        * Update total items count
        */
       setTotalItems(count: number): void {
+        // 🚫 PREVENT INFINITE LOOP: Only update if count actually changed
+        console.log(
+          `🔍 [SCROLLBAR-DEBUG] setTotalItems called: current=${
+            scrollbarConfig.totalItems
+          }, new=${count}, equal=${scrollbarConfig.totalItems === count}`
+        );
+
+        if (scrollbarConfig.totalItems === count) {
+          console.log(
+            `🚫 [SCROLLBAR] Total items unchanged (${count}), skipping update to prevent loops`
+          );
+          return;
+        }
+
+        const previousCount = scrollbarConfig.totalItems;
         scrollbarConfig.totalItems = count;
         updateScrollbarDimensions();
-        console.log(`📊 [SCROLLBAR] Total items updated: ${count}`);
+        console.log(
+          `📊 [SCROLLBAR] Total items updated: ${previousCount} → ${count}`
+        );
       },
 
       /**
        * Update scroll position from external source
        */
       updateScrollPosition(virtualScrollTop: number): void {
-        const newScrollRatio =
-          getScrollRatioFromVirtualPosition(virtualScrollTop);
-        updateScrollbarPosition(newScrollRatio);
+        // 🚫 PREVENT INFINITE LOOP: Don't update scrollbar position during drag
+        if (!isDragging) {
+          const newScrollRatio =
+            getScrollRatioFromVirtualPosition(virtualScrollTop);
+          updateScrollbarPosition(newScrollRatio);
+        } else {
+          console.log(
+            `🚫 [SCROLLBAR] Skipping external position update during drag: ${virtualScrollTop}px`
+          );
+        }
       },
 
       /**
@@ -470,6 +501,7 @@ export const scrollbar = (
         document.removeEventListener("mousemove", handleThumbDrag);
         document.removeEventListener("mouseup", handleThumbMouseUp);
 
+        // Clean up timeouts
         if (fadeTimeoutId) {
           clearTimeout(fadeTimeoutId);
         }

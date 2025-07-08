@@ -61,6 +61,23 @@ export const ELEMENT_RECYCLING = {
 } as const;
 
 /**
+ * Additional recycling constants for element pool management
+ */
+export const RECYCLING = {
+  // Element lifecycle
+  ELEMENT_MAX_AGE: 30000, // 30 seconds - max age for unused elements
+  CLEANUP_INTERVAL: 10000, // 10 seconds - how often to run cleanup
+
+  // Element pool thresholds
+  POOL_HIGH_WATER_MARK: 0.8, // Start cleanup when 80% full
+  POOL_LOW_WATER_MARK: 0.2, // Stop cleanup when 20% full
+
+  // Performance settings
+  MAX_ELEMENTS_PER_CLEANUP: 5, // Limit elements cleaned per cycle
+  CLEANUP_TIME_BUDGET: 5, // Max 5ms per cleanup cycle
+} as const;
+
+/**
  * Viewport management constants
  */
 export const VIEWPORT = {
@@ -96,13 +113,13 @@ export const VIEWPORT = {
 /**
  * Height measurement constants
  */
-export const HEIGHT_MEASUREMENT = {
+export const SIZE_MEASUREMENT = {
   // Measurement strategies
   DEFAULT_STRATEGY: "dynamic",
-  FIXED_HEIGHT_FALLBACK: 40,
-  ESTIMATED_HEIGHT_FALLBACK: 40,
+  FIXED_SIZE_FALLBACK: 40,
+  ESTIMATED_SIZE_FALLBACK: 40,
 
-  // Estimated height settings
+  // Estimated size settings
   DEFAULT_ESTIMATION_ACCURACY: 0.9,
   ESTIMATION_SAMPLE_SIZE: 10,
   ESTIMATION_UPDATE_THRESHOLD: 0.2,
@@ -118,9 +135,9 @@ export const HEIGHT_MEASUREMENT = {
   CACHE_CLEANUP_INTERVAL: 5 * 60 * 1000, // 5 minutes
   PERSIST_CACHE: false,
 
-  // Height estimation
-  HEIGHT_SAMPLE_COUNT: 20,
-  HEIGHT_VARIANCE_THRESHOLD: 0.15,
+  // Size estimation
+  SIZE_SAMPLE_COUNT: 20,
+  SIZE_VARIANCE_THRESHOLD: 0.15,
   MIN_SAMPLE_SIZE: 5,
 } as const;
 
@@ -344,9 +361,9 @@ export const LIST_MANAGER_DEFAULTS = {
   MAX_POOL_SIZE: ELEMENT_RECYCLING.DEFAULT_MAX_POOL_SIZE,
 
   // Height measurement
-  HEIGHT_STRATEGY: HEIGHT_MEASUREMENT.DEFAULT_STRATEGY,
-  ESTIMATED_HEIGHT: HEIGHT_MEASUREMENT.ESTIMATED_HEIGHT_FALLBACK,
-  CACHE_SIZE: HEIGHT_MEASUREMENT.DEFAULT_CACHE_SIZE,
+  HEIGHT_STRATEGY: SIZE_MEASUREMENT.DEFAULT_STRATEGY,
+  ESTIMATED_HEIGHT: SIZE_MEASUREMENT.ESTIMATED_SIZE_FALLBACK,
+  CACHE_SIZE: SIZE_MEASUREMENT.DEFAULT_CACHE_SIZE,
 
   // Performance monitoring
   PERFORMANCE_ENABLED: false,
@@ -374,5 +391,370 @@ export const ORIENTATION = {
   AUTO_DETECT_THRESHOLD: 1.5, // Width/height ratio threshold for auto-detection
   REVERSE_DIRECTION: false,
 } as const;
+
+/**
+ * Speed-based loading constants for intelligent data fetching
+ */
+export const SPEED_TRACKING = {
+  // Speed thresholds (configurable for testing)
+  FAST_SCROLL_THRESHOLD: 1000, // px/ms - defer loading above this speed
+  SLOW_SCROLL_THRESHOLD: 100, // px/ms - load immediately below this speed
+  MEDIUM_SCROLL_THRESHOLD: 500, // px/ms - moderate speed handling
+
+  // Speed calculation
+  DECELERATION_FACTOR: 0.95, // velocity decay per frame
+  MEASUREMENT_WINDOW: 100, // ms - window for speed calculation
+  MIN_MEASUREMENT_INTERVAL: 16, // ms - minimum time between measurements
+
+  // Speed smoothing
+  VELOCITY_SMOOTHING: true,
+  SMOOTHING_FACTOR: 0.8, // exponential smoothing coefficient
+  ACCELERATION_THRESHOLD: 50, // px/ms² - when to consider acceleration
+
+  // Direction tracking
+  DIRECTION_CHANGE_THRESHOLD: 10, // px - minimum movement to register direction change
+  MOMENTUM_DECAY_TIME: 150, // ms - how long momentum lasts after input stops
+} as const;
+
+/**
+ * Range-based pagination constants for intelligent data loading
+ */
+export const RANGE_LOADING = {
+  // Range size configuration
+  DEFAULT_RANGE_SIZE: 20, // items per range (replaces old pageSize)
+  MIN_RANGE_SIZE: 10,
+  MAX_RANGE_SIZE: 100,
+
+  // Buffer management
+  BUFFER_SIZE: 10, // extra items to maintain beyond viewport
+  MIN_BUFFER_SIZE: 5,
+  MAX_BUFFER_SIZE: 50,
+
+  // Preloading strategy
+  PREFETCH_RANGES: 1, // ranges to load ahead of visible area
+  PREFETCH_THRESHOLD: 0.8, // load more when 80% through current range
+  PRELOAD_DIRECTION_BIAS: 0.3, // bias preloading in scroll direction
+
+  // Request management
+  MAX_CONCURRENT_REQUESTS: 3, // prevent request spam
+  REQUEST_TIMEOUT: 10000, // 10 seconds
+  RETRY_ATTEMPTS: 2,
+  RETRY_DELAY: 1000, // 1 second
+
+  // Range calculation
+  RANGE_OVERLAP: 0, // items overlap between ranges
+  DYNAMIC_RANGE_SIZING: false, // adjust range size based on viewport
+  VIEWPORT_SIZE_MULTIPLIER: 2, // range size = viewport capacity * multiplier
+
+  // Loading state management
+  PLACEHOLDER_TIMEOUT: 5000, // 5 seconds - show placeholders if data takes too long
+  EMPTY_RANGE_CACHE_TIME: 30000, // 30 seconds - cache empty ranges
+} as const;
+
+/**
+ * Placeholder and empty state constants - Enhanced from old list-manager
+ */
+export const PLACEHOLDER = {
+  // Core functionality
+  ENABLED: true,
+  PLACEHOLDER_FLAG: "__isPlaceholder",
+
+  // Visual appearance modes (from old system)
+  PLACEHOLDER_MODE: "masked" as
+    | "masked"
+    | "skeleton"
+    | "blank"
+    | "dots"
+    | "realistic",
+
+  // Content generation
+  MASK_CHARACTER: "░", // Masked character replacement
+
+  // Skeleton characters for different content lengths
+  SKELETON_CHARS: {
+    SHORT: "▁▁▁▁▁", // 5 blocks
+    MEDIUM: "▁▁▁▁▁▁▁▁", // 8 blocks
+    LONG: "▁▁▁▁▁▁▁▁▁▁▁▁", // 12 blocks
+    EMAIL: "▁▁▁▁@▁▁▁.▁▁▁", // Email pattern
+  },
+
+  // Blank characters (invisible placeholders)
+  BLANK_CHARS: {
+    SHORT: "     ", // 5 spaces
+    MEDIUM: "        ", // 8 spaces
+    LONG: "            ", // 12 spaces
+    EMAIL: "     @   .   ", // Spaced email pattern
+  },
+
+  // Dot characters for subtle indication
+  DOT_CHARS: {
+    SHORT: "• • •",
+    MEDIUM: "• • • • •",
+    LONG: "• • • • • • •",
+    EMAIL: "• • • @ • • •",
+  },
+
+  // Fallback data when no patterns can be analyzed
+  FALLBACK_NAMES: ["Alex", "Jordan", "Taylor", "Casey", "Riley", "Morgan"],
+  FALLBACK_DOMAINS: ["example.com", "company.com", "service.org"],
+
+  // Pattern analysis
+  PATTERN_ANALYSIS: {
+    ENABLED: true, // Enable intelligent pattern learning
+    SAMPLE_SIZE: 10, // Number of real items to analyze
+    CACHE_SIZE: 50, // Maximum cached placeholder items
+    CACHE_EXPIRY: 300000, // 5 minutes cache expiry
+    MIN_PATTERN_SIZE: 3, // Minimum items for pattern detection
+  },
+
+  // Replacement system
+  REPLACEMENT: {
+    USE_REAL_IDS: true, // Placeholders use actual virtual IDs
+    DIRECT_ID_MATCHING: true, // O(1) replacement by ID matching
+    PRESERVE_SCROLL_POSITION: true, // Maintain scroll during replacement
+    SMOOTH_TRANSITIONS: true, // Animate placeholder→real transitions
+  },
+
+  // CSS and styling
+  CSS: {
+    BASE_CLASS: "mtrl-item-placeholder",
+    MODE_CLASS_PREFIX: "mtrl-item-placeholder--",
+    ARIA_BUSY: true, // Add aria-busy="true"
+    ARIA_LABEL: "Loading content...", // Accessibility label
+  },
+
+  // Performance
+  PERFORMANCE: {
+    LAZY_GENERATION: true, // Generate placeholders on-demand
+    MEMORY_CLEANUP: true, // Auto-cleanup unused placeholders
+    DEBOUNCE_REPLACEMENT: 16, // 60fps replacement rate
+  },
+} as const;
+
+/**
+ * Collection integration constants
+ */
+export const COLLECTION_INTEGRATION = {
+  // Event coordination
+  EVENT_DEBOUNCE: 50, // ms - debounce collection events
+  MAX_EVENT_QUEUE: 100, // maximum queued events
+  EVENT_PROCESSING_BATCH: 10, // events processed per batch
+
+  // Data synchronization
+  SYNC_THROTTLE: 100, // ms - throttle data sync operations
+  BATCH_UPDATE_SIZE: 20, // items updated per batch
+  UPDATE_ANIMATION_DURATION: 200, // ms - data update animations
+
+  // Loading coordination
+  LOADING_STATE_DELAY: 100, // ms - delay before showing loading state
+  LOADING_TIMEOUT: 30000, // 30 seconds - maximum loading time
+  STALE_DATA_THRESHOLD: 60000, // 1 minute - when to refresh data
+
+  // Error handling
+  ERROR_RETRY_DELAY: 2000, // 2 seconds
+  MAX_ERROR_RETRIES: 3,
+  ERROR_DISPLAY_DURATION: 5000, // 5 seconds
+} as const;
+
+/**
+ * Initial loading strategy constants
+ */
+export const INITIAL_LOAD = {
+  // Loading strategy (configurable)
+  STRATEGY: "placeholders" as "placeholders" | "direct", // show placeholders first or load data directly
+
+  // Viewport-based calculation
+  VIEWPORT_MULTIPLIER: 1.5, // load 1.5x viewport capacity initially
+  MIN_INITIAL_ITEMS: 10, // minimum items to load
+  MAX_INITIAL_ITEMS: 100, // maximum items to load initially
+
+  // Placeholder configuration
+  PLACEHOLDER_COUNT: 10, // fallback number of placeholders
+  SHOW_LOADING_STATE: true, // show loading indicators
+  LOADING_DELAY: 200, // ms - delay before showing loading state
+} as const;
+
+/**
+ * Error handling constants
+ */
+export const ERROR_HANDLING = {
+  // Timeout configuration
+  LOADING_TIMEOUT: 3000, // 3 seconds - maximum loading time
+  RETRY_ATTEMPTS: 2, // number of retry attempts
+  RETRY_DELAY: 1000, // 1 second between retries
+
+  // Error display
+  SHOW_ERROR_ITEMS: true, // show error items for debugging
+  ERROR_ITEM_DURATION: 5000, // 5 seconds - how long to show errors
+  ERROR_PLACEHOLDER_TEXT: "Failed to load",
+
+  // Fallback behavior
+  FALLBACK_TO_EMPTY: true, // show empty items on persistent errors
+  PRESERVE_SCROLL_ON_ERROR: true, // maintain scroll position on errors
+} as const;
+
+/**
+ * Boundary and scrolling constraints
+ */
+export const BOUNDARIES = {
+  // Overscroll prevention
+  PREVENT_OVERSCROLL: true, // prevent scrolling past edges
+  MAINTAIN_EDGE_RANGES: true, // keep first/last ranges visible at boundaries
+
+  // Boundary behavior
+  BOUNDARY_RESISTANCE: 0.3, // resistance when approaching boundaries
+  BOUNCE_BACK_DURATION: 200, // ms - bounce back animation
+  EDGE_TOLERANCE: 5, // px - tolerance for edge detection
+
+  // Scroll constraints
+  MIN_SCROLL_POSITION: 0, // minimum virtual scroll position
+  MAX_SCROLL_BUFFER: 100, // px - buffer beyond last item
+} as const;
+
+/**
+ * Precise positioning constants for scrollbar
+ */
+export const PRECISE_POSITIONING = {
+  // Scrollbar positioning
+  THUMB_IS_SOURCE_OF_TRUTH: true, // scrollbar position determines virtual position
+  NO_ITEM_SNAPPING: true, // don't snap to item boundaries
+  ALLOW_PARTIAL_ITEMS: true, // allow partial items at viewport edges
+
+  // Position calculation
+  POSITION_PRECISION: 1, // decimal places for position precision
+  SMOOTH_THUMB_MOVEMENT: true, // smooth thumb movement during drag
+  UPDATE_FREQUENCY: 60, // fps - position update frequency
+
+  // Drag behavior
+  IMMEDIATE_UPDATE: true, // update position immediately during drag
+  CANCEL_MOMENTUM_ON_DRAG: true, // stop any momentum when user drags
+} as const;
+
+/**
+ * Viewport-based initial loading calculation
+ */
+export const VIEWPORT_CALCULATION = {
+  // Size calculation
+  MEASURE_VIEWPORT_ON_INIT: true, // measure viewport size during initialization
+  REMEASURE_ON_RESIZE: true, // recalculate on window resize
+
+  // Initial load calculation
+  CALCULATE_FROM_VIEWPORT: true, // base initial load on viewport size
+  INCLUDE_BUFFER_IN_CALCULATION: true, // include buffer in viewport calculation
+
+  // Estimation fallbacks
+  FALLBACK_VIEWPORT_HEIGHT: 500, // px - fallback if measurement fails
+  FALLBACK_VIEWPORT_WIDTH: 300, // px - fallback for horizontal lists
+  ESTIMATED_ITEM_SIZE_RATIO: 0.1, // estimate item size as 10% of viewport
+} as const;
+
+/**
+ * Configurable constants for List Manager performance and behavior
+ * All values are configurable to allow fine-tuning for different use cases
+ */
+export const LIST_MANAGER_CONSTANTS = {
+  VIRTUAL_SCROLL: {
+    DEFAULT_ITEM_SIZE: 50, // works for both width/height depending on orientation
+    OVERSCAN_BUFFER: 5,
+    SCROLL_SENSITIVITY: 1.0,
+  },
+
+  SPEED_TRACKING: {
+    FAST_SCROLL_THRESHOLD: 1000, // px/ms - defer loading above this
+    SLOW_SCROLL_THRESHOLD: 100, // px/ms - load immediately below this
+    DECELERATION_FACTOR: 0.95, // velocity decay per frame
+    MEASUREMENT_WINDOW: 100, // ms - window for speed calculation
+  },
+
+  RANGE_LOADING: {
+    DEFAULT_RANGE_SIZE: 20, // items per range (old pageSize)
+    BUFFER_SIZE: 10, // extra items to maintain
+    PREFETCH_RANGES: 1, // ranges to load ahead
+    MAX_CONCURRENT_REQUESTS: 3, // prevent request spam
+  },
+
+  SCROLLBAR: {
+    TRACK_WIDTH: 12, // for vertical scrollbar, becomes height for horizontal
+    THUMB_MIN_SIZE: 20, // minimum thumb size
+    FADE_TIMEOUT: 1500,
+    BORDER_RADIUS: 6,
+  },
+
+  RECYCLING: {
+    ENABLED: true, // Phase 2 feature - now enabled
+    POOL_SIZE: 50,
+    CLEANUP_INTERVAL: 30000,
+    ELEMENT_MAX_AGE: 30000, // 30 seconds - max age for unused elements
+    MAX_ELEMENTS_PER_CLEANUP: 5, // Limit elements cleaned per cycle
+    CLEANUP_TIME_BUDGET: 5, // Max 5ms per cleanup cycle
+  },
+
+  PLACEHOLDER: {
+    CLASS_NAME: "mtrl-placeholder", // CSS class for placeholder styling (optional)
+    MASK_CHARACTER: "░", // Character used for masking
+    ANALYZE_AFTER_INITIAL_LOAD: true, // Analyze structure after first data load
+    RANDOM_LENGTH_VARIANCE: true, // Use random lengths within detected ranges
+  },
+
+  PERFORMANCE: {
+    FRAME_BUDGET: 16.67, // 60fps target
+    THROTTLE_SCROLL: 16, // ms - scroll event throttling
+    DEBOUNCE_LOADING: 50, // ms - loading request debouncing
+  },
+
+  // Initial load configuration
+  INITIAL_LOAD: {
+    STRATEGY: "placeholders" as const, // "placeholders" | "direct"
+    VIEWPORT_MULTIPLIER: 1.5, // load 1.5x viewport capacity
+    MIN_ITEMS: 10,
+    MAX_ITEMS: 100,
+  },
+
+  // Error handling configuration
+  ERROR_HANDLING: {
+    TIMEOUT: 3000, // 3 seconds
+    SHOW_ERROR_ITEMS: true, // debug feature
+    RETRY_ATTEMPTS: 2,
+    PRESERVE_SCROLL_ON_ERROR: true,
+  },
+
+  // Precise positioning configuration
+  POSITIONING: {
+    PRECISE_POSITIONING: true, // scrollbar is source of truth
+    ALLOW_PARTIAL_ITEMS: true, // allow partial items at edges
+    SNAP_TO_ITEMS: false, // false for precise positioning
+  },
+
+  // Boundaries configuration
+  BOUNDARIES: {
+    PREVENT_OVERSCROLL: true,
+    MAINTAIN_EDGE_RANGES: true,
+    BOUNDARY_RESISTANCE: 0.3,
+  },
+
+  // Viewport calculation constants
+  VIEWPORT_CALCULATION: {
+    MEASUREMENT_PRECISION: 1, // decimal places for measurements
+    RESIZE_DEBOUNCE: 100, // ms - viewport resize debouncing
+    INITIAL_LOAD_CALCULATION: 1.5, // multiplier for initial viewport calculation
+  },
+} as const;
+
+/**
+ * Type for overriding constants at runtime
+ */
+export type ListManagerConstants = typeof LIST_MANAGER_CONSTANTS;
+
+/**
+ * Helper function to merge user constants with defaults
+ */
+export function mergeConstants(
+  userConstants: Partial<ListManagerConstants> = {}
+): ListManagerConstants {
+  return {
+    ...LIST_MANAGER_CONSTANTS,
+    ...userConstants,
+  };
+}
 
 // NO DATA constants: API_ADAPTER, DATA_CACHE, DATA_PERSISTENCE, etc. - those belong to Collection

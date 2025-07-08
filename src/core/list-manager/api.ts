@@ -1,851 +1,499 @@
 /**
- * List Manager API Feature
- *
- * Provides the complete API interface for List Manager functionality.
- * This feature adds all the methods defined in the ListManager interface.
+ * API Bridge for List Manager
+ * Provides event helpers and component integration utilities
  */
 
 import type {
   ListManager,
-  VirtualItem,
-  ViewportInfo,
-  PerformanceReport,
+  ListManagerConfig,
   ListManagerObserver,
-  ListManagerUnsubscribe,
+  ListManagerEventData,
+  ItemRange,
+  ViewportInfo,
 } from "./types";
-
 import { ListManagerEvents } from "./types";
-
-import type { ElementComponent } from "mtrl/src/core/compose";
+import { createListManager } from "./list-manager";
 
 /**
- * Configuration for List Manager API
+ * Enhanced List Manager API with convenient methods
  */
-export interface ListManagerAPIConfig {
-  /**
-   * Component prefix for CSS classes
-   */
-  prefix?: string;
+export interface ListManagerAPI extends ListManager {
+  // Convenience methods
+  onScroll(
+    callback: (position: number, direction: "forward" | "backward") => void
+  ): () => void;
+  onRangeChange(callback: (range: ItemRange) => void): () => void;
+  onViewportChange(callback: (viewport: ViewportInfo) => void): () => void;
+  onLoading(callback: (range: ItemRange, strategy: string) => void): () => void;
+  onPlaceholders(
+    callback: (range: ItemRange, count: number) => void
+  ): () => void;
 
-  /**
-   * Component name for identification
-   */
-  componentName?: string;
+  // State queries
+  isLoading(): boolean;
+  getLoadedRanges(): Set<number>;
+  hasItem(index: number): boolean;
+  getItem(index: number): any;
 
-  /**
-   * Debug mode
-   */
-  debug?: boolean;
-
-  /**
-   * Container element
-   */
-  container?: HTMLElement | string | null;
-
-  /**
-   * Template configuration
-   */
-  template?: {
-    template?: (item: VirtualItem, index: number) => string | HTMLElement;
-    onTemplateCreate?: (element: HTMLElement, item: VirtualItem) => void;
-    onTemplateUpdate?: (element: HTMLElement, item: VirtualItem) => void;
-    onTemplateDestroy?: (element: HTMLElement, item: VirtualItem) => void;
-  };
-
-  [key: string]: any;
+  // Debugging
+  getDebugInfo(): ListManagerDebugInfo;
+  enableDebug(): void;
+  disableDebug(): void;
 }
 
 /**
- * Enhanced component interface with List Manager API
+ * Debug information interface
  */
-export interface ListManagerAPIComponent extends ElementComponent, ListManager {
-  config: ListManagerAPIConfig;
+export interface ListManagerDebugInfo {
+  config: ListManagerConfig;
+  state: {
+    isInitialized: boolean;
+    totalItems: number;
+    visibleRange: ItemRange;
+    scrollPosition: number;
+    paginationStrategy: string;
+  };
+  performance: {
+    scrollVelocity: number;
+    loadedRanges: number[];
+    pendingRanges: number[];
+  };
+  features: {
+    viewport: {
+      orientation: string;
+      containerSize: number;
+      totalVirtualSize: number;
+      estimatedItemSize: number;
+      measuredItemsCount: number;
+    };
+    collection: {
+      loadedItemsCount: number;
+      hasPlaceholderStructure: boolean;
+      placeholderFields: string[];
+    };
+  };
 }
 
 /**
- * Creates the List Manager API manager
+ * Event helper functions
  */
-const createListManagerAPI = (
-  component: ElementComponent,
-  config: ListManagerAPIConfig
-): ListManager => {
-  // Internal state
-  let items: VirtualItem[] = [];
-  let visibleItems: VirtualItem[] = [];
-  let isDestroyed = false;
+export class ListManagerEventHelpers {
+  private listManager: ListManager;
+  private eventSubscriptions: Map<string, () => void> = new Map();
 
-  // Event system
-  const listeners = new Set<ListManagerObserver>();
-
-  // Scroll animation state
-  let scrollAnimationEnabled = true;
-
-  // Performance tracking
-  let performanceMetrics: PerformanceReport = {
-    timestamp: Date.now(),
-    currentFPS: 60,
-    averageFPS: 60,
-    minFPS: 60,
-    maxFPS: 60,
-    memoryUsage: 0,
-    memoryDelta: 0,
-    gcCount: 0,
-    renderTime: 0,
-    averageRenderTime: 0,
-    slowRenders: 0,
-    scrollFPS: 60,
-    scrollEvents: 0,
-    scrollDistance: 0,
-    totalElements: 0,
-    visibleElements: 0,
-    recycledElements: 0,
-    poolSize: 0,
-    viewportChanges: 0,
-    intersectionUpdates: 0,
-    heightMeasurements: 0,
-  };
-
-  // Viewport info
-  let viewportInfo: ViewportInfo = {
-    width: 0,
-    height: 0,
-    scrollTop: 0,
-    scrollLeft: 0,
-    startIndex: 0,
-    endIndex: 0,
-    visibleItems: [],
-    bufferStart: 0,
-    bufferEnd: 0,
-    totalHeight: 0,
-    totalWidth: 0,
-  };
-
-  // Initialize viewport info from container if available
-  if (config.container) {
-    const containerElement =
-      typeof config.container === "string"
-        ? (document.querySelector(config.container) as HTMLElement)
-        : config.container;
-
-    if (containerElement) {
-      const rect = containerElement.getBoundingClientRect();
-      viewportInfo.width = rect.width;
-      viewportInfo.height = rect.height;
-    }
+  constructor(listManager: ListManager) {
+    this.listManager = listManager;
   }
 
   /**
-   * Logs debug messages if debug mode is enabled
+   * Subscribe to scroll position changes
    */
-  const debugLog = (message: string, ...args: any[]) => {
-    if (config.debug) {
-      console.log(`🔧 [LIST-MANAGER-API] ${message}`, ...args);
-    }
-  };
-
-  /**
-   * Emits events to all subscribers
-   */
-  const emit = (event: ListManagerEvents | string, data?: any): void => {
-    if (isDestroyed) return;
-
-    const payload = {
-      event: event as ListManagerEvents,
-      data,
-      viewport: viewportInfo,
-      performance: performanceMetrics,
-      timestamp: Date.now(),
-      source: "list-manager" as const,
-    };
-
-    console.log(
-      `🔥 [LIST-MANAGER-API] Emitting ${event} to ${listeners.size} listeners`
-    );
-
-    let listenerCount = 0;
-    listeners.forEach((listener) => {
-      try {
-        listenerCount++;
-        console.log(
-          `🔥 [LIST-MANAGER-API] Calling listener ${listenerCount} for ${event}`
-        );
-        listener(payload);
-        console.log(
-          `🔥 [LIST-MANAGER-API] Listener ${listenerCount} completed for ${event}`
-        );
-      } catch (error) {
-        console.error(
-          `❌ [LIST-MANAGER-API] Error in listener ${listenerCount} for ${event}:`,
-          error
-        );
+  onScroll(
+    callback: (position: number, direction: "forward" | "backward") => void
+  ): () => void {
+    const unsubscribe = this.listManager.subscribe((event, data) => {
+      if (event === ListManagerEvents.SCROLL_POSITION_CHANGED) {
+        const scrollData =
+          data as ListManagerEventData[ListManagerEvents.SCROLL_POSITION_CHANGED];
+        callback(scrollData.position, scrollData.direction);
       }
     });
 
-    debugLog(`Event emitted: ${event}`, payload);
-  };
+    const key = `scroll-${Date.now()}`;
+    this.eventSubscriptions.set(key, unsubscribe);
+
+    return () => {
+      unsubscribe();
+      this.eventSubscriptions.delete(key);
+    };
+  }
 
   /**
-   * Updates viewport information
+   * Subscribe to visible range changes
    */
-  const updateViewportInfo = (updates: Partial<ViewportInfo>): void => {
-    const previousViewport = { ...viewportInfo };
-    viewportInfo = { ...viewportInfo, ...updates };
+  onRangeChange(callback: (range: ItemRange) => void): () => void {
+    const unsubscribe = this.listManager.subscribe((event, data) => {
+      if (event === ListManagerEvents.VIRTUAL_RANGE_CHANGED) {
+        const range = data as ItemRange;
+        callback(range);
+      }
+    });
 
-    // Check if viewport changed significantly
-    const hasSignificantChange =
-      previousViewport.startIndex !== viewportInfo.startIndex ||
-      previousViewport.endIndex !== viewportInfo.endIndex ||
-      previousViewport.width !== viewportInfo.width ||
-      previousViewport.height !== viewportInfo.height;
+    const key = `range-${Date.now()}`;
+    this.eventSubscriptions.set(key, unsubscribe);
 
-    if (hasSignificantChange) {
-      performanceMetrics.viewportChanges++;
-      emit(ListManagerEvents.VIEWPORT_CHANGED, {
-        previous: previousViewport,
-        current: viewportInfo,
-      });
-    }
-  };
+    return () => {
+      unsubscribe();
+      this.eventSubscriptions.delete(key);
+    };
+  }
 
   /**
-   * Validates item parameter
+   * Subscribe to viewport changes
    */
-  const validateItem = (item: VirtualItem): void => {
-    if (!item || typeof item !== "object") {
-      throw new Error("Item must be a valid object");
-    }
-    if (!item.id) {
-      throw new Error("Item must have an id property");
-    }
-  };
+  onViewportChange(callback: (viewport: ViewportInfo) => void): () => void {
+    const unsubscribe = this.listManager.subscribe((event, data) => {
+      if (event === ListManagerEvents.VIEWPORT_CHANGED) {
+        const viewport = data as ViewportInfo;
+        callback(viewport);
+      }
+    });
+
+    const key = `viewport-${Date.now()}`;
+    this.eventSubscriptions.set(key, unsubscribe);
+
+    return () => {
+      unsubscribe();
+      this.eventSubscriptions.delete(key);
+    };
+  }
 
   /**
-   * Validates index parameter
+   * Subscribe to loading events
    */
-  const validateIndex = (index: number): void => {
-    if (typeof index !== "number" || index < 0) {
-      throw new Error(`Invalid index: ${index}. Must be >= 0`);
-    }
-
-    // For virtual scrolling with infinite data, allow any valid index
-    // The orchestration layer will handle loading data as needed
-    if (index >= items.length) {
-      debugLog(
-        `Virtual scroll to index ${index} (current items: ${items.length})`
-      );
-    }
-  };
-
-  // Return the List Manager API
-  return {
-    // Plugin delegation methods - these delegate to the installed plugins
-    renderItems(range: { start: number; end: number; count: number }): void {
-      debugLog(`Delegating renderItems to rendering plugin`, range);
-
-      const renderingPlugin = (component as any).plugin_rendering;
-      if (renderingPlugin && renderingPlugin.renderItems) {
-        renderingPlugin.renderItems(range);
-      } else {
-        console.warn(
-          `⚠️ [LIST-MANAGER-API] Rendering plugin not found or doesn't have renderItems method`
-        );
+  onLoading(
+    callback: (range: ItemRange, strategy: string) => void
+  ): () => void {
+    const unsubscribe = this.listManager.subscribe((event, data) => {
+      if (event === ListManagerEvents.LOADING_TRIGGERED) {
+        const loadingData =
+          data as ListManagerEventData[ListManagerEvents.LOADING_TRIGGERED];
+        callback(loadingData.range, loadingData.strategy);
       }
-    },
+    });
 
-    setTemplate(
-      template: (item: VirtualItem, index: number) => string | HTMLElement
-    ): void {
-      debugLog(`Delegating setTemplate to rendering plugin`);
+    const key = `loading-${Date.now()}`;
+    this.eventSubscriptions.set(key, unsubscribe);
 
-      // Check if template is a function
-      if (typeof template !== "function") {
-        console.error(
-          `❌ [LIST-MANAGER-API] Template must be a function, got: ${typeof template}`
-        );
-        return;
+    return () => {
+      unsubscribe();
+      this.eventSubscriptions.delete(key);
+    };
+  }
+
+  /**
+   * Subscribe to placeholder events
+   */
+  onPlaceholders(
+    callback: (range: ItemRange, count: number) => void
+  ): () => void {
+    const unsubscribe = this.listManager.subscribe((event, data) => {
+      if (event === ListManagerEvents.PLACEHOLDERS_SHOWN) {
+        const placeholderData =
+          data as ListManagerEventData[ListManagerEvents.PLACEHOLDERS_SHOWN];
+        callback(placeholderData.range, placeholderData.count);
       }
+    });
 
-      const renderingPlugin = (component as any)["plugin_rendering"];
-      if (renderingPlugin && renderingPlugin.setTemplate) {
-        debugLog(`✅ [LIST-MANAGER-API] Setting template on rendering plugin`);
-        renderingPlugin.setTemplate(template);
-      } else {
-        console.warn(
-          `⚠️ [LIST-MANAGER-API] Rendering plugin not found or doesn't have setTemplate method`
-        );
-        console.warn(
-          `Available plugins:`,
-          Object.keys(component as any).filter((key) =>
-            key.startsWith("plugin_")
-          )
-        );
-      }
-    },
+    const key = `placeholders-${Date.now()}`;
+    this.eventSubscriptions.set(key, unsubscribe);
 
-    setupVirtualContainer(): void {
-      debugLog(`Delegating setupVirtualContainer to virtual viewport plugin`);
+    return () => {
+      unsubscribe();
+      this.eventSubscriptions.delete(key);
+    };
+  }
 
-      const virtualViewportPlugin = (component as any)[
-        "plugin_virtual-viewport"
-      ];
-      if (virtualViewportPlugin && virtualViewportPlugin.updateViewport) {
-        virtualViewportPlugin.updateViewport();
-      } else {
-        console.warn(
-          `⚠️ [LIST-MANAGER-API] Virtual viewport plugin not found or doesn't have updateViewport method`
-        );
-      }
-    },
+  /**
+   * Clean up all event subscriptions
+   */
+  destroy(): void {
+    this.eventSubscriptions.forEach((unsubscribe) => unsubscribe());
+    this.eventSubscriptions.clear();
+  }
+}
 
-    handleScrollToIndex(
-      index: number,
-      alignment: "start" | "center" | "end" = "start",
-      animate?: boolean
-    ): void {
-      debugLog(
-        `Delegating handleScrollToIndex to scrollbar plugin (virtual viewport handles positioning)`,
-        {
-          index,
-          alignment,
-          animate,
-        }
-      );
+/**
+ * Enhanced List Manager implementation with API helpers
+ */
+class ListManagerAPIImpl implements ListManagerAPI {
+  private listManager: ListManager;
+  private eventHelpers: ListManagerEventHelpers;
 
-      // With virtual viewport + custom scrollbar, we need to calculate scroll position and let scrollbar handle it
-      const scrollbarPlugin = (component as any)["plugin_scrollbar"];
-      if (scrollbarPlugin) {
-        const itemHeight = 50; // Should get from config
-        const virtualScrollTop = index * itemHeight;
+  constructor(listManager: ListManager) {
+    this.listManager = listManager;
+    this.eventHelpers = new ListManagerEventHelpers(listManager);
+  }
 
-        // Update scrollbar position, which will trigger virtual viewport updates
-        if (scrollbarPlugin.updateScrollPosition) {
-          scrollbarPlugin.updateScrollPosition(virtualScrollTop);
-        }
-      } else {
-        console.warn(
-          `⚠️ [LIST-MANAGER-API] Scrollbar plugin not found - virtual viewport requires custom scrollbar`
-        );
-      }
-    },
+  // Delegate all core methods to the underlying list manager
+  scrollToIndex(index: number, alignment?: "start" | "center" | "end"): void {
+    this.listManager.scrollToIndex(index, alignment);
+  }
 
-    setTotalItems(count: number): void {
-      debugLog(
-        `Delegating setTotalItems to virtual viewport and scrollbar plugins`,
-        count
-      );
+  scrollToPage(page: number, alignment?: "start" | "center" | "end"): void {
+    this.listManager.scrollToPage(page, alignment);
+  }
 
-      // Update virtual viewport with total dataset size (not a mock array)
-      const virtualViewportPlugin = (component as any)[
-        "plugin_virtual-viewport"
-      ];
-      if (virtualViewportPlugin && virtualViewportPlugin.setTotalDatasetSize) {
-        virtualViewportPlugin.setTotalDatasetSize(count);
-        debugLog(
-          `Delegated setTotalDatasetSize to virtual viewport: ${count} items`
-        );
-      } else {
-        console.warn(
-          `⚠️ [LIST-MANAGER-API] Virtual viewport plugin not found or doesn't have setTotalDatasetSize method`
-        );
-      }
+  getScrollPosition(): number {
+    return this.listManager.getScrollPosition();
+  }
 
-      // Update scrollbar with total items for proper scrollbar sizing
-      const scrollbarPlugin = (component as any)["plugin_scrollbar"];
-      if (scrollbarPlugin && scrollbarPlugin.setTotalItems) {
-        scrollbarPlugin.setTotalItems(count);
-        debugLog(`Delegated setTotalItems to scrollbar: ${count}`);
-      }
-    },
+  getVisibleRange(): ItemRange {
+    return this.listManager.getVisibleRange();
+  }
 
-    getRenderRange(): { start: number; end: number; count: number } {
-      const virtualViewportPlugin = (component as any)[
-        "plugin_virtual-viewport"
-      ];
-      if (virtualViewportPlugin && virtualViewportPlugin.getRenderRange) {
-        return virtualViewportPlugin.getRenderRange();
-      }
-      return { start: 0, end: 0, count: 0 };
-    },
+  getViewportInfo(): ViewportInfo {
+    return this.listManager.getViewportInfo();
+  }
 
-    getScrollTop(): number {
-      const scrollbarPlugin = (component as any)["plugin_scrollbar"];
-      if (scrollbarPlugin && scrollbarPlugin.getVirtualScrollTop) {
-        return scrollbarPlugin.getVirtualScrollTop();
-      }
-      return 0;
-    },
+  updateViewport(): void {
+    this.listManager.updateViewport();
+  }
 
-    // Viewport calculations and scroll operations
-    calculateViewportForIndex(
-      index: number,
-      alignment?: "start" | "center" | "end",
-      totalItems?: number
-    ): {
-      visibleRange: { start: number; end: number; count: number };
-      scrollTop: number;
-    } {
-      // Default fallback calculation
-      const itemHeight = 50; // Assume 50px item height
-      const containerHeight = 400; // Assume 400px container height
-      const visibleItemCount = Math.ceil(containerHeight / itemHeight);
+  setItems(items: any[]): void {
+    this.listManager.setItems(items);
+  }
 
-      let startIndex = index;
-      if (alignment === "center") {
-        startIndex = Math.max(0, index - Math.floor(visibleItemCount / 2));
-      } else if (alignment === "end") {
-        startIndex = Math.max(0, index - visibleItemCount + 1);
-      }
+  setTotalItems(total: number): void {
+    this.listManager.setTotalItems(total);
+  }
 
-      const endIndex = Math.min(
-        (totalItems || index + 10) - 1,
-        startIndex + visibleItemCount - 1
-      );
-      const scrollTop = index * itemHeight;
+  getItems(): any[] {
+    return this.listManager.getItems();
+  }
 
-      return {
-        visibleRange: {
-          start: startIndex,
-          end: endIndex,
-          count: endIndex - startIndex + 1,
+  getTotalItems(): number {
+    return this.listManager.getTotalItems();
+  }
+
+  setPaginationStrategy(strategy: "page" | "offset" | "cursor"): void {
+    this.listManager.setPaginationStrategy(strategy);
+  }
+
+  getPaginationStrategy(): "page" | "offset" | "cursor" {
+    return this.listManager.getPaginationStrategy();
+  }
+
+  updateConfig(config: any): void {
+    this.listManager.updateConfig(config);
+  }
+
+  getConfig(): ListManagerConfig {
+    return this.listManager.getConfig();
+  }
+
+  subscribe(observer: ListManagerObserver): () => void {
+    return this.listManager.subscribe(observer);
+  }
+
+  emit<T extends ListManagerEvents>(
+    event: T,
+    data: ListManagerEventData[T]
+  ): void {
+    this.listManager.emit(event, data);
+  }
+
+  initialize(): void {
+    this.listManager.initialize();
+  }
+
+  destroy(): void {
+    this.eventHelpers.destroy();
+    this.listManager.destroy();
+  }
+
+  // Enhanced API methods
+  onScroll(
+    callback: (position: number, direction: "forward" | "backward") => void
+  ): () => void {
+    return this.eventHelpers.onScroll(callback);
+  }
+
+  onRangeChange(callback: (range: ItemRange) => void): () => void {
+    return this.eventHelpers.onRangeChange(callback);
+  }
+
+  onViewportChange(callback: (viewport: ViewportInfo) => void): () => void {
+    return this.eventHelpers.onViewportChange(callback);
+  }
+
+  onLoading(
+    callback: (range: ItemRange, strategy: string) => void
+  ): () => void {
+    return this.eventHelpers.onLoading(callback);
+  }
+
+  onPlaceholders(
+    callback: (range: ItemRange, count: number) => void
+  ): () => void {
+    return this.eventHelpers.onPlaceholders(callback);
+  }
+
+  isLoading(): boolean {
+    // TODO: Implement proper loading state check
+    return false;
+  }
+
+  getLoadedRanges(): Set<number> {
+    // TODO: Implement proper loaded ranges access
+    return new Set();
+  }
+
+  hasItem(index: number): boolean {
+    // TODO: Implement proper item check
+    return false;
+  }
+
+  getItem(index: number): any {
+    // TODO: Implement proper item access
+    return null;
+  }
+
+  getDebugInfo(): ListManagerDebugInfo {
+    const config = this.getConfig();
+    const viewport = this.getViewportInfo();
+    const visibleRange = this.getVisibleRange();
+
+    return {
+      config,
+      state: {
+        isInitialized: true, // TODO: Access internal state
+        totalItems: this.getTotalItems(),
+        visibleRange,
+        scrollPosition: this.getScrollPosition(),
+        paginationStrategy: this.getPaginationStrategy(),
+      },
+      performance: {
+        scrollVelocity: 0, // TODO: Access speed tracker
+        loadedRanges: [], // TODO: Access collection feature
+        pendingRanges: [], // TODO: Access collection feature
+      },
+      features: {
+        viewport: {
+          orientation: config.orientation.orientation,
+          containerSize: viewport.containerSize,
+          totalVirtualSize: viewport.totalVirtualSize,
+          estimatedItemSize: config.virtual.estimatedItemSize,
+          measuredItemsCount: 0, // TODO: Access viewport feature
         },
-        scrollTop,
-      };
-    },
-
-    calculateVirtualScrollMetrics(targetIndex: number): {
-      scrollTop: number;
-      virtualOffset: number;
-    } {
-      // Default fallback calculation
-      const scrollTop = targetIndex * 50; // Assume 50px item height
-      return { scrollTop, virtualOffset: scrollTop };
-    },
-
-    // Virtual scrolling methods
-    setItems(newItems: VirtualItem[]): void {
-      if (!Array.isArray(newItems)) {
-        throw new Error("Items must be an array");
-      }
-
-      // Validate items
-      newItems.forEach(validateItem);
-
-      items = [...newItems];
-      debugLog(`🚀 [LIST-MANAGER-API] Items updated: ${items.length} items`);
-
-      // Update performance metrics
-      performanceMetrics.totalElements = items.length;
-
-      // 🔥 CRITICAL: Pass items to virtual viewport plugin
-      const virtualViewportPlugin = (component as any)[
-        "plugin_virtual-viewport"
-      ];
-      if (virtualViewportPlugin && virtualViewportPlugin.setItems) {
-        debugLog(
-          `🔄 [LIST-MANAGER-API] Delegating setItems to virtual viewport: ${items.length} items`
-        );
-        virtualViewportPlugin.setItems(items);
-      } else {
-        console.warn(
-          `⚠️ [LIST-MANAGER-API] Virtual viewport plugin not found or doesn't have setItems method`
-        );
-      }
-
-      // Pass items to rendering plugin
-      const renderingPlugin = (component as any).plugin_rendering;
-      if (renderingPlugin && renderingPlugin.setItems) {
-        debugLog(
-          `🔄 [LIST-MANAGER-API] Delegating setItems to rendering plugin: ${items.length} items`
-        );
-        renderingPlugin.setItems(items);
-      } else {
-        console.warn(
-          `⚠️ [LIST-MANAGER-API] Rendering plugin not found or doesn't have setItems method`
-        );
-      }
-
-      // Don't emit virtual:range:changed here - let the virtual viewport handle it
-      // The virtual viewport will emit this event with the correct ranges after calculating them
-    },
-
-    getVisibleItems(): VirtualItem[] {
-      return [...visibleItems];
-    },
-
-    getVisibleRange(): { start: number; end: number; count: number } {
-      const virtualViewportPlugin = (component as any)[
-        "plugin_virtual-viewport"
-      ];
-      if (virtualViewportPlugin && virtualViewportPlugin.getVisibleRange) {
-        const range = virtualViewportPlugin.getVisibleRange();
-        return {
-          start: range.startIndex,
-          end: range.endIndex,
-          count: range.endIndex - range.startIndex + 1,
-        };
-      }
-      return {
-        start: viewportInfo.startIndex,
-        end: viewportInfo.endIndex,
-        count: viewportInfo.endIndex - viewportInfo.startIndex + 1,
-      };
-    },
-
-    scrollToIndex(
-      index: number,
-      align: "start" | "center" | "end" = "start",
-      animate?: boolean
-    ): void {
-      validateIndex(index);
-      debugLog(
-        `Scrolling to index: ${index}, align: ${align}, animate: ${animate}`
-      );
-
-      // Emit event
-      emit("scroll:to:index", { index, align, animate });
-    },
-
-    scrollToItem(
-      item: VirtualItem,
-      align: "start" | "center" | "end" = "start",
-      animate?: boolean
-    ): void {
-      validateItem(item);
-
-      const index = items.findIndex((i) => i.id === item.id);
-      if (index === -1) {
-        throw new Error(`Item with id "${item.id}" not found`);
-      }
-
-      this.scrollToIndex(index, align, animate);
-    },
-
-    // Element recycling methods
-    recycleElement(element: HTMLElement): void {
-      if (!(element instanceof HTMLElement)) {
-        throw new Error("Element must be an HTMLElement");
-      }
-
-      debugLog("Recycling element", element);
-      performanceMetrics.recycledElements++;
-
-      // This will be implemented by the recycling features
-      emit(ListManagerEvents.ELEMENT_RECYCLED, { element });
-    },
-
-    getPoolStats(): any {
-      return {
-        size: performanceMetrics.poolSize,
-        maxSize: 100, // This should come from config
-        recycled: performanceMetrics.recycledElements,
-      };
-    },
-
-    optimizePool(): void {
-      debugLog("Optimizing element pool");
-
-      // This will be implemented by the recycling features
-      emit("pool:optimized", {});
-    },
-
-    // Viewport management methods
-    getViewportInfo(): ViewportInfo {
-      return { ...viewportInfo };
-    },
-
-    updateViewport(): void {
-      debugLog("Updating viewport");
-
-      // Get container dimensions
-      if (component.element) {
-        const rect = component.element.getBoundingClientRect();
-        updateViewportInfo({
-          width: rect.width,
-          height: rect.height,
-        });
-      }
-
-      emit("viewport:update", { viewport: viewportInfo });
-    },
-
-    onViewportChange(
-      callback: (viewport: ViewportInfo) => void
-    ): ListManagerUnsubscribe {
-      const observer: ListManagerObserver = (payload) => {
-        if (payload.event === ListManagerEvents.VIEWPORT_CHANGED) {
-          callback(payload.viewport || viewportInfo);
-        }
-      };
-
-      listeners.add(observer);
-
-      return () => {
-        listeners.delete(observer);
-      };
-    },
-
-    // Height measurement methods
-    measureHeight(item: VirtualItem): number {
-      validateItem(item);
-
-      // This will be implemented by the height measurement features
-      const height = 50; // Default height
-      performanceMetrics.heightMeasurements++;
-
-      debugLog(`Measured height for item ${item.id}: ${height}px`);
-      return height;
-    },
-
-    estimateHeight(item: VirtualItem): number {
-      validateItem(item);
-
-      // This will be implemented by the height measurement features
-      return 50; // Default estimated height
-    },
-
-    cacheHeight(item: VirtualItem, height: number): void {
-      validateItem(item);
-
-      if (typeof height !== "number" || height <= 0) {
-        throw new Error("Height must be a positive number");
-      }
-
-      debugLog(`Caching height for item ${item.id}: ${height}px`);
-      performanceMetrics.heightMeasurements++;
-
-      // This will be implemented by the height measurement features
-      emit(ListManagerEvents.HEIGHT_CACHED, { item, height });
-    },
-
-    // Performance monitoring methods
-    getPerformanceReport(): PerformanceReport {
-      return { ...performanceMetrics };
-    },
-
-    enablePerformanceMonitoring(): void {
-      debugLog("Performance monitoring enabled");
-
-      // This will be implemented by the performance features
-      emit("performance:monitoring:enabled", {});
-    },
-
-    disablePerformanceMonitoring(): void {
-      debugLog("Performance monitoring disabled");
-
-      // This will be implemented by the performance features
-      emit("performance:monitoring:disabled", {});
-    },
-
-    // Scroll animation control methods
-    setScrollAnimation(enabled: boolean): void {
-      debugLog(`Scroll animation ${enabled ? "enabled" : "disabled"}`);
-
-      // Update internal state
-      scrollAnimationEnabled = enabled;
-
-      // Update CSS scroll-behavior property on container element to override SCSS
-      if (component.element) {
-        component.element.style.scrollBehavior = enabled ? "smooth" : "unset";
-        component.element.style.setProperty(
-          "scroll-behavior",
-          enabled ? "smooth" : "unset"
-        );
-      }
-
-      // Update programmatic scroll plugin (if available)
-      if ((component as any).updateConfig) {
-        (component as any).updateConfig({
-          smooth: enabled,
-          behavior: enabled ? "smooth" : "instant",
-        });
-      }
-
-      // Emit scroll animation state change event
-      emit("scroll:animation:changed", { enabled });
-    },
-
-    getScrollAnimation(): boolean {
-      return scrollAnimationEnabled;
-    },
-
-    toggleScrollAnimation(): void {
-      const currentState = scrollAnimationEnabled;
-      this.setScrollAnimation(!currentState);
-      debugLog(
-        `Scroll animation toggled to ${!currentState ? "enabled" : "disabled"}`
-      );
-    },
-
-    // Template rendering methods
-    renderItem(item: VirtualItem, index: number): HTMLElement {
-      validateItem(item);
-      validateIndex(index);
-
-      if (config.template?.template) {
-        const result = config.template.template(item, index);
-
-        let element: HTMLElement;
-        if (typeof result === "string") {
-          element = document.createElement("div");
-          element.innerHTML = result;
-        } else {
-          element = result;
-        }
-
-        // Set data attributes
-        element.setAttribute("data-item-id", item.id);
-        element.setAttribute("data-item-index", index.toString());
-
-        // Call lifecycle hook
-        if (config.template.onTemplateCreate) {
-          config.template.onTemplateCreate(element, item);
-        }
-
-        debugLog(`Rendered item ${item.id} at index ${index}`);
-        return element;
-      }
-
-      // Default template
-      const element = document.createElement("div");
-      element.className = `${config.prefix || "mtrl"}-list-item`;
-      element.textContent = `Item ${index}: ${item.id}`;
-      element.setAttribute("data-item-id", item.id);
-      element.setAttribute("data-item-index", index.toString());
-
-      return element;
-    },
-
-    updateItem(element: HTMLElement, item: VirtualItem, index: number): void {
-      if (!(element instanceof HTMLElement)) {
-        throw new Error("Element must be an HTMLElement");
-      }
-      validateItem(item);
-
-      // Update data attributes
-      element.setAttribute("data-item-id", item.id);
-      element.setAttribute("data-item-index", index.toString());
-
-      // Call lifecycle hook
-      if (config.template?.onTemplateUpdate) {
-        config.template.onTemplateUpdate(element, item);
-      }
-
-      debugLog(`Updated item ${item.id} at index ${index}`);
-    },
-
-    // Event system methods
-    subscribe(observer: ListManagerObserver): ListManagerUnsubscribe {
-      console.log(
-        `🔥 [LIST-MANAGER-API] SUBSCRIBE: Adding observer (current: ${listeners.size})`
-      );
-      listeners.add(observer);
-      console.log(
-        `🔥 [LIST-MANAGER-API] SUBSCRIBE: Observer added (total: ${listeners.size})`
-      );
-      debugLog(`Subscribed observer (${listeners.size} total)`);
-
-      return () => {
-        console.log(
-          `🔥 [LIST-MANAGER-API] UNSUBSCRIBE: Removing observer (current: ${listeners.size})`
-        );
-        listeners.delete(observer);
-        console.log(
-          `🔥 [LIST-MANAGER-API] UNSUBSCRIBE: Observer removed (remaining: ${listeners.size})`
-        );
-        debugLog(`Unsubscribed observer (${listeners.size} remaining)`);
-      };
-    },
-
-    emit(event: ListManagerEvents | string, data?: any): void {
-      emit(event, data);
-    },
-
-    // Lifecycle methods
-    destroy(): void {
-      if (isDestroyed) return;
-
-      debugLog("Destroying List Manager API");
-
-      // Call template destroy hooks for all elements
-      if (config.template?.onTemplateDestroy && component.element) {
-        const elements = component.element.querySelectorAll("[data-item-id]");
-        elements.forEach((el) => {
-          const itemId = el.getAttribute("data-item-id");
-          const item = items.find((i) => i.id === itemId);
-          if (item && config.template?.onTemplateDestroy) {
-            config.template.onTemplateDestroy(el as HTMLElement, item);
-          }
-        });
-      }
-
-      // Clear all listeners
-      listeners.clear();
-
-      // Reset state
-      items = [];
-      visibleItems = [];
-      isDestroyed = true;
-
-      emit("destroyed", {});
-    },
-  };
+        collection: {
+          loadedItemsCount: 0, // TODO: Access collection feature
+          hasPlaceholderStructure: false, // TODO: Access collection feature
+          placeholderFields: [], // TODO: Access collection feature
+        },
+      },
+    };
+  }
+
+  enableDebug(): void {
+    this.updateConfig({ debug: true });
+  }
+
+  disableDebug(): void {
+    this.updateConfig({ debug: false });
+  }
+}
+
+/**
+ * Create an enhanced List Manager with API helpers
+ */
+export function createListManagerAPI(
+  config: ListManagerConfig
+): ListManagerAPI {
+  const listManager = createListManager(config);
+  return new ListManagerAPIImpl(listManager);
+}
+
+/**
+ * Utility functions for common List Manager operations
+ */
+export const ListManagerUtils = {
+  /**
+   * Create a simple template function for debugging
+   */
+  createDebugTemplate: (itemHeight: number = 50) => {
+    return (item: any, index: number) => {
+      const div = document.createElement("div");
+      div.style.height = `${itemHeight}px`;
+      div.style.padding = "8px";
+      div.style.borderBottom = "1px solid #eee";
+      div.style.display = "flex";
+      div.style.alignItems = "center";
+      div.innerHTML = `
+        <span style="font-weight: bold; margin-right: 8px;">#${index}</span>
+        <span>${JSON.stringify(item)}</span>
+      `;
+      return div;
+    };
+  },
+
+  /**
+   * Create a default configuration for testing
+   */
+  createTestConfig: (
+    container: HTMLElement,
+    itemCount: number = 1000
+  ): ListManagerConfig => {
+    const items = Array.from({ length: itemCount }, (_, i) => ({
+      id: i,
+      name: `Item ${i}`,
+      value: Math.random() * 100,
+    }));
+
+    return {
+      container,
+      items,
+      virtual: {
+        enabled: true,
+        itemSize: "auto",
+        estimatedItemSize: 50,
+        overscan: 5,
+      },
+      orientation: {
+        orientation: "vertical",
+        reverse: false,
+        crossAxisAlignment: "stretch",
+      },
+      template: {
+        template: ListManagerUtils.createDebugTemplate(50),
+      },
+      debug: true,
+      prefix: "test-list",
+      componentName: "TestList",
+    };
+  },
+
+  /**
+   * Performance measurement helper
+   */
+  measurePerformance: (
+    listManager: ListManagerAPI,
+    duration: number = 5000
+  ) => {
+    const measurements = {
+      scrollEvents: 0,
+      rangeChanges: 0,
+      loadingTriggers: 0,
+      startTime: Date.now(),
+      endTime: 0,
+    };
+
+    const unsubscribeScroll = listManager.onScroll(() => {
+      measurements.scrollEvents++;
+    });
+
+    const unsubscribeRange = listManager.onRangeChange(() => {
+      measurements.rangeChanges++;
+    });
+
+    const unsubscribeLoading = listManager.onLoading(() => {
+      measurements.loadingTriggers++;
+    });
+
+    return new Promise<typeof measurements>((resolve) => {
+      setTimeout(() => {
+        measurements.endTime = Date.now();
+        unsubscribeScroll();
+        unsubscribeRange();
+        unsubscribeLoading();
+        resolve(measurements);
+      }, duration);
+    });
+  },
 };
 
 /**
- * Adds List Manager API to a component
- *
- * @param config - API configuration
- * @returns Function that enhances a component with List Manager API
+ * Default exports
  */
-export const withListManagerAPI =
-  <T extends ListManagerAPIConfig>(config: T) =>
-  <C extends ElementComponent>(component: C): C & ListManagerAPIComponent => {
-    // Create the API manager
-    const api = createListManagerAPI(component, config);
-
-    // Enhanced component with all API methods
-    const enhanced = {
-      ...component,
-      ...api,
-      config: {
-        ...component.config,
-        ...config,
-      },
-    } as C & ListManagerAPIComponent;
-
-    // 🔥 CRITICAL: Bridge mtrl event system with List Manager API observer system
-    // This ensures events from plugins (via mtrl events) reach orchestration (via API observers)
-    if ((component as any).on) {
-      const eventTypes = [
-        "virtual:range:changed",
-        "viewport:changed",
-        "scroll:position:changed",
-        "scroll:animation:changed",
-        "orientation:dimensions:changed",
-      ];
-
-      eventTypes.forEach((eventType) => {
-        (component as any).on(eventType, (data: any) => {
-          console.log(
-            `🌉 [LIST-MANAGER-API] Bridging mtrl event to observers: ${eventType}`
-          );
-
-          // Re-broadcast through the List Manager API's emit method
-          // This will trigger the observers that orchestration subscribes to
-          enhanced.emit(eventType as ListManagerEvents, data);
-        });
-      });
-
-      console.log(
-        `✅ [LIST-MANAGER-API] Event bridge established for ${eventTypes.length} event types`
-      );
-    }
-
-    // Initialize viewport if container is available
-    if (enhanced.element) {
-      enhanced.updateViewport();
-    }
-
-    console.log(`✅ [LIST-MANAGER-API] API feature added to component`);
-    return enhanced;
-  };
+export { createListManager };
+export default createListManagerAPI;

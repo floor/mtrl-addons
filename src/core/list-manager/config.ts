@@ -32,10 +32,10 @@ export const defaultOrientationConfig = {
  */
 export const defaultVirtualConfig = {
   enabled: true,
-  itemHeight: VIRTUAL_SCROLLING.DEFAULT_ITEM_HEIGHT,
-  estimatedItemHeight: VIRTUAL_SCROLLING.DEFAULT_ESTIMATED_HEIGHT,
+  itemHeight: 50,
+  estimatedItemHeight: 50,
   overscan: VIRTUAL_SCROLLING.DEFAULT_OVERSCAN,
-  windowSize: LIST_MANAGER_DEFAULTS.WINDOW_SIZE,
+  windowSize: 20,
 } as const;
 
 /**
@@ -139,7 +139,13 @@ export const defaultListManagerConfig: Required<ListManagerConfig> = {
   heightMeasurement: defaultHeightMeasurementConfig,
 
   // Template configuration
-  template: undefined,
+  template: undefined as any,
+
+  // Collection configuration
+  collection: undefined as any,
+
+  // Static items
+  items: undefined as any,
 
   // Debug mode
   debug: false,

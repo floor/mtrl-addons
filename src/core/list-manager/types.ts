@@ -1,603 +1,400 @@
 /**
- * Types for the mtrl-addons List Manager (Performance Layer)
- *
- * These types define the interfaces for virtual scrolling, element recycling,
- * viewport management, and performance optimization.
+ * Core type definitions for List Manager
+ * Performance and UI management layer types
  */
 
-import type { CollectionItem } from "../collection/types";
-import type { OrientationConfig } from "./features/orientation";
+import type { ListManagerConstants } from "./constants";
 
 /**
- * Base item interface for List Manager
+ * Core Range and Item Types
  */
-export interface VirtualItem extends CollectionItem {
-  // Virtual scrolling properties
-  height?: number;
-  estimatedHeight?: number;
-  measured?: boolean;
+export interface ItemRange {
+  start: number;
+  end: number;
+}
 
-  // Element recycling properties
-  element?: HTMLElement;
-  recycled?: boolean;
+export interface ViewportInfo {
+  containerSize: number;
+  totalVirtualSize: number;
+  visibleRange: ItemRange;
+  virtualScrollPosition: number;
+}
 
-  // Viewport properties
-  visible?: boolean;
-  index?: number;
+export interface SpeedTracker {
+  velocity: number; // px/ms
+  direction: "forward" | "backward"; // scroll direction (vertical: down/up, horizontal: right/left)
+  isAccelerating: boolean; // velocity increasing
+  lastMeasurement: number; // timestamp of last measurement
 }
 
 /**
- * List Manager configuration (Performance/UI Only)
+ * Feature Interfaces for Simplified Architecture
  */
-export interface ListManagerConfig<T extends VirtualItem = VirtualItem> {
-  /** Container element */
-  container?: HTMLElement | string | null;
 
-  /** Component identification */
-  componentName?: string;
-  prefix?: string;
+/**
+ * Viewport Feature - Complete Virtual Scrolling
+ */
+export interface ViewportFeature {
+  // Orientation handling
+  orientation: "vertical" | "horizontal";
 
-  /** Orientation configuration */
-  orientation?: OrientationConfig;
+  // Virtual scrolling (orientation-agnostic)
+  virtualScrollPosition: number;
+  totalVirtualSize: number;
+  containerSize: number;
 
-  /** Virtual scrolling configuration */
-  virtual?: {
-    enabled?: boolean;
-    itemHeight?: number | "auto";
-    estimatedItemHeight?: number;
-    overscan?: number;
-  };
+  // Item sizing (orientation-agnostic)
+  estimatedItemSize: number;
+  measuredSizes: Map<number, number>;
 
-  /** Element recycling configuration */
-  recycling?: {
-    enabled?: boolean;
-    maxPoolSize?: number;
-    minPoolSize?: number;
-    strategy?: "fifo" | "lru" | "size-based";
-  };
+  // Custom scrollbar
+  scrollbarThumb: HTMLElement | null;
+  scrollbarTrack: HTMLElement | null;
+  thumbPosition: number;
 
-  /** Scroll behavior configuration */
-  scroll?: {
-    smooth?: boolean;
-    restore?: boolean;
-    programmatic?: boolean;
-    behavior?: "smooth" | "instant" | "auto";
-    easing?: "ease" | "ease-in" | "ease-out" | "ease-in-out" | "linear";
-    duration?: number;
-  };
-
-  /** Intersection observer configuration */
-  intersection?: {
-    pagination?: {
-      enabled?: boolean;
-      rootMargin?: string;
-      threshold?: number;
-    };
-    loading?: {
-      enabled?: boolean;
-      rootMargin?: string;
-      threshold?: number;
-    };
-    preload?: {
-      enabled?: boolean;
-      threshold?: number;
-      prefetchPages?: number;
-    };
-  };
-
-  /** Performance optimization configuration */
-  performance?: {
-    enabled?: boolean;
-    frameScheduling?: boolean;
-    memoryCleanup?: boolean;
-    fpsMonitoring?: boolean;
-    trackFPS?: boolean;
-    fpsTarget?: number;
-    trackMemory?: boolean;
-    memoryThreshold?: number;
-  };
-
-  /** Height measurement configuration */
-  heightMeasurement?: {
-    enabled?: boolean;
-    strategy?: "fixed" | "estimated" | "dynamic" | "cached";
-    estimatedHeight?: number;
-    cacheSize?: number;
-    dynamicMeasurement?: boolean;
-  };
-
-  /** Template configuration (for rendering) */
-  template?: {
-    template?: (item: T, index: number) => HTMLElement | string;
-    onTemplateCreate?: (element: HTMLElement, item: T) => void;
-    onTemplateUpdate?: (element: HTMLElement, item: T) => void;
-    onTemplateDestroy?: (element: HTMLElement, item: T) => void;
-  };
-
-  /** Debug mode */
-  debug?: boolean;
+  // Methods
+  handleWheel(event: WheelEvent): void;
+  updateContainerPosition(): void;
+  updateScrollbar(): void;
+  calculateVisibleRange(): ItemRange;
+  measureItemSize(element: HTMLElement, index: number): void;
+  initialize(): void;
+  destroy(): void;
 }
 
 /**
- * Virtual scrolling configuration
+ * Collection Feature - Data Management Integration
  */
-export interface VirtualizationConfig {
-  strategy: "virtual" | "infinite-scroll";
+export interface CollectionFeature {
+  // Speed tracking
+  speedTracker: SpeedTracker;
 
-  // Virtual viewport settings
-  bufferSize?: number;
-  overscan?: number;
+  // Range management
+  loadedRanges: Set<number>;
+  pendingRanges: Set<number>;
 
-  // Infinite scroll settings
-  threshold?: number;
-  rootMargin?: string;
+  // Collection integration
+  collection: any;
 
-  // Scrollbar settings
-  scrollbar?: {
-    enabled: boolean;
-    trackHeight?: number;
-    thumbMinHeight?: number;
-    thumbMaxHeight?: number;
-  };
+  // Pagination strategy
+  paginationStrategy: "page" | "offset" | "cursor";
 
-  // Performance settings
-  debounceMs?: number;
-  throttleMs?: number;
-  enableGPUAcceleration?: boolean;
+  // Placeholder system
+  placeholderStructure: Map<string, { min: number; max: number }> | null;
+  placeholderTemplate:
+    | ((item: any, index: number) => string | HTMLElement)
+    | null;
+
+  // Methods
+  handleSpeedChange(speed: number): void;
+  loadMissingRanges(visibleRange: ItemRange): void;
+  showPlaceholders(range: ItemRange): void;
+  updateLoadedData(items: any[], offset: number): void;
+  adaptPaginationStrategy(strategy: "page" | "offset" | "cursor"): void;
+  analyzeDataStructure(items: any[]): void;
+  generatePlaceholderItem(index: number): any;
+  initialize(): void;
+  destroy(): void;
 }
 
 /**
- * Element recycling configuration
+ * Configuration Types
  */
+export interface CollectionConfig {
+  adapter?: any;
+  pageSize?: number; // becomes rangeSize
+  strategy?: "page" | "offset" | "cursor";
+  [key: string]: any;
+}
+
+export interface TemplateConfig {
+  template: (item: any, index: number) => string | HTMLElement;
+}
+
+export interface VirtualConfig {
+  enabled: boolean;
+  itemSize: number | "auto";
+  estimatedItemSize: number;
+  overscan: number;
+}
+
+export interface OrientationConfig {
+  orientation: "vertical" | "horizontal";
+  reverse: boolean;
+  crossAxisAlignment: "start" | "center" | "end" | "stretch";
+}
+
+export interface InitialLoadConfig {
+  strategy: "placeholders" | "direct";
+  viewportMultiplier: number;
+  minItems: number;
+  maxItems: number;
+}
+
+export interface ErrorHandlingConfig {
+  timeout: number;
+  showErrorItems: boolean;
+  retryAttempts: number;
+  preserveScrollOnError: boolean;
+}
+
+export interface PositioningConfig {
+  precisePositioning: boolean;
+  allowPartialItems: boolean;
+  snapToItems: boolean;
+}
+
+export interface BoundariesConfig {
+  preventOverscroll: boolean;
+  maintainEdgeRanges: boolean;
+  boundaryResistance: number;
+}
+
 export interface RecyclingConfig {
   enabled: boolean;
-
-  // Pool management
-  initialPoolSize?: number;
-  maxPoolSize?: number;
-  minPoolSize?: number;
-
-  // Recycling strategy
-  strategy?: "fifo" | "lru" | "size-based";
-
-  // Cleanup settings
-  cleanupInterval?: number;
-  idleTimeout?: number;
-
-  // Element reuse settings
-  reuseStrategy?: "same-type" | "any-type" | "strict";
+  maxPoolSize: number;
+  minPoolSize: number;
 }
 
-/**
- * Viewport management configuration
- */
-export interface ViewportConfig {
-  // Container settings
-  containerSelector?: string;
-  containerElement?: HTMLElement;
-
-  // Viewport calculation
-  includeMargins?: boolean;
-  includePadding?: boolean;
-
-  // Intersection observer settings
-  intersectionThreshold?: number;
-  intersectionRootMargin?: string;
-
-  // Viewport updates
-  updateStrategy?: "immediate" | "debounced" | "throttled";
-  updateDelay?: number;
-}
-
-/**
- * Height measurement configuration
- */
-export interface HeightMeasurementConfig {
-  // Measurement strategy
-  strategy: "fixed" | "estimated" | "dynamic" | "cached";
-
-  // Fixed height settings
-  fixedHeight?: number;
-
-  // Estimated height settings
-  estimatedHeight?: number;
-  estimationAccuracy?: number;
-
-  // Dynamic measurement
-  measurementDebounce?: number;
-  remeasureOnResize?: boolean;
-
-  // Caching settings
-  cacheSize?: number;
-  cacheExpiry?: number;
-  persistCache?: boolean;
-}
-
-/**
- * Performance monitoring configuration
- */
 export interface PerformanceConfig {
-  enabled: boolean;
+  frameScheduling: boolean;
+  memoryCleanup: boolean;
+}
 
-  // FPS monitoring
-  trackFPS?: boolean;
-  fpsTarget?: number;
-
-  // Memory monitoring
-  trackMemory?: boolean;
-  memoryThreshold?: number;
-
-  // Render performance
-  trackRenderTime?: boolean;
-  renderTimeThreshold?: number;
-
-  // Scroll performance
-  trackScrollPerformance?: boolean;
-  scrollFPSTarget?: number;
-
-  // Reporting
-  reportingInterval?: number;
-  onPerformanceReport?: (report: PerformanceReport) => void;
+export interface IntersectionConfig {
+  pagination: {
+    enabled: boolean;
+    rootMargin: string;
+    threshold: number;
+  };
+  loading: {
+    enabled: boolean;
+  };
 }
 
 /**
- * Template configuration for rendering
+ * Main List Manager Configuration
  */
-export interface TemplateConfig {
-  // Template function
-  template: (item: VirtualItem, index: number) => HTMLElement | string;
+export interface ListManagerConfig {
+  // Container
+  container: HTMLElement;
 
-  // Template caching
-  cacheTemplates?: boolean;
-  maxTemplateCache?: number;
+  // Collection integration
+  collection?: CollectionConfig;
+  items?: any[];
 
-  // Template lifecycle
-  onTemplateCreate?: (element: HTMLElement, item: VirtualItem) => void;
-  onTemplateUpdate?: (element: HTMLElement, item: VirtualItem) => void;
-  onTemplateDestroy?: (element: HTMLElement, item: VirtualItem) => void;
+  // Template
+  template?: TemplateConfig;
+
+  // Virtual scrolling
+  virtual: VirtualConfig;
+
+  // Orientation
+  orientation: OrientationConfig;
+
+  // Initial loading
+  initialLoad: InitialLoadConfig;
+
+  // Error handling
+  errorHandling: ErrorHandlingConfig;
+
+  // Positioning
+  positioning: PositioningConfig;
+
+  // Boundaries
+  boundaries: BoundariesConfig;
+
+  // Element recycling (Phase 2)
+  recycling: RecyclingConfig;
+
+  // Performance
+  performance: PerformanceConfig;
+
+  // Intersection observers
+  intersection: IntersectionConfig;
+
+  // Debug
+  debug: boolean;
+  prefix: string;
+  componentName: string;
+
+  // Constants override
+  constants?: Partial<ListManagerConstants>;
 }
 
 /**
- * Scroll behavior configuration
- */
-export interface ScrollConfig {
-  // Scroll behavior
-  behavior?: "smooth" | "instant" | "auto";
-
-  // Scroll alignment
-  align?: "start" | "center" | "end" | "nearest";
-
-  // Scroll easing
-  easing?: "ease" | "ease-in" | "ease-out" | "ease-in-out" | "linear";
-  easingDuration?: number;
-
-  // Scroll boundaries
-  enableBoundaries?: boolean;
-  topBoundary?: number;
-  bottomBoundary?: number;
-}
-
-/**
- * Viewport information
- */
-export interface ViewportInfo {
-  // Viewport dimensions
-  width: number;
-  height: number;
-
-  // Container dimensions (orientation-dependent)
-  // For vertical lists: containerHeight is primary axis, containerWidth is cross-axis
-  // For horizontal lists: containerWidth is primary axis, containerHeight is cross-axis
-  containerHeight?: number;
-  containerWidth?: number;
-
-  // Scroll position
-  scrollTop: number;
-  scrollLeft: number;
-
-  // Visible range
-  startIndex: number;
-  endIndex: number;
-  visibleRange?: { startIndex: number; endIndex: number };
-
-  // Visible items
-  visibleItems: VirtualItem[];
-
-  // Buffer information
-  bufferStart: number;
-  bufferEnd: number;
-
-  // Total dimensions (orientation-dependent)
-  // For vertical lists: totalHeight is scroll content size, totalWidth is cross-axis
-  // For horizontal lists: totalWidth is scroll content size, totalHeight is cross-axis
-  totalHeight: number;
-  totalWidth: number;
-
-  // Performance metrics
-  fps?: number;
-  renderTime?: number;
-  memoryUsage?: number;
-}
-
-/**
- * Performance report
- */
-export interface PerformanceReport {
-  timestamp: number;
-
-  // FPS metrics
-  currentFPS: number;
-  averageFPS: number;
-  minFPS: number;
-  maxFPS: number;
-
-  // Memory metrics
-  memoryUsage: number;
-  memoryDelta: number;
-  gcCount: number;
-
-  // Render metrics
-  renderTime: number;
-  averageRenderTime: number;
-  slowRenders: number;
-
-  // Scroll metrics
-  scrollFPS: number;
-  scrollEvents: number;
-  scrollDistance: number;
-
-  // Element metrics
-  totalElements: number;
-  visibleElements: number;
-  recycledElements: number;
-  poolSize: number;
-
-  // Viewport metrics
-  viewportChanges: number;
-  intersectionUpdates: number;
-  heightMeasurements: number;
-}
-
-/**
- * List Manager performance events
+ * Event System
  */
 export enum ListManagerEvents {
-  // Viewport events
+  // Virtual scrolling
   VIEWPORT_CHANGED = "viewport:changed",
-  VIEWPORT_RESIZE = "viewport:resize",
-  SCROLL_START = "scroll:start",
-  SCROLL_END = "scroll:end",
-
-  // Virtual scrolling events
+  SCROLL_POSITION_CHANGED = "scroll:position:changed",
   VIRTUAL_RANGE_CHANGED = "virtual:range:changed",
-  VIRTUAL_ITEM_RENDERED = "virtual:item:rendered",
-  VIRTUAL_ITEM_RECYCLED = "virtual:item:recycled",
+  RANGE_RENDERED = "range:rendered",
+
+  // Collection coordination
+  LOADING_TRIGGERED = "loading:triggered",
+  SPEED_CHANGED = "speed:changed",
+  RANGE_LOADED = "range:loaded",
+
+  // Orientation
+  ORIENTATION_CHANGED = "orientation:changed",
+  DIMENSIONS_CHANGED = "orientation:dimensions:changed",
+
+  // Placeholder system
+  STRUCTURE_ANALYZED = "placeholder:structure:analyzed",
+  PLACEHOLDERS_SHOWN = "placeholder:shown",
+  PLACEHOLDERS_REPLACED = "placeholder:replaced",
 
   // Element recycling events
-  ELEMENT_CREATED = "element:created",
+  ELEMENT_RENDERED = "element:rendered",
+  ELEMENT_UPDATED = "element:updated",
   ELEMENT_RECYCLED = "element:recycled",
-  ELEMENT_DESTROYED = "element:destroyed",
-  POOL_RESIZED = "pool:resized",
+  RECYCLING_INITIALIZED = "recycling:initialized",
+  RECYCLING_DESTROYED = "recycling:destroyed",
 
-  // Performance events
-  PERFORMANCE_REPORT = "performance:report",
-  FPS_DROP = "fps:drop",
-  MEMORY_THRESHOLD = "memory:threshold",
-  RENDER_SLOW = "render:slow",
+  // Error handling
+  ERROR_OCCURRED = "error:occurred",
+  ERROR_RECOVERED = "error:recovered",
 
-  // Height measurement events
-  HEIGHT_MEASURED = "height:measured",
-  HEIGHT_CACHED = "height:cached",
-  HEIGHT_ESTIMATION_UPDATED = "height:estimation:updated",
-
-  // NO DATA events: items:loaded, cache:hit, etc. - those belong to Collection
+  // Lifecycle
+  INITIALIZED = "lifecycle:initialized",
+  DESTROYED = "lifecycle:destroyed",
 }
 
-/**
- * List Manager event payload
- */
-export interface ListManagerEventPayload {
-  event: ListManagerEvents;
-  data?: any;
-  viewport?: ViewportInfo;
-  performance?: PerformanceReport;
-  timestamp: number;
-  source: "list-manager";
+export interface ListManagerEventData {
+  [ListManagerEvents.VIEWPORT_CHANGED]: ViewportInfo;
+  [ListManagerEvents.SCROLL_POSITION_CHANGED]: {
+    position: number;
+    direction: "forward" | "backward";
+  };
+  [ListManagerEvents.VIRTUAL_RANGE_CHANGED]: ItemRange;
+  [ListManagerEvents.RANGE_RENDERED]: { range: ItemRange };
+  [ListManagerEvents.LOADING_TRIGGERED]: { range: ItemRange; strategy: string };
+  [ListManagerEvents.SPEED_CHANGED]: {
+    speed: number;
+    direction: "forward" | "backward";
+  };
+  [ListManagerEvents.RANGE_LOADED]: { range: ItemRange; items: any[] };
+  [ListManagerEvents.ORIENTATION_CHANGED]: {
+    orientation: "vertical" | "horizontal";
+  };
+  [ListManagerEvents.DIMENSIONS_CHANGED]: {
+    containerSize: number;
+    totalVirtualSize: number;
+  };
+  [ListManagerEvents.STRUCTURE_ANALYZED]: {
+    structure: Map<string, { min: number; max: number }>;
+  };
+  [ListManagerEvents.PLACEHOLDERS_SHOWN]: { range: ItemRange; count: number };
+  [ListManagerEvents.PLACEHOLDERS_REPLACED]: { range: ItemRange; items: any[] };
+  [ListManagerEvents.ELEMENT_RENDERED]: { element: HTMLElement };
+  [ListManagerEvents.ELEMENT_UPDATED]: { element: HTMLElement };
+  [ListManagerEvents.ELEMENT_RECYCLED]: { element: HTMLElement };
+  [ListManagerEvents.RECYCLING_INITIALIZED]: { config: ListManagerConfig };
+  [ListManagerEvents.RECYCLING_DESTROYED]: { reason?: string };
+  [ListManagerEvents.ERROR_OCCURRED]: { error: Error; context: string };
+  [ListManagerEvents.ERROR_RECOVERED]: {
+    previousError: Error;
+    context: string;
+  };
+  [ListManagerEvents.INITIALIZED]: { config: ListManagerConfig };
+  [ListManagerEvents.DESTROYED]: { reason?: string };
 }
 
-/**
- * List Manager observer type
- */
-export type ListManagerObserver = (payload: ListManagerEventPayload) => void;
+export interface ListManagerObserver {
+  <T extends ListManagerEvents>(event: T, data: ListManagerEventData[T]): void;
+}
 
-/**
- * List Manager unsubscribe function
- */
 export type ListManagerUnsubscribe = () => void;
 
 /**
- * Element recycling pool interface
+ * Main List Manager Interface
  */
-export interface ElementPool {
-  // Pool management
-  acquire(): HTMLElement | null;
-  release(element: HTMLElement): void;
-  clear(): void;
-
-  // Pool information
-  size(): number;
-  capacity(): number;
-  utilizationRatio(): number;
-
-  // Pool optimization
-  optimize(): void;
-  resize(newCapacity: number): void;
-
-  // Pool statistics
-  getStats(): {
-    totalCreated: number;
-    totalRecycled: number;
-    currentPoolSize: number;
-    peakPoolSize: number;
-    hitRate: number;
-  };
-}
-
-/**
- * Height measurement cache interface
- */
-export interface HeightCache {
-  // Cache operations
-  set(key: string, height: number): void;
-  get(key: string): number | undefined;
-  has(key: string): boolean;
-  delete(key: string): void;
-  clear(): void;
-
-  // Cache statistics
-  size(): number;
-  hitRate(): number;
-
-  // Cache persistence
-  save(): Promise<void>;
-  load(): Promise<void>;
-}
-
-/**
- * Virtual scrolling strategy interface
- */
-export interface VirtualScrollingStrategy {
-  // Strategy identification
-  name: string;
-
-  // Strategy methods
-  calculateVisibleRange(
-    viewport: ViewportInfo,
-    items: VirtualItem[]
-  ): {
-    startIndex: number;
-    endIndex: number;
-    bufferStart: number;
-    bufferEnd: number;
-  };
-
-  calculateScrollOffset(targetIndex: number, items: VirtualItem[]): number;
-
-  updateViewport(viewport: ViewportInfo): void;
-
-  // Strategy lifecycle
-  initialize(config: VirtualizationConfig): void;
-  destroy(): void;
-}
-
-/**
- * List Manager Plugin interface
- *
- * Defines the standard interface for List Manager plugins that provide features
- * like virtual scrolling, element recycling, etc.
- */
-export interface ListManagerPlugin {
-  /** Plugin name for identification */
-  name: string;
-
-  /** Plugin version */
-  version: string;
-
-  /** Dependencies on other plugins */
-  dependencies: string[];
-
-  /** Plugin installation function */
-  install: (
-    listManager: {
-      emit: (event: ListManagerEvents, data?: any) => void;
-      subscribe: (observer: ListManagerObserver) => ListManagerUnsubscribe;
-      getConfig?: () => any;
-    },
-    pluginConfig: any
-  ) => any;
-}
-
-/**
- * Main List Manager interface (Performance/UI Only)
- */
-export interface ListManager<T extends VirtualItem = VirtualItem> {
-  // Virtual scrolling
-  setItems(items: T[]): void;
-  getVisibleItems(): T[];
-  scrollToIndex(
-    index: number,
-    align?: "start" | "center" | "end",
-    animate?: boolean
-  ): void;
-  scrollToItem(
-    item: T,
-    align?: "start" | "center" | "end",
-    animate?: boolean
-  ): void;
-
-  // Element recycling
-  recycleElement(element: HTMLElement): void;
-  getPoolStats(): any;
-  optimizePool(): void;
+export interface ListManager {
+  // Virtual scrolling (orientation-agnostic)
+  scrollToIndex(index: number, alignment?: "start" | "center" | "end"): void;
+  scrollToPage(page: number, alignment?: "start" | "center" | "end"): void;
+  getScrollPosition(): number;
 
   // Viewport management
+  getVisibleRange(): ItemRange;
   getViewportInfo(): ViewportInfo;
   updateViewport(): void;
-  onViewportChange(
-    callback: (viewport: ViewportInfo) => void
-  ): ListManagerUnsubscribe;
 
-  // Viewport calculations and scroll operations
-  calculateViewportForIndex(
-    index: number,
-    alignment?: "start" | "center" | "end",
-    totalItems?: number
-  ): {
-    visibleRange: { start: number; end: number; count: number };
-    scrollTop: number;
-  };
-  handleScrollToIndex(
-    index: number,
-    alignment?: "start" | "center" | "end",
-    animate?: boolean
-  ): void;
-  setupVirtualContainer(): void;
-  calculateVirtualScrollMetrics(targetIndex: number): {
-    scrollTop: number;
-    virtualOffset: number;
-  };
-  getVisibleRange(): { start: number; end: number; count: number };
-  getRenderRange(): { start: number; end: number; count: number };
-  getScrollTop(): number;
-  setTotalItems(count: number): void;
+  // Collection integration
+  setItems(items: any[]): void;
+  setTotalItems(total: number): void;
+  getItems(): any[];
+  getTotalItems(): number;
 
-  // Height measurement
-  measureHeight(item: T): number;
-  estimateHeight(item: T): number;
-  cacheHeight(item: T, height: number): void;
+  // Pagination strategy
+  setPaginationStrategy(strategy: "page" | "offset" | "cursor"): void;
+  getPaginationStrategy(): "page" | "offset" | "cursor";
 
-  // Performance monitoring
-  getPerformanceReport(): PerformanceReport;
-  enablePerformanceMonitoring(): void;
-  disablePerformanceMonitoring(): void;
-
-  // Scroll animation control
-  setScrollAnimation(enabled: boolean): void;
-  getScrollAnimation(): boolean;
-  toggleScrollAnimation(): void;
-
-  // Template rendering
-  renderItem(item: T, index: number): HTMLElement;
-  renderItems(range: { start: number; end: number; count: number }): void;
-  setTemplate(template: (item: T, index: number) => string | HTMLElement): void;
-  updateItem(element: HTMLElement, item: T, index: number): void;
+  // Configuration
+  updateConfig(config: Partial<ListManagerConfig>): void;
+  getConfig(): ListManagerConfig;
 
   // Events
   subscribe(observer: ListManagerObserver): ListManagerUnsubscribe;
-  emit(event: ListManagerEvents, data?: any): void;
+  emit<T extends ListManagerEvents>(
+    event: T,
+    data: ListManagerEventData[T]
+  ): void;
 
   // Lifecycle
+  initialize(): void;
   destroy(): void;
+}
 
-  // NO DATA methods: getItems, loadMore, filter, search, etc. - those belong to Collection
+/**
+ * Utility Types
+ */
+export type ListManagerConfigUpdate = Partial<ListManagerConfig>;
+
+export interface FeatureContext {
+  config: ListManagerConfig;
+  constants: ListManagerConstants;
+  emit: <T extends ListManagerEvents>(
+    event: T,
+    data: ListManagerEventData[T]
+  ) => void;
+}
+
+export interface RangeCalculationResult {
+  visibleRange: ItemRange;
+  loadedRanges: Set<number>;
+  missingRanges: ItemRange[];
+  bufferRanges: ItemRange[];
+}
+
+/**
+ * Type for the base List Manager component
+ */
+export interface ListManagerComponent {
+  // mtrl base properties
+  element: HTMLElement;
+  config: ListManagerConfig;
+  componentName: string;
+  getClass: (name: string) => string;
+  emit?: (event: string, data?: any) => void;
+  on?: (event: string, handler: Function) => () => void;
+
+  // List Manager specific
+  items: any[];
+  totalItems: number;
+  template: ((item: any, index: number) => string | HTMLElement) | null;
+  isInitialized: boolean;
+  isDestroyed: boolean;
+
+  // Core methods
+  initialize(): void;
+  destroy(): void;
+  updateConfig(config: Partial<ListManagerConfig>): void;
+  getConfig(): ListManagerConfig;
+}
+
+export interface TemplateFunction {
+  (item: any, index: number): string | HTMLElement;
 }

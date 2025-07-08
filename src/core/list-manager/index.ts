@@ -1,268 +1,281 @@
 /**
- * List Manager System (Performance Layer)
- *
- * Main exports for the mtrl-addons List Manager performance optimization system.
- * This handles virtual scrolling, element recycling, and viewport management.
+ * List Manager Public API
+ * Main exports for the mtrl-addons List Manager system
  */
 
-// Core List Manager factory
-export { createListManager } from "./list-manager";
+// Import types first
+import type {
+  ListManager,
+  ListManagerConfig,
+  CollectionConfig,
+  ItemRange,
+  ViewportInfo,
+} from "./types";
+import { createListManager } from "./list-manager";
+import { createListManagerAPI, ListManagerAPI, ListManagerUtils } from "./api";
 
-// Types and interfaces
+// Export all types
 export type {
   ListManager,
   ListManagerConfig,
-  VirtualItem,
-  ViewportInfo,
+  ListManagerConfigUpdate,
   ListManagerObserver,
   ListManagerUnsubscribe,
-  PerformanceReport,
-  ListManagerEventPayload,
-  ElementPool,
-  SizeCache,
-  VirtualScrollingStrategy,
-  VirtualizationConfig,
-  RecyclingConfig,
-  ViewportConfig,
-  HeightMeasurementConfig,
-  PerformanceConfig,
+  ItemRange,
+  ViewportInfo,
+  SpeedTracker,
+  ViewportFeature,
+  CollectionFeature,
+  FeatureContext,
+  RangeCalculationResult,
+
+  // Configuration types
+  CollectionConfig,
   TemplateConfig,
-  ScrollConfig,
+  VirtualConfig,
+  OrientationConfig,
+  InitialLoadConfig,
+  ErrorHandlingConfig,
+  PositioningConfig,
+  BoundariesConfig,
+  RecyclingConfig,
+  PerformanceConfig,
+  IntersectionConfig,
+
+  // Event system
+  ListManagerEventData,
 } from "./types";
 
-// Event system
 export { ListManagerEvents } from "./types";
 
-// Performance constants
+// Export core functions
+export { createListManager, ListManagerImpl } from "./list-manager";
+export { createListManagerAPI, ListManagerAPI, ListManagerUtils } from "./api";
+
+// Export constants
+export { LIST_MANAGER_CONSTANTS, mergeConstants } from "./constants";
+export type { ListManagerConstants } from "./constants";
+
+// Export utility functions
 export {
-  VIRTUAL_SCROLLING,
-  ELEMENT_RECYCLING,
-  VIEWPORT,
-  HEIGHT_MEASUREMENT,
-  PERFORMANCE,
-  TEMPLATE,
-  SCROLL,
-  CLASSES,
-  ATTRIBUTES,
-  EVENT_TIMING,
-  LOGGING,
-  LIST_MANAGER_DEFAULTS,
-} from "./constants";
+  calculateVisibleRange,
+  calculateTotalVirtualSize,
+  calculateContainerPosition,
+  calculateScrollPositionForIndex,
+  calculateScrollPositionForPage,
+  calculateScrollbarMetrics,
+  calculateViewportInfo,
+  calculateInitialRangeSize,
+  calculateMissingRanges,
+  calculateBufferRanges,
+  clamp,
+  applyBoundaryResistance,
+} from "./utils/calculations";
+
+export {
+  createSpeedTracker,
+  updateSpeedTracker,
+  isFastScrolling,
+  isSlowScrolling,
+  getLoadingStrategy,
+  calculateScrollMomentum,
+  createSpeedBasedLoadingConfig,
+  resetSpeedTracker,
+  getScrollThrottleInterval,
+  hasSignificantDirectionChange,
+  calculateAdaptiveOverscan,
+  getSpeedTrackerDebugInfo,
+} from "./utils/speed-tracker";
+
+export {
+  calculateRangeIndex,
+  calculateRangeBounds,
+  calculateRequiredRanges,
+  calculatePrefetchRanges,
+  calculateRangeResult,
+  rangeToPaginationParams,
+  rangesToBatchParams,
+  calculateOptimalRangeSize,
+  isRangeInViewport,
+  calculateRangePriority,
+  sortRangesByPriority,
+  mergeAdjacentRanges,
+  calculateRangeCleanupCandidates,
+  calculateRangeLoadingOrder,
+  getRangeDebugInfo,
+} from "./utils/range-calculator";
+
+// Export feature factories
+export { createViewportFeature } from "./features/viewport";
+export { createCollectionFeature } from "./features/collection";
 
 /**
- * Quick start utility for creating a basic virtual list
+ * Default export - createListManager for convenience
  */
-export function createVirtualList<T extends VirtualItem>(options: {
-  container: HTMLElement;
-  template: (item: T, index: number) => HTMLElement | string;
-  estimatedHeight?: number;
-  windowSize?: number;
-  bufferSize?: number;
-  enablePerformanceMonitoring?: boolean;
-}) {
-  return createListManager({
-    virtualization: {
-      strategy: "window-based",
-      windowSize: options.windowSize || 10,
-      bufferSize: options.bufferSize || 5,
-      overscan: 2,
-    },
-    template: {
-      template: options.template,
-    },
-    heightMeasurement: {
-      strategy: "estimated",
-      estimatedHeight: options.estimatedHeight || 40,
-    },
-    performance: {
-      enabled: options.enablePerformanceMonitoring || false,
-    },
-    recycling: {
-      enabled: true,
-      initialPoolSize: 20,
-      maxPoolSize: 100,
-    },
-  });
-}
+export { createListManager as default } from "./list-manager";
 
 /**
- * Utility for creating a high-performance list with advanced features
+ * Version information
  */
-export function createHighPerformanceList<T extends VirtualItem>(options: {
-  container: HTMLElement;
-  template: (item: T, index: number) => HTMLElement | string;
-  estimatedHeight?: number;
-  enableDynamicHeight?: boolean;
-  enableScrollbar?: boolean;
-  performanceTarget?: "smooth" | "fast" | "extreme";
-}) {
-  const performanceConfig = getPerformanceConfig(
-    options.performanceTarget || "smooth"
-  );
-
-  return createListManager({
-    virtualization: {
-      strategy: options.enableScrollbar ? "scrollbar" : "window-based",
-      windowSize: performanceConfig.windowSize,
-      bufferSize: performanceConfig.bufferSize,
-      overscan: performanceConfig.overscan,
-      enableGPUAcceleration: true,
-      debounceMs: performanceConfig.debounceMs,
-      scrollbar: options.enableScrollbar
-        ? {
-            enabled: true,
-            trackHeight: 20,
-            thumbMinHeight: 40,
-          }
-        : undefined,
-    },
-    template: {
-      template: options.template,
-      cacheTemplates: true,
-      maxTemplateCache: performanceConfig.templateCacheSize,
-    },
-    heightMeasurement: {
-      strategy: options.enableDynamicHeight ? "dynamic" : "estimated",
-      estimatedHeight: options.estimatedHeight || 40,
-      cacheSize: performanceConfig.sizeCacheSize,
-      persistCache: true,
-    },
-    performance: {
-      enabled: true,
-      trackFPS: true,
-      trackMemory: true,
-      trackRenderTime: true,
-      fpsTarget: performanceConfig.fpsTarget,
-      reportingInterval: 5000,
-    },
-    recycling: {
-      enabled: true,
-      initialPoolSize: performanceConfig.poolSize,
-      maxPoolSize: performanceConfig.maxPoolSize,
-      strategy: "lru",
-      cleanupInterval: 10000,
-    },
-    viewport: {
-      updateStrategy: "throttled",
-      updateDelay: performanceConfig.viewportUpdateDelay,
-      intersectionThreshold: 0.1,
-    },
-  });
-}
+export const LIST_MANAGER_VERSION = "1.0.0";
 
 /**
- * Get performance configuration based on target
+ * Feature compatibility flags
  */
-function getPerformanceConfig(target: "smooth" | "fast" | "extreme") {
-  switch (target) {
-    case "smooth":
-      return {
-        windowSize: 10,
-        bufferSize: 5,
-        overscan: 2,
-        debounceMs: 16,
-        templateCacheSize: 50,
-        sizeCacheSize: 500,
-        fpsTarget: 60,
-        poolSize: 20,
-        maxPoolSize: 100,
-        viewportUpdateDelay: 16,
-      };
-    case "fast":
-      return {
-        windowSize: 20,
-        bufferSize: 10,
+export const FEATURES = {
+  VIRTUAL_SCROLLING: true,
+  CUSTOM_SCROLLBAR: true,
+  SPEED_BASED_LOADING: true,
+  PLACEHOLDER_SYSTEM: true,
+  ORIENTATION_SUPPORT: true,
+  RANGE_PAGINATION: true,
+  ELEMENT_RECYCLING: false, // Phase 2
+  SMOOTH_SCROLLING: false, // Phase 2
+  PERFORMANCE_MONITORING: false, // Phase 2
+} as const;
+
+/**
+ * Quick setup helpers for common use cases
+ */
+export const QuickSetup = {
+  /**
+   * Create a basic vertical list with static items
+   */
+  verticalList: (
+    container: HTMLElement,
+    items: any[],
+    template: (item: any, index: number) => HTMLElement
+  ): ListManager => {
+    return createListManager({
+      container,
+      items,
+      template: { template },
+      virtual: {
+        enabled: true,
+        itemSize: "auto",
+        estimatedItemSize: 50,
         overscan: 5,
-        debounceMs: 8,
-        templateCacheSize: 100,
-        sizeCacheSize: 1000,
-        fpsTarget: 60,
-        poolSize: 50,
-        maxPoolSize: 200,
-        viewportUpdateDelay: 8,
-      };
-    case "extreme":
-      return {
-        windowSize: 50,
-        bufferSize: 25,
-        overscan: 10,
-        debounceMs: 4,
-        templateCacheSize: 200,
-        sizeCacheSize: 2000,
-        fpsTarget: 120,
-        poolSize: 100,
-        maxPoolSize: 500,
-        viewportUpdateDelay: 4,
-      };
-    default:
-      return getPerformanceConfig("smooth");
-  }
-}
+      },
+      orientation: {
+        orientation: "vertical",
+        reverse: false,
+        crossAxisAlignment: "stretch",
+      },
+      debug: false,
+      prefix: "mtrl-list",
+      componentName: "List",
+    });
+  },
+
+  /**
+   * Create a horizontal list with static items
+   */
+  horizontalList: (
+    container: HTMLElement,
+    items: any[],
+    template: (item: any, index: number) => HTMLElement
+  ): ListManager => {
+    return createListManager({
+      container,
+      items,
+      template: { template },
+      virtual: {
+        enabled: true,
+        itemSize: "auto",
+        estimatedItemSize: 200,
+        overscan: 3,
+      },
+      orientation: {
+        orientation: "horizontal",
+        reverse: false,
+        crossAxisAlignment: "stretch",
+      },
+      debug: false,
+      prefix: "mtrl-list",
+      componentName: "HorizontalList",
+    });
+  },
+
+  /**
+   * Create an API-driven list with collection integration
+   */
+  apiList: (
+    container: HTMLElement,
+    collection: CollectionConfig,
+    template: (item: any, index: number) => HTMLElement
+  ): ListManager => {
+    return createListManager({
+      container,
+      collection,
+      template: { template },
+      virtual: {
+        enabled: true,
+        itemSize: "auto",
+        estimatedItemSize: 60,
+        overscan: 5,
+      },
+      orientation: {
+        orientation: "vertical",
+        reverse: false,
+        crossAxisAlignment: "stretch",
+      },
+      initialLoad: {
+        strategy: "placeholders",
+        viewportMultiplier: 1.5,
+        minItems: 10,
+        maxItems: 100,
+      },
+      debug: false,
+      prefix: "mtrl-list",
+      componentName: "ApiList",
+    });
+  },
+
+  /**
+   * Create a debug list for development
+   */
+  debugList: (
+    container: HTMLElement,
+    itemCount: number = 1000
+  ): ListManagerAPI => {
+    return createListManagerAPI(
+      ListManagerUtils.createTestConfig(container, itemCount)
+    );
+  },
+};
 
 /**
- * Utility for creating performance monitoring hooks
+ * Type guards for feature detection
  */
-export function createPerformanceMonitor(listManager: ListManager) {
-  const reports: PerformanceReport[] = [];
+export const TypeGuards = {
+  isListManager: (obj: any): obj is ListManager => {
+    return (
+      obj &&
+      typeof obj.scrollToIndex === "function" &&
+      typeof obj.getVisibleRange === "function" &&
+      typeof obj.initialize === "function"
+    );
+  },
 
-  const unsubscribe = listManager.subscribe((payload) => {
-    if (
-      payload.event === ListManagerEvents.PERFORMANCE_REPORT &&
-      payload.performance
-    ) {
-      reports.push(payload.performance);
+  isListManagerAPI: (obj: any): obj is ListManagerAPI => {
+    return (
+      TypeGuards.isListManager(obj) &&
+      typeof obj.onScroll === "function" &&
+      typeof obj.getDebugInfo === "function"
+    );
+  },
 
-      // Keep only last 50 reports
-      if (reports.length > 50) {
-        reports.shift();
-      }
-    }
-  });
+  isItemRange: (obj: any): obj is ItemRange => {
+    return obj && typeof obj.start === "number" && typeof obj.end === "number";
+  },
 
-  return {
-    getReports: () => [...reports],
-    getLatestReport: () => reports[reports.length - 1],
-    getAverageFPS: () => {
-      if (reports.length === 0) return 0;
-      return reports.reduce((sum, r) => sum + r.currentFPS, 0) / reports.length;
-    },
-    getAverageRenderTime: () => {
-      if (reports.length === 0) return 0;
-      return reports.reduce((sum, r) => sum + r.renderTime, 0) / reports.length;
-    },
-    destroy: unsubscribe,
-  };
-}
-
-/**
- * Utility for creating memory-efficient templates
- */
-export function createTemplate<T extends VirtualItem>(
-  templateFn: (item: T, index: number) => string
-) {
-  const elementCache = new Map<string, HTMLElement>();
-
-  return (item: T, index: number): HTMLElement => {
-    const cacheKey = `${item.id}-${index}`;
-
-    if (elementCache.has(cacheKey)) {
-      return elementCache.get(cacheKey)!;
-    }
-
-    const htmlString = templateFn(item, index);
-    const element = document.createElement("div");
-    element.innerHTML = htmlString;
-
-    elementCache.set(cacheKey, element);
-
-    // Cleanup cache when it gets too large
-    if (elementCache.size > 100) {
-      const firstKey = elementCache.keys().next().value;
-      elementCache.delete(firstKey);
-    }
-
-    return element;
-  };
-}
-
-// NO DATA exports: adapters, collections, persistence, etc. - those belong to Collection layer
+  isViewportInfo: (obj: any): obj is ViewportInfo => {
+    return (
+      obj &&
+      typeof obj.containerSize === "number" &&
+      typeof obj.totalVirtualSize === "number" &&
+      TypeGuards.isItemRange(obj.visibleRange) &&
+      typeof obj.virtualScrollPosition === "number"
+    );
+  },
+};
