@@ -5,6 +5,7 @@
 
 import { pipe } from "mtrl/src/core/compose";
 import { createBase } from "mtrl/src/core/compose";
+import { withEvents } from "mtrl/src/core/compose/features/events";
 import type { ListManagerConfig } from "./types";
 import { LIST_MANAGER_CONSTANTS } from "./constants";
 
@@ -122,6 +123,7 @@ export const createListManager = (
 export const listManager = (config: ListManagerConfig) => {
   return pipe(
     createListManager,
+    withEvents(), // Add event system first
     withViewport({
       orientation: config.orientation?.orientation || "vertical",
       estimatedItemSize: config.virtual?.estimatedItemSize || 50,
@@ -129,8 +131,8 @@ export const listManager = (config: ListManagerConfig) => {
       enableScrollbar: true,
     }),
     withCollection({
-      collection: config.collection?.adapter,
-      rangeSize: config.collection?.pageSize || 20,
+      collection: config.collection?.adapter || config.collection, // Support both nested and direct adapter
+      rangeSize: config.collection?.limit || 20,
       strategy: config.collection?.strategy || "page",
       fastThreshold: 1000,
       slowThreshold: 100,

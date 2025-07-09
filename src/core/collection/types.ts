@@ -72,6 +72,16 @@ export interface CollectionConfig<T extends CollectionItem = CollectionItem> {
    */
   pageSize?: number;
 
+  /**
+   * Limit for API requests (items per request)
+   */
+  limit?: number;
+
+  /**
+   * Range size for virtual scrolling (items to load per range)
+   */
+  rangeSize?: number;
+
   // NO UI properties: container, template, className, ariaLabel
 }
 
@@ -150,7 +160,7 @@ export interface CollectionAdapter<T extends CollectionItem = CollectionItem> {
 export interface AdapterParams {
   // Pagination parameters
   page?: number;
-  pageSize?: number;
+  limit?: number;
   offset?: number;
   cursor?: string;
 
@@ -181,7 +191,7 @@ export interface AdapterResponse<T extends CollectionItem = CollectionItem> {
   meta?: {
     total?: number;
     page?: number;
-    pageSize?: number;
+    limit?: number;
     hasNext?: boolean;
     hasPrev?: boolean;
     cursor?: string;

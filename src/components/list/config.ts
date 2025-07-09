@@ -298,7 +298,7 @@ const DEFAULT_CONFIG: Partial<ListConfig> = {
 
   // Collection defaults
   collection: {
-    pageSize: DATA_PAGINATION.DEFAULT_PAGE_SIZE,
+    limit: DATA_PAGINATION.DEFAULT_PAGE_SIZE,
     strategy: "page",
     cache: {
       enabled: true,
@@ -408,7 +408,7 @@ export const validateConfig = (config: ListConfig): void => {
  */
 export const getCollectionConfig = <T = any>(config: ListConfig<T>) => ({
   // Data configuration
-  pageSize: config.collection?.pageSize || DATA_PAGINATION.DEFAULT_PAGE_SIZE,
+  limit: config.collection?.limit || DATA_PAGINATION.DEFAULT_PAGE_SIZE,
   strategy: config.collection?.strategy || "page",
 
   // API configuration - check both top level and nested

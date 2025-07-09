@@ -1,6 +1,6 @@
 /**
  * Viewport Feature - Complete Virtual Scrolling Enhancer
- * Handles orientation, virtual scrolling, custom scrollbar, and item sizing
+ * Handles orientation, virtual scrolling, custom scrollbar, and item rendering
  */
 
 import type {
@@ -18,6 +18,7 @@ import {
   applyBoundaryResistance,
 } from "../../utils/calculations";
 import { getDefaultTemplate } from "./template";
+import { createItemSizeManager, type ItemSizeManager } from "./item-size";
 
 /**
  * Configuration for viewport enhancer
@@ -78,9 +79,7 @@ export const withViewport =
   <T extends ListManagerComponent>(component: T): T & ViewportComponent => {
     // Configuration with defaults
     const orientation = config.orientation || "vertical";
-    const estimatedItemSize =
-      config.estimatedItemSize ||
-      LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.DEFAULT_ITEM_SIZE;
+    const estimatedItemSize = 60; // Force smaller item size for testing
     const overscan =
       config.overscan || LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER;
     const enableScrollbar = config.enableScrollbar !== false;
@@ -89,10 +88,27 @@ export const withViewport =
     let virtualScrollPosition = 0;
     let totalVirtualSize = 0;
     let containerSize = 0;
-    let currentEstimatedItemSize = estimatedItemSize;
 
-    // Item sizing
-    const measuredSizes = new Map<number, number>();
+    // Item size management
+    const itemSizeManager = createItemSizeManager({
+      initialEstimate: estimatedItemSize,
+      orientation,
+      onSizeUpdated: (newTotalSize) => {
+        totalVirtualSize = newTotalSize;
+        updateScrollbar();
+        component.emit?.("dimensions:changed", {
+          containerSize,
+          totalVirtualSize,
+          estimatedItemSize: itemSizeManager.getEstimatedItemSize(),
+        });
+      },
+      onEstimatedSizeChanged: (newEstimate) => {
+        component.emit?.("estimated-size:changed", {
+          previousEstimate: estimatedItemSize,
+          newEstimate,
+        });
+      },
+    });
 
     // Custom scrollbar elements
     let scrollbarThumb: HTMLElement | null = null;
@@ -140,18 +156,24 @@ export const withViewport =
     const setupCollectionEventListeners = (): void => {
       // Listen for collection events to trigger rendering
       if (component.on) {
-        component.on("items:set", () => {
+        component.on("items:set", (data: any) => {
           updateTotalVirtualSize();
+          // Force recalculation by resetting current range
+          currentVisibleRange = { start: -1, end: -1 };
           renderItems();
         });
 
-        component.on("range:loaded", () => {
+        component.on("range:loaded", (data: any) => {
           updateTotalVirtualSize();
+          // Force recalculation by resetting current range
+          currentVisibleRange = { start: -1, end: -1 };
           renderItems();
         });
 
-        component.on("total:changed", () => {
+        component.on("total:changed", (data: any) => {
           updateTotalVirtualSize();
+          // Force recalculation by resetting current range
+          currentVisibleRange = { start: -1, end: -1 };
           renderItems();
         });
 
@@ -237,8 +259,8 @@ export const withViewport =
       const offset = calculateContainerPosition(
         virtualScrollPosition,
         visibleRange,
-        measuredSizes,
-        currentEstimatedItemSize
+        itemSizeManager.getMeasuredSizes(),
+        itemSizeManager.getEstimatedItemSize()
       );
 
       const transformProperty =
@@ -281,20 +303,30 @@ export const withViewport =
      * Calculate visible range based on current scroll position
      */
     const calculateVisibleRange = (): ItemRange => {
-      return calculateVisibleRangeUtil(
+      // FIX: Use items array length if totalItems is outdated due to component layering
+      const actualTotalItems = Math.max(
+        component.totalItems,
+        component.items.length
+      );
+
+      const range = calculateVisibleRangeUtil(
         virtualScrollPosition,
         containerSize,
-        currentEstimatedItemSize,
-        component.totalItems,
+        itemSizeManager.getEstimatedItemSize(),
+        actualTotalItems,
         overscan
       );
+
+      return range;
     };
 
     /**
      * Render items for the current visible range
      */
     const renderItems = (): void => {
-      if (!itemsContainer || !component.template) return;
+      if (!itemsContainer || !component.template) {
+        return;
+      }
 
       const newVisibleRange = calculateVisibleRange();
 
@@ -303,7 +335,9 @@ export const withViewport =
         newVisibleRange.start !== currentVisibleRange.start ||
         newVisibleRange.end !== currentVisibleRange.end;
 
-      if (!rangeChanged && renderedElements.size > 0) return;
+      if (!rangeChanged && renderedElements.size > 0) {
+        return;
+      }
 
       // Remove elements outside the new range
       for (const [index, element] of renderedElements.entries()) {
@@ -314,31 +348,59 @@ export const withViewport =
       }
 
       // Render new items in range
+      const newElements: { element: HTMLElement; index: number }[] = [];
+
       for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
-        if (i >= component.items.length) break;
+        if (i >= component.items.length) {
+          break;
+        }
 
         const item = component.items[i];
-        if (!item) continue; // Skip empty slots
+        if (!item) {
+          continue; // Skip empty slots
+        }
 
         // Skip if already rendered
-        if (renderedElements.has(i)) continue;
+        if (renderedElements.has(i)) {
+          continue;
+        }
 
         // Create element for item
         const element = renderItem(item, i);
         if (element) {
+          // Initially hide the element for measurement
+          element.style.visibility = "hidden";
+          element.style.position = "absolute";
+
           renderedElements.set(i, element);
           itemsContainer.appendChild(element);
 
-          // Measure the element after it's in DOM
-          requestAnimationFrame(() => {
-            measureItemSize(element, i);
-          });
+          // Store for measurement
+          newElements.push({ element, index: i });
         }
+      }
+
+      // Measure all new elements synchronously before positioning
+      if (newElements.length > 0) {
+        // Force a reflow to ensure all elements are laid out
+        itemsContainer.offsetHeight;
+
+        newElements.forEach(({ element, index }) => {
+          itemSizeManager.measureItem(element, index);
+          // Make element visible after measurement
+          element.style.visibility = "visible";
+        });
+
+        console.log(
+          `📏 [VIEWPORT] Measured ${newElements.length} new items for indices ${
+            newElements[0].index
+          }-${newElements[newElements.length - 1].index}`
+        );
       }
 
       currentVisibleRange = newVisibleRange;
 
-      // Position elements correctly
+      // Position elements correctly with actual measured sizes
       updateItemPositions();
 
       component.emit?.("range:rendered", {
@@ -387,8 +449,10 @@ export const withViewport =
 
       // Calculate position for each rendered item
       for (let i = 0; i < currentVisibleRange.start; i++) {
-        currentPosition += measuredSizes.get(i) || currentEstimatedItemSize;
+        currentPosition += itemSizeManager.getMeasuredSize(i);
       }
+
+      const positionLog: string[] = [];
 
       // Position visible items
       for (
@@ -398,6 +462,9 @@ export const withViewport =
       ) {
         const element = renderedElements.get(i);
         if (element) {
+          const itemSize = itemSizeManager.getMeasuredSize(i);
+          const isMeasured = itemSizeManager.hasMeasuredSize(i);
+
           if (orientation === "vertical") {
             element.style.position = "absolute";
             element.style.top = `${currentPosition}px`;
@@ -410,28 +477,24 @@ export const withViewport =
             element.style.height = "100%";
           }
 
-          currentPosition += measuredSizes.get(i) || currentEstimatedItemSize;
+          positionLog.push(
+            `${i}:${currentPosition}px(${isMeasured ? "M" : "E"}${itemSize})`
+          );
+          currentPosition += itemSize;
         }
+      }
+
+      if (positionLog.length > 0) {
+        console.log(`📍 [VIEWPORT] Positioned items: ${positionLog.join(" ")}`);
       }
     };
 
     /**
      * Measure actual item size and update cache
+     * (Kept for compatibility - delegates to itemSizeManager)
      */
     const measureItemSize = (element: HTMLElement, index: number): number => {
-      if (!element || index < 0) return currentEstimatedItemSize;
-
-      const size =
-        orientation === "vertical" ? element.offsetHeight : element.offsetWidth;
-
-      if (size > 0) {
-        measuredSizes.set(index, size);
-        updateEstimatedSize();
-        updateTotalVirtualSize();
-        return size;
-      }
-
-      return currentEstimatedItemSize;
+      return itemSizeManager.measureItem(element, index, orientation);
     };
 
     /**
@@ -447,15 +510,15 @@ export const withViewport =
 
       // Calculate position based on measured sizes
       for (let i = 0; i < index; i++) {
-        targetPosition += measuredSizes.get(i) || currentEstimatedItemSize;
+        targetPosition += itemSizeManager.getMeasuredSize(i);
       }
 
       // Apply alignment
       if (alignment === "center") {
-        const itemSize = measuredSizes.get(index) || currentEstimatedItemSize;
+        const itemSize = itemSizeManager.getMeasuredSize(index);
         targetPosition -= (containerSize - itemSize) / 2;
       } else if (alignment === "end") {
-        const itemSize = measuredSizes.get(index) || currentEstimatedItemSize;
+        const itemSize = itemSizeManager.getMeasuredSize(index);
         targetPosition -= containerSize - itemSize;
       }
 
@@ -496,8 +559,8 @@ export const withViewport =
         virtualScrollPosition,
         containerSize,
         component.totalItems,
-        currentEstimatedItemSize,
-        measuredSizes,
+        itemSizeManager.getEstimatedItemSize(),
+        itemSizeManager.getMeasuredSizes(),
         overscan
       );
     };
@@ -732,7 +795,7 @@ export const withViewport =
       let newTotalSize = 0;
 
       for (let i = 0; i < component.totalItems; i++) {
-        newTotalSize += measuredSizes.get(i) || currentEstimatedItemSize;
+        newTotalSize += itemSizeManager.getMeasuredSize(i);
       }
 
       if (newTotalSize !== totalVirtualSize) {
@@ -742,21 +805,9 @@ export const withViewport =
         component.emit?.("dimensions:changed", {
           containerSize,
           totalVirtualSize,
-          estimatedItemSize: currentEstimatedItemSize,
+          estimatedItemSize: itemSizeManager.getEstimatedItemSize(),
         });
       }
-    };
-
-    /**
-     * Update estimated item size based on measured sizes
-     */
-    const updateEstimatedSize = (): void => {
-      if (measuredSizes.size === 0) return;
-
-      const sizes = Array.from(measuredSizes.values());
-      const average = sizes.reduce((sum, size) => sum + size, 0) / sizes.length;
-
-      currentEstimatedItemSize = Math.max(1, Math.round(average));
     };
 
     // Initialize viewport when component initializes
@@ -788,10 +839,11 @@ export const withViewport =
 
       // Item sizing
       measureItemSize,
-      hasMeasuredSize: (index: number) => measuredSizes.has(index),
+      hasMeasuredSize: (index: number) =>
+        itemSizeManager.hasMeasuredSize(index),
       getMeasuredSize: (index: number) =>
-        measuredSizes.get(index) || currentEstimatedItemSize,
-      getEstimatedItemSize: () => currentEstimatedItemSize,
+        itemSizeManager.getMeasuredSize(index),
+      getEstimatedItemSize: () => itemSizeManager.getEstimatedItemSize(),
 
       // Rendering
       renderItems,

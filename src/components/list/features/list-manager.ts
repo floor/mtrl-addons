@@ -21,15 +21,12 @@ export const withListManager =
       items: config.items || [],
       totalItems: config.items?.length || 0,
 
-      // Template configuration
+      // Template configuration - config.template is already the converted function
       template: {
         template:
           config.template ||
-          ((item: T) => {
-            const div = document.createElement("div");
-            div.textContent = String(item);
-            return div;
-          }),
+          ((item: any, index: number) =>
+            `<div>Item ${index}: ${JSON.stringify(item)}</div>`),
       },
 
       // Virtual scrolling configuration
@@ -51,7 +48,7 @@ export const withListManager =
       collection: config.adapter
         ? {
             adapter: config.adapter,
-            pageSize: 20, // Default page size
+            limit: config.collection?.limit || 20,
             strategy: "page" as const,
           }
         : undefined,

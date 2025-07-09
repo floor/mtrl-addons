@@ -3,7 +3,11 @@
  * Handles speed tracking, range loading, collection integration, and placeholders
  */
 
-import type { ListManagerComponent, ItemRange, SpeedTracker } from "../../types";
+import type {
+  ListManagerComponent,
+  ItemRange,
+  SpeedTracker,
+} from "../../types";
 import { LIST_MANAGER_CONSTANTS, PLACEHOLDER } from "../../constants";
 
 /**
@@ -122,6 +126,19 @@ export const withCollection =
         strategy: paginationStrategy,
         rangeSize,
       });
+
+      // 🔥 AUTO-LOAD INITIAL DATA
+      if (collection) {
+        // Load initial range on next tick to ensure all enhancers are ready
+        setTimeout(() => {
+          console.log(
+            `🚀 [COLLECTION] Auto-loading initial data (strategy: ${paginationStrategy})`
+          );
+          loadRange(0, rangeSize).catch((error) => {
+            console.error("❌ [COLLECTION] Initial load failed:", error);
+          });
+        }, 0);
+      }
     };
 
     /**
@@ -205,19 +222,50 @@ export const withCollection =
         switch (paginationStrategy) {
           case "page":
             const page = Math.floor(offset / limit) + 1;
-            items = await collection.loadPage({ page, limit });
+            // Adapt generic read method to page-based strategy
+            if (collection.loadPage) {
+              items = await collection.loadPage({ page, limit });
+            } else if (collection.read) {
+              const result = await collection.read({ page, limit });
+              items = result.items || [];
+            } else {
+              throw new Error(
+                "Collection adapter missing loadPage or read method"
+              );
+            }
             break;
 
           case "offset":
-            items = await collection.loadRange({ offset, limit });
+            if (collection.loadRange) {
+              items = await collection.loadRange({ offset, limit });
+            } else if (collection.read) {
+              const result = await collection.read({ offset, limit });
+              items = result.items || [];
+            } else {
+              throw new Error(
+                "Collection adapter missing loadRange or read method"
+              );
+            }
             break;
 
           case "cursor":
             // For cursor-based, we need to track the cursor
-            items = await collection.loadWithCursor({
-              limit,
-              cursor: getCursorForOffset(offset),
-            });
+            if (collection.loadWithCursor) {
+              items = await collection.loadWithCursor({
+                limit,
+                cursor: getCursorForOffset(offset),
+              });
+            } else if (collection.read) {
+              const result = await collection.read({
+                cursor: getCursorForOffset(offset),
+                limit,
+              });
+              items = result.items || [];
+            } else {
+              throw new Error(
+                "Collection adapter missing loadWithCursor or read method"
+              );
+            }
             break;
 
           default:
@@ -417,6 +465,7 @@ export const withCollection =
 
       // Update total items if we have more data
       const newTotal = Math.max(component.totalItems, offset + items.length);
+
       if (newTotal !== component.totalItems) {
         component.totalItems = newTotal;
         component.emit?.("total:changed", { total: newTotal });
