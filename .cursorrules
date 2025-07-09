@@ -1,0 +1,117 @@
+# mtrl-addons Package Development Rules
+
+## Package Overview
+
+mtrl-addons is an extension library for the mtrl Material Design 3 component system, providing specialized elements and extended functionality for modern applications. It maintains the same "less is more" philosophy with zero external dependencies (mtrl as peer dependency only).
+
+## Environment & Architecture
+
+- Part of workspace alongside mtrl and mtrl-app packages
+- mtrl-app serves as the information hub with documentation and showcases
+- Follows mtrl core architecture patterns and conventions
+- Primary dependency: mtrl
+
+## Development Philosophy
+
+- Follow "less is more" philosophy - minimalist but complete
+- Optimize for size, memory usage, and speed
+- Keep modules small and reusable for bundling
+- Find root causes and fix problems elegantly with minimal code
+- Avoid over-engineering and workarounds
+
+## Pre-Development Checklist
+
+1. Check if functionality already exists in mtrl (mtrl/src/core)
+2. Check mtrl styles system (mtrl/src/styles) before creating new styles
+3. Create tests first (mtrl-addons/test/) - test-driven development
+4. Use mtrl-app/docs for all documentation (no .md files in this package)
+
+## Code Standards
+
+### TypeScript & Structure
+
+- Use TypeScript for all components
+- Follow mtrl component and core structure conventions
+- Use pipe pattern for core and component composition
+- Add comprehensive TypeDoc comments for all public APIs
+- Maintain zero external dependencies policy
+
+### CSS & Styling
+
+- No inline CSS - use external SCSS files in src/styles/
+- Follow BEM naming: mtrl-component\_\_element--modifier
+- Use mtrl styles system as foundation
+
+### File Management
+
+- Prefer editing existing files over creating new ones
+- Avoid hyphens in filenames if possible
+- Prefer short filenames if clear enough
+- If you need to create html or js debugging files, just ./debugging folder (will be .git ignored)
+- No summary .md files for coding sessions
+- Component and Core usual ts files: index, main(module name), types, constant, api(special feature), features
+- If features become to large, create a folder and split the file by concern ans move api in it if appropriate
+
+### Component Development
+
+- Follow established mtrl component patterns (config, types, constants, features)
+- Always use functional composition over class inheritance
+- Implement proper lifecycle management
+- Ensure accessibility compliance - this is important!
+- Focus on the specific issue when fixing bugs - avoid enhancements during fixes
+
+## Testing Rules
+
+- Use Bun test runner for all tests
+- Mock components to avoid circular dependencies
+- Always use JSDOM for DOM testing
+- Comprehensive but lightweight tests
+- Follow test-first development approach
+
+## Showcase & Documentation
+
+- Create showcases in mtrl-app/client/content only and follow the hierarchy
+- Always use mtrl components via layout system (mtrl-app/docs/layout/usages.md)
+- Prefer array-based layout schema
+- Format schema following the formatting convention (mtrl-app/docs/core/layout/array-schema.md)
+- Avoid manual DOM element creation in showcases
+- Never inline CSS in showcases
+- Focus on demonstrating component capabilities
+- Keep the showcases small, maintainable and readable
+
+## Build & Deployment
+
+- Build using `bun run build:app` not `bun run build`
+- Fix TypeScript declaration errors immediately
+- Do not start development servers (bun/node)
+- Follow conventional commit format
+- Use `bun run build` for package builds
+- Ensure compatibility with both ES modules and CommonJS
+
+## Performance & Optimization
+
+- When enhancing/optimizing/refactoring: focus on size, memory usage, and speed
+- Minimize bundle size impact
+- Avoid unnecessary re-renders or DOM manipulations
+- Use efficient algorithms and data structures
+- Design for tree-shaking compatibility
+
+## Extension Development
+
+- Build upon mtrl core without duplicating functionality
+- Create specialized components not found in base mtrl package
+- Ensure seamless integration with mtrl component ecosystem
+- Maintain API consistency with mtrl patterns
+- Design for modularity - components should be importable individually
+
+## Prohibited Actions
+
+- Do not use React (pure TypeScript/JavaScript library)
+- Do not create markdown documentation for enhancements
+- Do not run server commands
+- Do not create workarounds or hacks
+- Do not duplicate mtrl core functionality
+- Do not enhance during bug fixes - stay focused on the issue
+- Do not harcode prefix
+- Do not use global Window object to store things
+- Do not build using bun run build (this is used for package build, use bun run build:app)
