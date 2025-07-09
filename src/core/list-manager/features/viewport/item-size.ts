@@ -59,6 +59,25 @@ export const createItemSizeManager = (
   let currentEstimatedItemSize = initialEstimate;
 
   /**
+   * Cache a specific item size with cache size management
+   */
+  const cacheItemSize = (index: number, size: number): void => {
+    if (measuredSizes.size >= cacheSize) {
+      // Remove oldest entries (10% of cache size)
+      const entries = Array.from(measuredSizes.entries());
+      entries.slice(0, Math.floor(cacheSize * 0.1)).forEach(([key]) => {
+        measuredSizes.delete(key);
+      });
+      console.log(
+        `🧹 [ITEM-SIZE] Cache cleanup: removed ${Math.floor(
+          cacheSize * 0.1
+        )} oldest entries`
+      );
+    }
+    measuredSizes.set(index, size);
+  };
+
+  /**
    * Measure actual item size and update cache
    */
   const measureItem = (
@@ -191,20 +210,13 @@ export const createItemSizeManager = (
   };
 
   /**
-   * Cache a specific item size
-   */
-  const cacheItemSize = (index: number, size: number): void => {
-    measuredSizes.set(index, size);
-    console.log(`📦 [ITEM-SIZE] Cached size for item ${index}: ${size}px`);
-  };
-
-  /**
    * Get cache statistics
    */
   const getStats = () => {
     return {
       cachedItems: measuredSizes.size,
       estimatedSize: currentEstimatedItemSize,
+      cacheSize: cacheSize,
       minSize:
         measuredSizes.size > 0
           ? Math.min(...measuredSizes.values())
@@ -213,6 +225,7 @@ export const createItemSizeManager = (
         measuredSizes.size > 0
           ? Math.max(...measuredSizes.values())
           : currentEstimatedItemSize,
+      orientation: orientation,
     };
   };
 

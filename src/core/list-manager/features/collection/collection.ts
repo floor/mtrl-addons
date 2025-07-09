@@ -217,6 +217,7 @@ export const withCollection =
 
       try {
         let items: any[];
+        let responseMeta: any = {};
 
         // Adapt to different pagination strategies
         switch (paginationStrategy) {
@@ -228,6 +229,7 @@ export const withCollection =
             } else if (collection.read) {
               const result = await collection.read({ page, limit });
               items = result.items || [];
+              responseMeta = result.meta || {};
             } else {
               throw new Error(
                 "Collection adapter missing loadPage or read method"
@@ -241,6 +243,7 @@ export const withCollection =
             } else if (collection.read) {
               const result = await collection.read({ offset, limit });
               items = result.items || [];
+              responseMeta = result.meta || {};
             } else {
               throw new Error(
                 "Collection adapter missing loadRange or read method"
@@ -261,6 +264,7 @@ export const withCollection =
                 limit,
               });
               items = result.items || [];
+              responseMeta = result.meta || {};
             } else {
               throw new Error(
                 "Collection adapter missing loadWithCursor or read method"
@@ -272,6 +276,21 @@ export const withCollection =
             throw new Error(
               `Unsupported pagination strategy: ${paginationStrategy}`
             );
+        }
+
+        // Set total items from API metadata if available (for massive lists)
+        if (responseMeta.total && responseMeta.total > component.totalItems) {
+          const newTotal = responseMeta.total;
+          component.totalItems = newTotal;
+          console.log(
+            `📊 [COLLECTION] Updated total items from API metadata: ${newTotal.toLocaleString()}`
+          );
+          component.emit?.("total:changed", { total: newTotal });
+
+          // Trigger viewport to recalculate total virtual size for massive lists
+          if ((component as any).viewport?.updateViewport) {
+            (component as any).viewport.updateViewport();
+          }
         }
 
         // Analyze structure on first load
@@ -438,10 +457,27 @@ export const withCollection =
      * Update loaded data in component
      */
     const updateLoadedData = (items: any[], offset: number): void => {
+      console.log(
+        `📥 [COLLECTION] updateLoadedData() called with ${items.length} items, offset: ${offset}`
+      );
+      console.log(
+        `📥 [COLLECTION] component.items.length before:`,
+        component.items.length
+      );
+      console.log(
+        `📥 [COLLECTION] component.totalItems before:`,
+        component.totalItems
+      );
+
       // Ensure items array is large enough
       while (component.items.length < offset + items.length) {
         component.items.push(null);
       }
+
+      console.log(
+        `📥 [COLLECTION] component.items.length after padding:`,
+        component.items.length
+      );
 
       // Replace placeholders with real data
       items.forEach((item, index) => {
@@ -452,6 +488,10 @@ export const withCollection =
         const wasPlaceholder =
           existingItem && existingItem[PLACEHOLDER.PLACEHOLDER_FLAG];
 
+        console.log(
+          `📥 [COLLECTION] Setting item at index ${targetIndex}:`,
+          item ? "exists" : "null/undefined"
+        );
         component.items[targetIndex] = item;
 
         if (wasPlaceholder) {
@@ -463,12 +503,27 @@ export const withCollection =
         }
       });
 
-      // Update total items if we have more data
-      const newTotal = Math.max(component.totalItems, offset + items.length);
+      console.log(
+        `📥 [COLLECTION] component.items.length after update:`,
+        component.items.length
+      );
+      console.log(
+        `📥 [COLLECTION] First few items:`,
+        component.items.slice(0, 3)
+      );
 
-      if (newTotal !== component.totalItems) {
-        component.totalItems = newTotal;
-        component.emit?.("total:changed", { total: newTotal });
+      // Only update total items if we don't have a large total from API metadata
+      // This prevents overriding the massive list total (1,000,000) with loaded items count (20)
+      const currentTotal = component.totalItems;
+      const loadedTotal = offset + items.length;
+
+      if (currentTotal < 1000 && loadedTotal > currentTotal) {
+        // Only update for small lists where we're building the total incrementally
+        component.totalItems = loadedTotal;
+        component.emit?.("total:changed", { total: loadedTotal });
+        console.log(
+          `📊 [COLLECTION] Updated total items incrementally: ${loadedTotal}`
+        );
       }
     };
 

@@ -1,7 +1,8 @@
 import type { ListConfig, ListComponent, ListState } from "../types";
 import type { BaseComponent, ElementComponent } from "mtrl/src/core/compose";
 import type { CollectionItem } from "../../../core/collection/types";
-import { listManager } from "../../../core/list-manager/list-manager";
+import { createListManager } from "../../../core/list-manager/list-manager";
+import type { ListManagerConfig } from "../../../core/list-manager/types";
 
 /**
  * List Manager feature that creates and manages the enhanced List Manager
@@ -16,10 +17,9 @@ export const withListManager =
     component: C
   ): C & Partial<ListComponent<T>> => {
     // Convert List Config to Phase 1 List Manager Config
-    const listManagerConfig = {
+    const listManagerConfig: ListManagerConfig = {
       container: component.element,
       items: config.items || [],
-      totalItems: config.items?.length || 0,
 
       // Template configuration - config.template is already the converted function
       template: {
@@ -48,7 +48,7 @@ export const withListManager =
       collection: config.adapter
         ? {
             adapter: config.adapter,
-            limit: config.collection?.limit || 20,
+            pageSize: config.collection?.limit || 20,
             strategy: "page" as const,
           }
         : undefined,
@@ -87,23 +87,29 @@ export const withListManager =
       },
 
       performance: {
-        frameBudget: 16.67,
-        throttleScroll: 16,
-        debounceLoading: 50,
+        frameScheduling: true,
+        memoryCleanup: true,
       },
 
       intersection: {
-        enabled: false,
+        pagination: {
+          enabled: false,
+          rootMargin: "0px",
+          threshold: 0.1,
+        },
+        loading: {
+          enabled: false,
+        },
       },
 
       // Debug and styling
       debug: false,
       prefix: config.prefix || "mtrl",
-      componentName: "List",
+      componentName: "list-manager",
     };
 
     // Create Phase 1 List Manager with functional composition
-    const manager = listManager(listManagerConfig);
+    const manager = createListManager(listManagerConfig);
 
     console.log(`📋 List Manager created with Phase 1 functional composition`);
 
@@ -217,6 +223,9 @@ export const withListManager =
     // Initialize on next tick
     setTimeout(initialize, 0);
 
+    // Type assertion to access enhanced properties
+    const enhancedManager = manager as any;
+
     // Return enhanced component with Phase 1 List Manager API
     return Object.assign(component, {
       // Core instances (simplified)
@@ -224,21 +233,23 @@ export const withListManager =
       state,
       config,
 
-      // Direct access to enhancers
-      viewport: manager.viewport,
-      collection: manager.collection,
-      speedTracker: manager.speedTracker,
-      placeholders: manager.placeholders,
+      // Direct access to enhancers via type assertion
+      viewport: enhancedManager.viewport,
+      collection: enhancedManager.collection,
+      speedTracker: enhancedManager.speedTracker,
+      placeholders: enhancedManager.placeholders,
 
       // Data operations (delegate to List Manager)
       loadData: () =>
-        manager.collection?.loadRange(0, 20) || Promise.resolve([]),
+        enhancedManager.collection?.loadRange(0, 20) || Promise.resolve([]),
       reload: () => {
-        manager.collection?.getLoadedRanges().clear();
-        return manager.collection?.loadRange(0, 20) || Promise.resolve([]);
+        enhancedManager.collection?.getLoadedRanges().clear();
+        return (
+          enhancedManager.collection?.loadRange(0, 20) || Promise.resolve([])
+        );
       },
       clear: () => {
-        manager.collection?.setItems([]);
+        enhancedManager.collection?.setItems([]);
       },
       addItems: (items: T[], position: "start" | "end" = "end") => {
         const currentItems = manager.items || [];
@@ -246,20 +257,20 @@ export const withListManager =
           position === "start"
             ? [...items, ...currentItems]
             : [...currentItems, ...items];
-        manager.collection?.setItems(newItems);
+        enhancedManager.collection?.setItems(newItems);
       },
       removeItems: (indices: number[]) => {
         const currentItems = manager.items || [];
         const newItems = currentItems.filter(
           (_: any, index: number) => !indices.includes(index)
         );
-        manager.collection?.setItems(newItems);
+        enhancedManager.collection?.setItems(newItems);
       },
       updateItem: (index: number, item: T) => {
         const currentItems = [...(manager.items || [])];
         if (index >= 0 && index < currentItems.length) {
           currentItems[index] = item;
-          manager.collection?.setItems(currentItems);
+          enhancedManager.collection?.setItems(currentItems);
         }
       },
       getItem: (index: number) => {
@@ -275,7 +286,7 @@ export const withListManager =
         alignment: "start" | "center" | "end" = "start",
         animate?: boolean
       ) => {
-        manager.viewport?.scrollToIndex(index, alignment);
+        enhancedManager.viewport?.scrollToIndex(index, alignment);
         return Promise.resolve();
       },
 
@@ -284,7 +295,7 @@ export const withListManager =
         alignment: "start" | "center" | "end" = "start",
         animate?: boolean
       ) => {
-        manager.viewport?.scrollToPage(page, alignment);
+        enhancedManager.viewport?.scrollToPage(page, alignment);
         return Promise.resolve();
       },
 
@@ -300,7 +311,7 @@ export const withListManager =
         );
 
         if (index >= 0) {
-          manager.viewport?.scrollToIndex(index, alignment);
+          enhancedManager.viewport?.scrollToIndex(index, alignment);
           return Promise.resolve();
         }
 
@@ -309,19 +320,20 @@ export const withListManager =
       },
 
       scrollToTop: () => {
-        manager.viewport?.scrollToIndex(0, "start");
+        enhancedManager.viewport?.scrollToIndex(0, "start");
         return Promise.resolve();
       },
 
       scrollToBottom: () => {
         const totalItems = manager.totalItems || 0;
         if (totalItems > 0) {
-          manager.viewport?.scrollToIndex(totalItems - 1, "end");
+          enhancedManager.viewport?.scrollToIndex(totalItems - 1, "end");
         }
         return Promise.resolve();
       },
 
-      getScrollPosition: () => manager.viewport?.getScrollPosition() || 0,
+      getScrollPosition: () =>
+        enhancedManager.viewport?.getScrollPosition() || 0,
 
       // Scroll animation control
       setScrollAnimation: (enabled: boolean) => {
@@ -362,7 +374,8 @@ export const withListManager =
       },
 
       // Additional methods for compatibility
-      hasNext: () => manager.collection?.getPendingRanges().size > 0 || false,
+      hasNext: () =>
+        enhancedManager.collection?.getPendingRanges().size > 0 || false,
       hasPrevious: () => false, // Not implemented yet
       getSelectedIds: () => {
         const items = manager.items || [];
@@ -375,14 +388,15 @@ export const withListManager =
         averageScrollTime: 0,
         memoryUsage: 0,
         recycledElements: 0,
-        speedTracker: manager.speedTracker?.getTracker() || null,
+        speedTracker: enhancedManager.speedTracker?.getTracker() || null,
         placeholderStructure:
-          manager.placeholders?.getPlaceholderStructure() || null,
+          enhancedManager.placeholders?.getPlaceholderStructure() || null,
       }),
 
       // State queries
       getState: () => ({ ...state }),
-      isLoading: () => manager.collection?.getPendingRanges().size > 0 || false,
+      isLoading: () =>
+        enhancedManager.collection?.getPendingRanges().size > 0 || false,
       hasError: () => state.error !== null,
       isEmpty: () => (manager.totalItems || 0) === 0,
 
@@ -390,11 +404,11 @@ export const withListManager =
       render: () => {
         // Phase 1 List Manager handles rendering internally
       },
-      updateViewport: () => manager.viewport?.updateViewport(),
+      updateViewport: () => enhancedManager.viewport?.updateViewport(),
       getVisibleRange: () =>
-        manager.viewport?.getVisibleRange() || { start: 0, end: 0 },
+        enhancedManager.viewport?.getVisibleRange() || { start: 0, end: 0 },
       getRenderRange: () =>
-        manager.viewport?.getVisibleRange() || { start: 0, end: 0 },
+        enhancedManager.viewport?.getVisibleRange() || { start: 0, end: 0 },
 
       // Configuration
       updateConfig: (newConfig: Partial<ListConfig<T>>) => {
@@ -425,5 +439,5 @@ export const withListManager =
           originalEmit.call(component, event, data);
         }
       },
-    }) as C & Partial<ListComponent<T>>;
+    }) as unknown as C & Partial<ListComponent<T>>;
   };

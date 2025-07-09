@@ -1,0 +1,856 @@
+/**
+ * Scrolling Module - Virtual scrolling with integrated velocity tracking
+ * Handles wheel events, scroll position management, scrollbar interactions, and velocity measurement
+ */
+
+import type {
+  ListManagerComponent,
+  ItemRange,
+  SpeedTracker,
+} from "../../types";
+import { LIST_MANAGER_CONSTANTS } from "../../constants";
+import { clamp } from "../../utils/calculations";
+import type { ItemSizeManager } from "./item-size";
+
+/**
+ * Configuration for scrolling functionality
+ */
+export interface ScrollingConfig {
+  orientation: "vertical" | "horizontal";
+  enableScrollbar: boolean;
+  // Tracking configuration
+  trackingEnabled?: boolean;
+  measurementWindow?: number;
+  decelerationFactor?: number;
+  fastThreshold?: number;
+  slowThreshold?: number;
+  smoothingFactor?: number;
+  // Callbacks
+  onScrollPositionChanged?: (data: {
+    position: number;
+    direction: "forward" | "backward";
+    previousPosition?: number;
+    targetIndex?: number;
+    alignment?: string;
+    source?: string;
+  }) => void;
+  onVirtualRangeChanged?: (range: ItemRange) => void;
+  onSpeedChanged?: (data: {
+    speed: number;
+    smoothedSpeed: number;
+    direction: "forward" | "backward";
+    isAccelerating: boolean;
+    acceleration: number;
+  }) => void;
+}
+
+/**
+ * Scrolling state interface
+ */
+export interface ScrollingState {
+  virtualScrollPosition: number;
+  totalVirtualSize: number;
+  containerSize: number;
+  thumbPosition: number;
+  scrollbarVisible: boolean;
+  scrollbarFadeTimeout: number | null;
+}
+
+/**
+ * Scrolling manager interface with integrated tracking
+ */
+export interface ScrollingManager {
+  // Core scrolling
+  handleWheel(event: WheelEvent): void;
+  scrollToIndex(index: number, alignment?: "start" | "center" | "end"): void;
+  scrollToPage(page: number, alignment?: "start" | "center" | "end"): void;
+
+  // Container positioning
+  updateContainerPosition(): void;
+
+  // Scrollbar management
+  updateScrollbar(): void;
+  showScrollbar(): void;
+  setupScrollbar(): void;
+  destroyScrollbar(): void;
+
+  // Wheel event management
+  setupWheelEvents(): void;
+  removeWheelEvents(): void;
+
+  // State
+  getScrollPosition(): number;
+  getContainerSize(): number;
+  getTotalVirtualSize(): number;
+  updateState(updates: Partial<ScrollingState>): void;
+
+  // Integrated tracking API
+  getCurrentSpeed(): number;
+  getDirection(): "forward" | "backward";
+  getAcceleration(): number;
+  isAccelerating(): boolean;
+  getSpeedHistory(): number[];
+  getSmoothedSpeed(): number;
+  getAverageSpeed(): number;
+  isFastScrolling(): boolean;
+  isSlowScrolling(): boolean;
+  isMediumScrolling(): boolean;
+  updateSpeedThresholds(fast: number, slow: number): void;
+  resetTracking(): void;
+  getTracker(): SpeedTracker;
+  isTrackingEnabled(): boolean;
+}
+
+/**
+ * Creates a scrolling manager for virtual scroll position and scrollbar management
+ */
+export const createScrollingManager = (
+  component: ListManagerComponent,
+  itemSizeManager: ItemSizeManager,
+  config: ScrollingConfig,
+  calculateVisibleRange: () => ItemRange,
+  renderItems: () => void,
+  getTotalItems?: () => number,
+  loadDataForRange?: (range: { start: number; end: number }) => void // Change to loadDataForRange callback
+): ScrollingManager => {
+  const {
+    orientation,
+    enableScrollbar,
+    trackingEnabled = true,
+    measurementWindow = LIST_MANAGER_CONSTANTS.SPEED_TRACKING
+      .MEASUREMENT_WINDOW,
+    decelerationFactor = LIST_MANAGER_CONSTANTS.SPEED_TRACKING
+      .DECELERATION_FACTOR,
+    smoothingFactor = 0.8,
+    onScrollPositionChanged,
+    onVirtualRangeChanged,
+    onSpeedChanged,
+  } = config;
+
+  let fastThreshold =
+    config.fastThreshold ||
+    LIST_MANAGER_CONSTANTS.SPEED_TRACKING.FAST_SCROLL_THRESHOLD;
+  let slowThreshold =
+    config.slowThreshold ||
+    LIST_MANAGER_CONSTANTS.SPEED_TRACKING.SLOW_SCROLL_THRESHOLD;
+
+  // Scrolling state
+  let virtualScrollPosition = 0;
+  let totalVirtualSize = 0;
+  let containerSize = 0;
+  let thumbPosition = 0;
+  let scrollbarVisible = false;
+  let scrollbarFadeTimeout: number | null = null;
+
+  // Velocity tracking state
+  let speedTracker: SpeedTracker = {
+    velocity: 0,
+    direction: "forward",
+    isAccelerating: false,
+    lastMeasurement: Date.now(),
+  };
+
+  let speedHistory: number[] = [];
+  let positionHistory: { position: number; timestamp: number }[] = [];
+  let smoothedSpeed = 0;
+  let lastPosition = 0;
+  let lastTimestamp = Date.now();
+  let currentAcceleration = 0;
+  let animationFrameId: number | null = null;
+
+  // Scrollbar state and elements
+  let scrollbarTrack: HTMLElement | null = null;
+  let scrollbarThumb: HTMLElement | null = null;
+
+  // Store handler references for cleanup
+  let scrollbarHandlers: {
+    mouseDown?: (e: MouseEvent) => void;
+    mouseMove?: (e: MouseEvent) => void;
+    mouseUp?: () => void;
+    mouseEnter?: () => void;
+    mouseLeave?: () => void;
+  } = {};
+
+  // Items container reference
+  let itemsContainer: HTMLElement | null = null;
+
+  /**
+   * Initialize scrolling with container reference
+   */
+  const setItemsContainer = (container: HTMLElement) => {
+    itemsContainer = container;
+  };
+
+  /**
+   * Initialize velocity tracking
+   */
+  const initializeTracking = (): void => {
+    if (!trackingEnabled) return;
+    startVelocityDecay();
+  };
+
+  /**
+   * Update velocity tracking
+   */
+  const updateVelocityTracking = (
+    deltaPosition: number,
+    deltaTime: number
+  ): void => {
+    if (!trackingEnabled || deltaTime <= 0) return;
+
+    const now = Date.now();
+    const position = lastPosition + deltaPosition;
+
+    // Calculate instantaneous velocity
+    const instantVelocity = Math.abs(deltaPosition) / deltaTime;
+
+    // Update direction
+    const newDirection = deltaPosition >= 0 ? "forward" : "backward";
+
+    // Calculate acceleration
+    const previousVelocity = speedTracker.velocity;
+    currentAcceleration = (instantVelocity - previousVelocity) / deltaTime;
+
+    // Update speed tracker
+    speedTracker = {
+      velocity: instantVelocity,
+      direction: newDirection,
+      isAccelerating: currentAcceleration > 0,
+      lastMeasurement: now,
+    };
+
+    // Add to position history for windowed calculations
+    positionHistory.push({ position, timestamp: now });
+
+    // Clean old history outside measurement window
+    const windowStart = now - measurementWindow;
+    positionHistory = positionHistory.filter(
+      (entry) => entry.timestamp >= windowStart
+    );
+
+    // Calculate windowed velocity if we have enough data
+    if (positionHistory.length >= 2) {
+      const windowedVelocity = calculateWindowedVelocity();
+      speedTracker.velocity = windowedVelocity;
+    }
+
+    // Update speed history
+    speedHistory.push(speedTracker.velocity);
+    if (speedHistory.length > 20) {
+      speedHistory.shift();
+    }
+
+    // Update smoothed speed using exponential smoothing
+    smoothedSpeed =
+      smoothedSpeed * smoothingFactor +
+      speedTracker.velocity * (1 - smoothingFactor);
+
+    // Update state
+    lastPosition = position;
+    lastTimestamp = now;
+
+    // Emit speed change event
+    onSpeedChanged?.({
+      speed: speedTracker.velocity,
+      smoothedSpeed,
+      direction: speedTracker.direction,
+      isAccelerating: speedTracker.isAccelerating,
+      acceleration: currentAcceleration,
+    });
+
+    // Notify collection if available
+    if ((component as any).collection?.handleSpeedChange) {
+      (component as any).collection.handleSpeedChange(smoothedSpeed);
+    }
+  };
+
+  /**
+   * Calculate windowed velocity for better accuracy
+   */
+  const calculateWindowedVelocity = (): number => {
+    if (positionHistory.length < 2) return 0;
+
+    const latest = positionHistory[positionHistory.length - 1];
+    const earliest = positionHistory[0];
+
+    const totalDistance = Math.abs(latest.position - earliest.position);
+    const totalTime = latest.timestamp - earliest.timestamp;
+
+    return totalTime > 0 ? totalDistance / totalTime : 0;
+  };
+
+  /**
+   * Start velocity decay animation
+   */
+  const startVelocityDecay = (): void => {
+    const decay = () => {
+      if (!trackingEnabled) return;
+
+      const now = Date.now();
+      const timeSinceUpdate = now - speedTracker.lastMeasurement;
+
+      // Apply decay if no recent updates
+      if (timeSinceUpdate > 50) {
+        speedTracker.velocity *= decelerationFactor;
+        smoothedSpeed *= decelerationFactor;
+
+        // Stop very low velocities
+        if (speedTracker.velocity < 0.1) {
+          speedTracker.velocity = 0;
+          speedTracker.isAccelerating = false;
+        }
+
+        if (smoothedSpeed < 0.1) {
+          smoothedSpeed = 0;
+        }
+
+        speedTracker.lastMeasurement = now;
+      }
+
+      animationFrameId = requestAnimationFrame(decay);
+    };
+
+    animationFrameId = requestAnimationFrame(decay);
+  };
+
+  /**
+   * Stop velocity decay animation
+   */
+  const stopVelocityDecay = (): void => {
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+    }
+  };
+
+  /**
+   * Handle wheel events for virtual scrolling with integrated velocity tracking
+   */
+  const handleWheel = (event: WheelEvent): void => {
+    event.preventDefault();
+
+    const sensitivity =
+      LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.SCROLL_SENSITIVITY;
+    const delta = orientation === "vertical" ? event.deltaY : event.deltaX;
+    const scrollDelta = delta * sensitivity;
+
+    const previousPosition = virtualScrollPosition;
+    let newPosition = virtualScrollPosition + scrollDelta;
+
+    // Apply boundary resistance if enabled
+    const maxScroll = Math.max(0, totalVirtualSize - containerSize);
+    newPosition = clamp(newPosition, 0, maxScroll);
+
+    virtualScrollPosition = newPosition;
+
+    // Update velocity tracking
+    const deltaPosition = newPosition - previousPosition;
+    const deltaTime = 16; // Assume 60fps for wheel events
+    updateVelocityTracking(deltaPosition, deltaTime);
+
+    // Update UI
+    updateContainerPosition();
+    updateScrollbar();
+    showScrollbar();
+
+    // Trigger rendering for new visible range
+    renderItems();
+
+    // Emit events
+    const direction = newPosition > previousPosition ? "forward" : "backward";
+    onScrollPositionChanged?.({
+      position: newPosition,
+      direction,
+      previousPosition,
+    });
+
+    const newVisibleRange = calculateVisibleRange();
+    onVirtualRangeChanged?.(newVisibleRange);
+  };
+
+  /**
+   * Scroll to specific index
+   */
+  const scrollToIndex = (
+    index: number,
+    alignment: "start" | "center" | "end" = "start"
+  ): void => {
+    // Use getTotalItems callback if available, otherwise fall back to component.totalItems
+    const totalItems = getTotalItems ? getTotalItems() : component.totalItems;
+
+    if (index < 0 || index >= totalItems) {
+      return;
+    }
+
+    // PROACTIVE DATA LOADING: Request data for the target range BEFORE scrolling
+    const targetRange = calculateVisibleRange();
+    if (loadDataForRange) {
+      console.log(
+        `🎯 [SCROLL-TO-INDEX] Proactively requesting data for index ${index} (range ${targetRange.start}-${targetRange.end})`
+      );
+      loadDataForRange(targetRange);
+    }
+
+    const previousPosition = virtualScrollPosition;
+    let targetPosition = 0;
+
+    // Calculate position based on measured sizes
+    for (let i = 0; i < index; i++) {
+      targetPosition += itemSizeManager.getMeasuredSize(i);
+    }
+
+    // Adjust position based on alignment
+    switch (alignment) {
+      case "center":
+        targetPosition -= containerSize / 2;
+        break;
+      case "end":
+        targetPosition -= containerSize;
+        break;
+      // 'start' is default - no adjustment needed
+    }
+
+    // Ensure position is within bounds
+    const maxPosition = Math.max(0, totalVirtualSize - containerSize);
+    targetPosition = Math.max(0, Math.min(targetPosition, maxPosition));
+
+    // Update scroll position
+    virtualScrollPosition = targetPosition;
+
+    // Update container position
+    updateContainerPosition();
+
+    // Update scrollbar
+    updateScrollbar();
+
+    // Calculate new visible range and notify
+    const newVisibleRange = calculateVisibleRange();
+
+    // Notify about scroll position change
+    onScrollPositionChanged?.({
+      position: virtualScrollPosition,
+      previousPosition,
+      direction: targetPosition > previousPosition ? "forward" : "backward",
+    });
+
+    // Notify about virtual range change
+    onVirtualRangeChanged?.(newVisibleRange);
+  };
+
+  /**
+   * Scroll to specific page
+   */
+  const scrollToPage = (
+    page: number,
+    alignment: "start" | "center" | "end" = "start"
+  ): void => {
+    const pageSize = LIST_MANAGER_CONSTANTS.RANGE_LOADING.DEFAULT_RANGE_SIZE;
+    const targetIndex = (page - 1) * pageSize;
+
+    // PROACTIVE DATA LOADING: Request page data BEFORE scrolling
+    const pageStartIndex = targetIndex;
+    const pageEndIndex = Math.min(
+      pageStartIndex + pageSize - 1,
+      (getTotalItems ? getTotalItems() : component.totalItems) - 1
+    );
+    const pageRange = { start: pageStartIndex, end: pageEndIndex };
+
+    if (loadDataForRange) {
+      console.log(
+        `🎯 [SCROLL-TO-PAGE] Proactively requesting page ${page} data (range ${pageRange.start}-${pageRange.end})`
+      );
+      loadDataForRange(pageRange);
+    }
+
+    // Now scroll to the page
+    scrollToIndex(targetIndex, alignment);
+  };
+
+  /**
+   * Update container position for virtual scrolling
+   */
+  const updateContainerPosition = (): void => {
+    if (!itemsContainer) return;
+
+    const visibleRange = calculateVisibleRange();
+    let offset = 0;
+
+    // Calculate offset based on measured sizes
+    for (let i = 0; i < visibleRange.start; i++) {
+      offset += itemSizeManager.getMeasuredSize(i);
+    }
+
+    const transformProperty =
+      orientation === "vertical" ? "translateY" : "translateX";
+    itemsContainer.style.transform = `${transformProperty}(-${offset}px)`;
+  };
+
+  /**
+   * Update scrollbar thumb position and size
+   */
+  const updateScrollbar = (): void => {
+    if (!scrollbarThumb || !scrollbarTrack || !enableScrollbar) return;
+
+    const trackSize =
+      orientation === "vertical"
+        ? scrollbarTrack.offsetHeight
+        : scrollbarTrack.offsetWidth;
+
+    // Calculate thumb size based on container to total ratio
+    const thumbSize = Math.max(
+      LIST_MANAGER_CONSTANTS.SCROLLBAR.THUMB_MIN_SIZE,
+      (containerSize / totalVirtualSize) * trackSize
+    );
+
+    // Calculate thumb position based on scroll position
+    const scrollRatio =
+      totalVirtualSize > containerSize
+        ? virtualScrollPosition / (totalVirtualSize - containerSize)
+        : 0;
+    const newThumbPosition = scrollRatio * (trackSize - thumbSize);
+
+    thumbPosition = Math.max(0, newThumbPosition);
+
+    // Update thumb styles
+    if (orientation === "vertical") {
+      scrollbarThumb.style.top = `${thumbPosition}px`;
+      scrollbarThumb.style.height = `${Math.min(thumbSize, trackSize)}px`;
+    } else {
+      scrollbarThumb.style.left = `${thumbPosition}px`;
+      scrollbarThumb.style.width = `${Math.min(thumbSize, trackSize)}px`;
+    }
+  };
+
+  /**
+   * Setup custom scrollbar
+   */
+  const setupScrollbar = (): void => {
+    if (!enableScrollbar) return;
+
+    // Create scrollbar track
+    scrollbarTrack = document.createElement("div");
+    scrollbarTrack.className = `${component.getClass(
+      "list-manager"
+    )}-scrollbar-track`;
+    scrollbarTrack.style.position = "absolute";
+    scrollbarTrack.style.backgroundColor = "rgba(0, 0, 0, 0.1)";
+    scrollbarTrack.style.borderRadius = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.BORDER_RADIUS}px`;
+    scrollbarTrack.style.opacity = "0";
+    scrollbarTrack.style.transition = "opacity 0.2s ease";
+
+    // Create scrollbar thumb
+    scrollbarThumb = document.createElement("div");
+    scrollbarThumb.className = `${component.getClass(
+      "list-manager"
+    )}-scrollbar-thumb`;
+    scrollbarThumb.style.position = "absolute";
+    scrollbarThumb.style.backgroundColor = "rgba(0, 0, 0, 0.4)";
+    scrollbarThumb.style.borderRadius = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.BORDER_RADIUS}px`;
+    scrollbarThumb.style.cursor = "pointer";
+
+    // Position scrollbar based on orientation
+    if (orientation === "vertical") {
+      scrollbarTrack.style.right = "2px";
+      scrollbarTrack.style.top = "0";
+      scrollbarTrack.style.bottom = "0";
+      scrollbarTrack.style.width = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.TRACK_WIDTH}px`;
+
+      scrollbarThumb.style.left = "0";
+      scrollbarThumb.style.right = "0";
+      scrollbarThumb.style.minHeight = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.THUMB_MIN_SIZE}px`;
+    } else {
+      scrollbarTrack.style.bottom = "2px";
+      scrollbarTrack.style.left = "0";
+      scrollbarTrack.style.right = "0";
+      scrollbarTrack.style.height = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.TRACK_WIDTH}px`;
+
+      scrollbarThumb.style.top = "0";
+      scrollbarThumb.style.bottom = "0";
+      scrollbarThumb.style.minWidth = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.THUMB_MIN_SIZE}px`;
+    }
+
+    scrollbarTrack.appendChild(scrollbarThumb);
+    component.element.appendChild(scrollbarTrack);
+
+    setupScrollbarEvents();
+  };
+
+  /**
+   * Setup scrollbar drag events
+   */
+  const setupScrollbarEvents = (): void => {
+    if (!scrollbarThumb || !scrollbarTrack) return;
+
+    let isDragging = false;
+    let startY = 0;
+    let startX = 0;
+    let startScrollPosition = 0;
+
+    scrollbarHandlers.mouseDown = (e: MouseEvent) => {
+      isDragging = true;
+      startY = e.clientY;
+      startX = e.clientX;
+      startScrollPosition = virtualScrollPosition;
+
+      document.addEventListener("mousemove", scrollbarHandlers.mouseMove!);
+      document.addEventListener("mouseup", scrollbarHandlers.mouseUp!);
+      e.preventDefault();
+    };
+
+    scrollbarHandlers.mouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+
+      const trackSize =
+        orientation === "vertical"
+          ? scrollbarTrack!.offsetHeight
+          : scrollbarTrack!.offsetWidth;
+
+      const delta =
+        orientation === "vertical" ? e.clientY - startY : e.clientX - startX;
+      const scrollRatio = delta / trackSize;
+      const maxScroll = Math.max(0, totalVirtualSize - containerSize);
+      const newPosition = startScrollPosition + scrollRatio * maxScroll;
+
+      virtualScrollPosition = clamp(newPosition, 0, maxScroll);
+      updateContainerPosition();
+      updateScrollbar();
+
+      onScrollPositionChanged?.({
+        position: virtualScrollPosition,
+        direction: newPosition > startScrollPosition ? "forward" : "backward",
+        source: "scrollbar",
+      });
+    };
+
+    scrollbarHandlers.mouseUp = () => {
+      isDragging = false;
+      document.removeEventListener("mousemove", scrollbarHandlers.mouseMove!);
+      document.removeEventListener("mouseup", scrollbarHandlers.mouseUp!);
+    };
+
+    // Add hover events to show/hide scrollbar
+    scrollbarHandlers.mouseEnter = () => {
+      if (scrollbarTrack) {
+        // Remove transition temporarily for immediate visibility
+        scrollbarTrack.style.transition = "none";
+        scrollbarTrack.style.opacity = "1";
+        scrollbarVisible = true;
+
+        // Restore transition after immediate change
+        requestAnimationFrame(() => {
+          if (scrollbarTrack) {
+            scrollbarTrack.style.transition = "opacity 0.2s ease";
+          }
+        });
+
+        // Clear any existing fade timeout
+        if (scrollbarFadeTimeout) {
+          clearTimeout(scrollbarFadeTimeout);
+          scrollbarFadeTimeout = null;
+        }
+      }
+    };
+
+    scrollbarHandlers.mouseLeave = () => {
+      if (scrollbarTrack && !isDragging) {
+        // Set fade timeout when mouse leaves
+        scrollbarFadeTimeout = window.setTimeout(() => {
+          if (scrollbarTrack) {
+            scrollbarTrack.style.opacity = "0";
+            scrollbarVisible = false;
+          }
+        }, 500); // Slight delay before hiding
+      }
+    };
+
+    // Set up all event listeners
+    scrollbarThumb.addEventListener("mousedown", scrollbarHandlers.mouseDown);
+    scrollbarTrack.addEventListener("mouseenter", scrollbarHandlers.mouseEnter);
+    scrollbarTrack.addEventListener("mouseleave", scrollbarHandlers.mouseLeave);
+  };
+
+  /**
+   * Show scrollbar with fade timeout
+   */
+  const showScrollbar = (): void => {
+    if (!scrollbarTrack || !enableScrollbar) return;
+
+    scrollbarTrack.style.opacity = "1";
+    scrollbarVisible = true;
+
+    // Clear existing timeout
+    if (scrollbarFadeTimeout) {
+      clearTimeout(scrollbarFadeTimeout);
+    }
+
+    // Set new fade timeout
+    scrollbarFadeTimeout = window.setTimeout(() => {
+      if (scrollbarTrack) {
+        scrollbarTrack.style.opacity = "0";
+        scrollbarVisible = false;
+      }
+    }, LIST_MANAGER_CONSTANTS.SCROLLBAR.FADE_TIMEOUT);
+  };
+
+  /**
+   * Destroy scrollbar and stop tracking
+   */
+  const destroy = (): void => {
+    destroyScrollbar();
+    stopVelocityDecay();
+  };
+
+  /**
+   * Destroy scrollbar
+   */
+  const destroyScrollbar = (): void => {
+    if (scrollbarTrack) {
+      // Remove event listeners before destroying
+      if (scrollbarThumb && scrollbarHandlers.mouseDown) {
+        scrollbarThumb.removeEventListener(
+          "mousedown",
+          scrollbarHandlers.mouseDown
+        );
+      }
+      if (scrollbarHandlers.mouseEnter) {
+        scrollbarTrack.removeEventListener(
+          "mouseenter",
+          scrollbarHandlers.mouseEnter
+        );
+      }
+      if (scrollbarHandlers.mouseLeave) {
+        scrollbarTrack.removeEventListener(
+          "mouseleave",
+          scrollbarHandlers.mouseLeave
+        );
+      }
+
+      scrollbarTrack.remove();
+      scrollbarTrack = null;
+      scrollbarThumb = null;
+    }
+
+    // Clear handler references
+    scrollbarHandlers = {};
+
+    if (scrollbarFadeTimeout) {
+      clearTimeout(scrollbarFadeTimeout);
+      scrollbarFadeTimeout = null;
+    }
+  };
+
+  /**
+   * Get current scroll position
+   */
+  const getScrollPosition = (): number => virtualScrollPosition;
+
+  /**
+   * Get container size
+   */
+  const getContainerSize = (): number => containerSize;
+
+  /**
+   * Get total virtual size
+   */
+  const getTotalVirtualSize = (): number => totalVirtualSize;
+
+  /**
+   * Update scrolling state
+   */
+  const updateState = (updates: Partial<ScrollingState>): void => {
+    if (updates.virtualScrollPosition !== undefined) {
+      virtualScrollPosition = updates.virtualScrollPosition;
+    }
+    if (updates.totalVirtualSize !== undefined) {
+      totalVirtualSize = updates.totalVirtualSize;
+    }
+    if (updates.containerSize !== undefined) {
+      containerSize = updates.containerSize;
+    }
+    if (updates.thumbPosition !== undefined) {
+      thumbPosition = updates.thumbPosition;
+    }
+    if (updates.scrollbarVisible !== undefined) {
+      scrollbarVisible = updates.scrollbarVisible;
+    }
+    if (updates.scrollbarFadeTimeout !== undefined) {
+      scrollbarFadeTimeout = updates.scrollbarFadeTimeout;
+    }
+  };
+
+  // Initialize tracking
+  initializeTracking();
+
+  return {
+    // Core scrolling
+    handleWheel,
+    scrollToIndex,
+    scrollToPage,
+
+    // Container positioning
+    updateContainerPosition,
+
+    // Scrollbar management
+    updateScrollbar,
+    showScrollbar,
+    setupScrollbar,
+    destroyScrollbar: destroy,
+
+    // Wheel event management
+    setupWheelEvents: () => {
+      component.element.addEventListener("wheel", handleWheel, {
+        passive: false,
+      });
+    },
+    removeWheelEvents: () => {
+      component.element.removeEventListener("wheel", handleWheel);
+    },
+
+    // State
+    getScrollPosition,
+    getContainerSize,
+    getTotalVirtualSize,
+    updateState,
+
+    // Integrated tracking API
+    getCurrentSpeed: () => speedTracker.velocity,
+    getDirection: () => speedTracker.direction,
+    getAcceleration: () => currentAcceleration,
+    isAccelerating: () => speedTracker.isAccelerating,
+    getSpeedHistory: () => [...speedHistory],
+    getSmoothedSpeed: () => smoothedSpeed,
+    getAverageSpeed: () => {
+      if (speedHistory.length === 0) return 0;
+      return speedHistory.reduce((sum, v) => sum + v, 0) / speedHistory.length;
+    },
+    isFastScrolling: () => smoothedSpeed > fastThreshold,
+    isSlowScrolling: () => smoothedSpeed < slowThreshold,
+    isMediumScrolling: () =>
+      smoothedSpeed >= slowThreshold && smoothedSpeed <= fastThreshold,
+    updateSpeedThresholds: (fast: number, slow: number) => {
+      fastThreshold = fast;
+      slowThreshold = slow;
+    },
+    resetTracking: () => {
+      speedTracker = {
+        velocity: 0,
+        direction: "forward",
+        isAccelerating: false,
+        lastMeasurement: Date.now(),
+      };
+      speedHistory = [];
+      positionHistory = [];
+      smoothedSpeed = 0;
+      lastPosition = 0;
+      lastTimestamp = Date.now();
+      currentAcceleration = 0;
+    },
+    getTracker: () => ({ ...speedTracker }),
+    isTrackingEnabled: () => trackingEnabled,
+
+    // Internal (for viewport setup)
+    setItemsContainer,
+  } as ScrollingManager & {
+    setItemsContainer: (container: HTMLElement) => void;
+  };
+};

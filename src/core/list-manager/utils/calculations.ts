@@ -15,12 +15,60 @@ export function calculateVisibleRange(
   containerSize: number,
   estimatedItemSize: number,
   totalItems: number,
-  overscan: number = LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER
+  overscan: number = LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER,
+  measuredSizes?: Map<number, number>
 ): ItemRange {
-  // Calculate start index based on scroll position
-  const startIndex = Math.floor(virtualScrollPosition / estimatedItemSize);
+  let startIndex = 0;
 
-  // Calculate how many items fit in the container
+  // Calculate start index using measured sizes if available
+  if (measuredSizes && measuredSizes.size > 0) {
+    let position = 0;
+    let found = false;
+
+    for (let i = 0; i < totalItems; i++) {
+      const itemSize = measuredSizes.get(i) || estimatedItemSize;
+
+      // Check if the scroll position is within this item's range
+      if (
+        virtualScrollPosition >= position &&
+        virtualScrollPosition < position + itemSize
+      ) {
+        startIndex = i;
+        found = true;
+        break;
+      }
+
+      position += itemSize;
+    }
+
+    // If we didn't find the item within loaded items, estimate based on position
+    if (!found) {
+      // Calculate based on estimated size beyond what we have
+      const loadedItemsEndPosition = position; // This is where our loaded items end
+
+      if (virtualScrollPosition >= loadedItemsEndPosition) {
+        // We're scrolling beyond loaded items, estimate the index
+        const remainingDistance =
+          virtualScrollPosition - loadedItemsEndPosition;
+        const estimatedAdditionalItems = Math.floor(
+          remainingDistance / estimatedItemSize
+        );
+        // FIX: Add additional items to the number of measured items, not totalItems
+        startIndex = Math.min(
+          totalItems - 1,
+          measuredSizes.size + estimatedAdditionalItems
+        );
+      } else {
+        // Fallback to estimated calculation
+        startIndex = Math.floor(virtualScrollPosition / estimatedItemSize);
+      }
+    }
+  } else {
+    // Fallback to estimated size calculation
+    startIndex = Math.floor(virtualScrollPosition / estimatedItemSize);
+  }
+
+  // Calculate how many items fit in the container (use estimated size as average)
   const visibleItemsCount = Math.ceil(containerSize / estimatedItemSize);
 
   // Calculate end index with overscan buffer
@@ -32,10 +80,12 @@ export function calculateVisibleRange(
   // Apply overscan to start (but don't go below 0)
   const bufferedStartIndex = Math.max(0, startIndex - overscan);
 
-  return {
+  const result = {
     start: bufferedStartIndex,
     end: Math.max(bufferedStartIndex, endIndex),
   };
+
+  return result;
 }
 
 /**
@@ -181,7 +231,8 @@ export function calculateViewportInfo(
     containerSize,
     estimatedItemSize,
     totalItems,
-    overscan
+    overscan,
+    measuredSizes
   );
 
   const totalVirtualSize = calculateTotalVirtualSize(

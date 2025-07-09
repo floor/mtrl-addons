@@ -9,16 +9,11 @@ import type {
   ViewportInfo,
 } from "../../types";
 import { LIST_MANAGER_CONSTANTS } from "../../constants";
-import {
-  calculateVisibleRange as calculateVisibleRangeUtil,
-  calculateContainerPosition,
-  calculateScrollbarMetrics,
-  calculateViewportInfo as calculateViewportInfoUtil,
-  clamp,
-  applyBoundaryResistance,
-} from "../../utils/calculations";
+import { calculateViewportInfo as calculateViewportInfoUtil } from "../../utils/calculations";
 import { getDefaultTemplate } from "./template";
 import { createItemSizeManager, type ItemSizeManager } from "./item-size";
+import { createScrollingManager, type ScrollingManager } from "./scrolling";
+import { createVirtualManager, type VirtualManager } from "./virtual";
 
 /**
  * Configuration for viewport enhancer
@@ -28,6 +23,7 @@ export interface ViewportConfig {
   estimatedItemSize?: number;
   overscan?: number;
   enableScrollbar?: boolean;
+  loadDataForRange?: (range: { start: number; end: number }) => void;
 }
 
 /**
@@ -84,39 +80,6 @@ export const withViewport =
       config.overscan || LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER;
     const enableScrollbar = config.enableScrollbar !== false;
 
-    // Virtual scrolling state
-    let virtualScrollPosition = 0;
-    let totalVirtualSize = 0;
-    let containerSize = 0;
-
-    // Item size management
-    const itemSizeManager = createItemSizeManager({
-      initialEstimate: estimatedItemSize,
-      orientation,
-      onSizeUpdated: (newTotalSize) => {
-        totalVirtualSize = newTotalSize;
-        updateScrollbar();
-        component.emit?.("dimensions:changed", {
-          containerSize,
-          totalVirtualSize,
-          estimatedItemSize: itemSizeManager.getEstimatedItemSize(),
-        });
-      },
-      onEstimatedSizeChanged: (newEstimate) => {
-        component.emit?.("estimated-size:changed", {
-          previousEstimate: estimatedItemSize,
-          newEstimate,
-        });
-      },
-    });
-
-    // Custom scrollbar elements
-    let scrollbarThumb: HTMLElement | null = null;
-    let scrollbarTrack: HTMLElement | null = null;
-    let thumbPosition = 0;
-    let scrollbarVisible = false;
-    let scrollbarFadeTimeout: number | null = null;
-
     // Items container for virtual positioning
     let itemsContainer: HTMLElement | null = null;
 
@@ -128,8 +91,247 @@ export const withViewport =
     let isViewportInitialized = false;
     let resizeObserver: ResizeObserver | null = null;
 
-    // Event handlers
-    const wheelEventHandler = (event: WheelEvent) => handleWheel(event);
+    // Store the correct total items value from collection layer
+    let actualTotalItems = component.totalItems;
+
+    // Item size management
+    const itemSizeManager = createItemSizeManager({
+      initialEstimate: estimatedItemSize,
+      orientation,
+      onSizeUpdated: (newTotalSize) => {
+        virtualManager.updateState({ totalVirtualSize: newTotalSize });
+        scrollingManager.updateScrollbar();
+        component.emit?.("dimensions:changed", {
+          containerSize: virtualManager.getState().containerSize,
+          totalVirtualSize: newTotalSize,
+          estimatedItemSize: itemSizeManager.getEstimatedItemSize(),
+        });
+      },
+      onEstimatedSizeChanged: (newEstimate) => {
+        component.emit?.("estimated-size:changed", {
+          previousEstimate: estimatedItemSize,
+          newEstimate,
+        });
+      },
+    });
+
+    // Virtual scrolling manager
+    const virtualManager = createVirtualManager(
+      component,
+      itemSizeManager,
+      {
+        orientation,
+        overscan,
+        onDimensionsChanged: (data) => {
+          scrollingManager.updateState({
+            totalVirtualSize: data.totalVirtualSize,
+            containerSize: data.containerSize,
+          });
+          scrollingManager.updateScrollbar();
+          component.emit?.("dimensions:changed", data);
+        },
+      },
+      () => actualTotalItems
+    ); // Pass the callback to get actual total items
+
+    /**
+     * Check for missing data in a specific range and trigger loading if needed
+     */
+    const checkForMissingData = (targetRange: {
+      start: number;
+      end: number;
+    }): void => {
+      console.log(
+        `🔍 [VIEWPORT] Checking range ${targetRange.start}-${targetRange.end} for missing data`
+      );
+
+      // Try immediate detection first
+      const collection = (component as any).collection;
+      const hasCollection = !!collection;
+      const hasLoadMissingRanges =
+        hasCollection && typeof collection.loadMissingRanges === "function";
+
+      console.log(
+        `🔍 [VIEWPORT] Collection check: hasCollection=${hasCollection}, hasLoadMissingRanges=${hasLoadMissingRanges}, items.length=${component.items.length}, actualTotalItems=${actualTotalItems}`
+      );
+
+      if (hasLoadMissingRanges) {
+        // Improved missing data detection - check for null/undefined items in range
+        let missingCount = 0;
+        const missingIndices: number[] = [];
+
+        for (let i = targetRange.start; i <= targetRange.end; i++) {
+          // Skip if index is beyond actual total items
+          if (i >= actualTotalItems) {
+            break;
+          }
+
+          // Check if item is missing (null, undefined, or array doesn't extend to this index)
+          const itemExists =
+            i < component.items.length &&
+            component.items[i] !== null &&
+            component.items[i] !== undefined;
+
+          if (!itemExists) {
+            missingCount++;
+            missingIndices.push(i);
+          }
+        }
+
+        console.log(
+          `🔍 [VIEWPORT] Missing data analysis: ${missingCount} missing items out of ${
+            targetRange.end - targetRange.start + 1
+          } requested`
+        );
+        console.log(
+          `🔍 [VIEWPORT] Range breakdown: start=${targetRange.start}, end=${targetRange.end}, items.length=${component.items.length}`
+        );
+
+        if (missingCount > 0) {
+          console.log(
+            `🔄 [VIEWPORT] Triggering collection load for ${missingCount} missing items in range ${targetRange.start}-${targetRange.end}`
+          );
+          console.log(
+            `🔍 [VIEWPORT] Missing indices: [${missingIndices
+              .slice(0, 10)
+              .join(", ")}${missingIndices.length > 10 ? "..." : ""}]`
+          );
+          console.log(
+            `📊 [VIEWPORT] component.items.length: ${component.items.length}, actualTotalItems: ${actualTotalItems}`
+          );
+
+          // Trigger collection to load missing ranges
+          collection.loadMissingRanges(targetRange).catch((error: any) => {
+            console.error(
+              "❌ [VIEWPORT] Failed to load missing ranges:",
+              error
+            );
+          });
+        } else {
+          console.log(
+            `✅ [VIEWPORT] All items in range ${targetRange.start}-${targetRange.end} are already loaded`
+          );
+        }
+      } else {
+        console.log(
+          `⏰ [VIEWPORT] Collection not available, trying delayed detection...`
+        );
+        // Try again after component layering is complete
+        setTimeout(() => {
+          const delayedCollection = (component as any).collection;
+          const delayedHasLoadMissingRanges =
+            delayedCollection &&
+            typeof delayedCollection.loadMissingRanges === "function";
+
+          console.log(
+            `🔍 [VIEWPORT] Delayed collection check: hasCollection=${!!delayedCollection}, hasLoadMissingRanges=${delayedHasLoadMissingRanges}`
+          );
+
+          if (delayedHasLoadMissingRanges) {
+            // Use same improved logic for delayed detection
+            let missingCount = 0;
+            const missingIndices: number[] = [];
+
+            for (let i = targetRange.start; i <= targetRange.end; i++) {
+              // Skip if index is beyond actual total items
+              if (i >= actualTotalItems) {
+                break;
+              }
+
+              // Check if item is missing (null, undefined, or array doesn't extend to this index)
+              const itemExists =
+                i < component.items.length &&
+                component.items[i] !== null &&
+                component.items[i] !== undefined;
+
+              if (!itemExists) {
+                missingCount++;
+                missingIndices.push(i);
+              }
+            }
+
+            console.log(
+              `🔍 [VIEWPORT] Delayed missing data analysis: ${missingCount} missing items`
+            );
+
+            if (missingCount > 0) {
+              console.log(
+                `🔄 [VIEWPORT] Delayed triggering collection load for ${missingCount} missing items in range ${targetRange.start}-${targetRange.end}`
+              );
+              console.log(
+                `🔍 [VIEWPORT] Delayed missing indices: [${missingIndices
+                  .slice(0, 10)
+                  .join(", ")}${missingIndices.length > 10 ? "..." : ""}]`
+              );
+
+              // Trigger collection to load missing ranges
+              delayedCollection
+                .loadMissingRanges(targetRange)
+                .catch((error: any) => {
+                  console.error(
+                    "❌ [VIEWPORT] Failed to load missing ranges (delayed):",
+                    error
+                  );
+                });
+            }
+          }
+        }, 10); // Small delay to allow pipe composition to complete
+      }
+    };
+
+    /**
+     * Proactively load data for a specific range (called by scrolling manager)
+     */
+    const loadDataForRange = (range: { start: number; end: number }): void => {
+      console.log(
+        `🎯 [VIEWPORT] Proactive load request for range ${range.start}-${range.end}`
+      );
+
+      // Use the callback from config if provided (proactive approach)
+      if (config.loadDataForRange) {
+        console.log(
+          `📡 [VIEWPORT] Using proactive data loading callback for range ${range.start}-${range.end}`
+        );
+        config.loadDataForRange(range);
+      } else {
+        // Fallback to reactive approach (force re-render)
+        console.log(
+          `🔄 [VIEWPORT] No proactive callback, triggering renderItems for range ${range.start}-${range.end}`
+        );
+
+        // Save current range and force a re-render
+        const previousRange = currentVisibleRange;
+        currentVisibleRange = { start: -1, end: -1 }; // Force range change detection
+
+        // Trigger renderItems which has working collection access
+        setTimeout(() => {
+          renderItems();
+        }, 0);
+      }
+    };
+
+    // Scrolling manager
+    const scrollingManager = createScrollingManager(
+      component,
+      itemSizeManager,
+      {
+        orientation,
+        enableScrollbar,
+        onScrollPositionChanged: (data) => {
+          component.emit?.("scroll:position:changed", data);
+        },
+        onVirtualRangeChanged: (range) => {
+          component.emit?.("virtual:range:changed", range);
+        },
+      },
+      () =>
+        virtualManager.calculateVisibleRange(
+          scrollingManager.getScrollPosition()
+        ),
+      renderItems,
+      () => actualTotalItems, // Pass the callback to get actual total items
+      loadDataForRange // Pass the proactive data loading function
+    );
 
     /**
      * Initialize viewport
@@ -139,15 +341,18 @@ export const withViewport =
 
       setupContainer();
       if (enableScrollbar) {
-        setupScrollbar();
+        scrollingManager.setupScrollbar();
       }
-      setupEventListeners();
+      scrollingManager.setupWheelEvents();
       setupCollectionEventListeners();
       setupResizeObserver();
       measureContainer();
 
       isViewportInitialized = true;
-      component.emit?.("viewport:initialized", { orientation, containerSize });
+      component.emit?.("viewport:initialized", {
+        orientation,
+        containerSize: virtualManager.getState().containerSize,
+      });
     };
 
     /**
@@ -157,21 +362,33 @@ export const withViewport =
       // Listen for collection events to trigger rendering
       if (component.on) {
         component.on("items:set", (data: any) => {
-          updateTotalVirtualSize();
+          // Use the total from the event data or get the current component total
+          const currentTotal = data?.total || component.totalItems;
+          virtualManager.updateTotalVirtualSize(currentTotal);
           // Force recalculation by resetting current range
           currentVisibleRange = { start: -1, end: -1 };
           renderItems();
         });
 
         component.on("range:loaded", (data: any) => {
-          updateTotalVirtualSize();
+          // For range:loaded, we need to use the actual current total items
+          // This should be available as component.totalItems by now
+          const currentTotal = component.totalItems;
+          virtualManager.updateTotalVirtualSize(currentTotal);
           // Force recalculation by resetting current range
           currentVisibleRange = { start: -1, end: -1 };
           renderItems();
         });
 
         component.on("total:changed", (data: any) => {
-          updateTotalVirtualSize();
+          // Use the total from the event data instead of component.totalItems
+          const newTotal = data?.total || component.totalItems;
+          actualTotalItems = newTotal; // Store the correct value
+          console.log(
+            `📊 [VIEWPORT] Total changed event received: ${newTotal.toLocaleString()}`
+          );
+
+          virtualManager.updateTotalVirtualSize(newTotal);
           // Force recalculation by resetting current range
           currentVisibleRange = { start: -1, end: -1 };
           renderItems();
@@ -179,6 +396,15 @@ export const withViewport =
 
         component.on("placeholders:replaced", () => {
           renderItems();
+        });
+
+        component.on("estimated-size:changed", (data: any) => {
+          // Recalculate virtual size with updated estimated size
+          console.log(
+            `📊 [VIEWPORT] Estimated size changed, recalculating virtual size for ${actualTotalItems.toLocaleString()} items`
+          );
+          virtualManager.updateTotalVirtualSize(actualTotalItems);
+          scrollingManager.updateScrollbar();
         });
       }
     };
@@ -189,8 +415,8 @@ export const withViewport =
     const destroy = (): void => {
       if (!isViewportInitialized) return;
 
-      removeEventListeners();
-      destroyScrollbar();
+      scrollingManager.removeWheelEvents();
+      scrollingManager.destroyScrollbar();
       resizeObserver?.disconnect();
 
       // Clean up rendered elements
@@ -199,144 +425,142 @@ export const withViewport =
         itemsContainer.innerHTML = "";
       }
 
-      if (scrollbarFadeTimeout) {
-        clearTimeout(scrollbarFadeTimeout);
-      }
-
       isViewportInitialized = false;
       component.emit?.("viewport:destroyed", {});
     };
 
     /**
-     * Handle wheel events for virtual scrolling
+     * Render items in the visible range
      */
-    const handleWheel = (event: WheelEvent): void => {
-      if (!isViewportInitialized) return;
+    function renderItems(): void {
+      if (!itemsContainer || !isViewportInitialized) {
+        return;
+      }
 
-      event.preventDefault();
-
-      const sensitivity =
-        LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.SCROLL_SENSITIVITY;
-      const delta = orientation === "vertical" ? event.deltaY : event.deltaX;
-      const scrollDelta = delta * sensitivity;
-
-      const previousPosition = virtualScrollPosition;
-      let newPosition = virtualScrollPosition + scrollDelta;
-
-      // Apply boundary resistance if enabled
-      const maxScroll = Math.max(0, totalVirtualSize - containerSize);
-      newPosition = clamp(newPosition, 0, maxScroll);
-
-      virtualScrollPosition = newPosition;
-
-      // Update UI
-      updateContainerPosition();
-      updateScrollbar();
-      showScrollbar();
-
-      // Trigger rendering for new visible range
-      renderItems();
-
-      // Emit events
-      const direction = newPosition > previousPosition ? "forward" : "backward";
-      component.emit?.("scroll:position:changed", {
-        position: newPosition,
-        direction,
-        previousPosition,
-      });
-
-      const newVisibleRange = calculateVisibleRange();
-      component.emit?.("virtual:range:changed", newVisibleRange);
-    };
-
-    /**
-     * Update container position for virtual scrolling
-     */
-    const updateContainerPosition = (): void => {
-      if (!itemsContainer) return;
-
-      const visibleRange = calculateVisibleRange();
-      const offset = calculateContainerPosition(
-        virtualScrollPosition,
-        visibleRange,
-        itemSizeManager.getMeasuredSizes(),
-        itemSizeManager.getEstimatedItemSize()
+      const newVisibleRange = virtualManager.calculateVisibleRange(
+        scrollingManager.getScrollPosition()
       );
 
-      const transformProperty =
-        orientation === "vertical" ? "translateY" : "translateX";
-      itemsContainer.style.transform = `${transformProperty}(-${offset}px)`;
-    };
+      // Skip if range hasn't changed
+      if (
+        newVisibleRange.start === currentVisibleRange.start &&
+        newVisibleRange.end === currentVisibleRange.end
+      ) {
+        return;
+      }
 
-    /**
-     * Update scrollbar thumb position and size
-     */
-    const updateScrollbar = (): void => {
-      if (!scrollbarThumb || !scrollbarTrack || !enableScrollbar) return;
+      // Check if we need to load missing data for the new visible range
+      console.log(
+        `🔍 [VIEWPORT] Checking range ${newVisibleRange.start}-${newVisibleRange.end} for missing data`
+      );
 
-      const trackSize =
-        orientation === "vertical"
-          ? scrollbarTrack.offsetHeight
-          : scrollbarTrack.offsetWidth;
+      // Try immediate detection first
+      const collection = (component as any).collection;
+      const hasCollection = !!collection;
+      const hasLoadMissingRanges =
+        hasCollection && typeof collection.loadMissingRanges === "function";
 
-      const { thumbPosition: newThumbPosition, thumbSize } =
-        calculateScrollbarMetrics(
-          virtualScrollPosition,
-          totalVirtualSize,
-          containerSize,
-          trackSize
-        );
+      if (hasLoadMissingRanges) {
+        // Improved missing data detection - check for null/undefined items in range
+        let missingCount = 0;
+        const missingIndices: number[] = [];
 
-      thumbPosition = newThumbPosition;
+        for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
+          // Skip if index is beyond actual total items
+          if (i >= actualTotalItems) {
+            break;
+          }
 
-      // Update thumb styles
-      if (orientation === "vertical") {
-        scrollbarThumb.style.top = `${thumbPosition}px`;
-        scrollbarThumb.style.height = `${thumbSize}px`;
+          // Check if item is missing (null, undefined, or array doesn't extend to this index)
+          const itemExists =
+            i < component.items.length &&
+            component.items[i] !== null &&
+            component.items[i] !== undefined;
+
+          if (!itemExists) {
+            missingCount++;
+            missingIndices.push(i);
+          }
+        }
+
+        if (missingCount > 0) {
+          console.log(
+            `🔄 [VIEWPORT] Triggering collection load for ${missingCount} missing items in range ${newVisibleRange.start}-${newVisibleRange.end}`
+          );
+          console.log(
+            `🔍 [VIEWPORT] Missing indices: [${missingIndices
+              .slice(0, 10)
+              .join(", ")}${missingIndices.length > 10 ? "..." : ""}]`
+          );
+          console.log(
+            `📊 [VIEWPORT] component.items.length: ${component.items.length}, actualTotalItems: ${actualTotalItems}`
+          );
+
+          // Trigger collection to load missing ranges
+          collection.loadMissingRanges(newVisibleRange).catch((error: any) => {
+            console.error(
+              "❌ [VIEWPORT] Failed to load missing ranges:",
+              error
+            );
+          });
+        } else {
+          console.log(
+            `✅ [VIEWPORT] All items in range ${newVisibleRange.start}-${newVisibleRange.end} are already loaded`
+          );
+        }
       } else {
-        scrollbarThumb.style.left = `${thumbPosition}px`;
-        scrollbarThumb.style.width = `${thumbSize}px`;
-      }
-    };
+        // Try again after component layering is complete
+        setTimeout(() => {
+          const delayedCollection = (component as any).collection;
+          const delayedHasLoadMissingRanges =
+            delayedCollection &&
+            typeof delayedCollection.loadMissingRanges === "function";
 
-    /**
-     * Calculate visible range based on current scroll position
-     */
-    const calculateVisibleRange = (): ItemRange => {
-      // FIX: Use items array length if totalItems is outdated due to component layering
-      const actualTotalItems = Math.max(
-        component.totalItems,
-        component.items.length
-      );
+          if (delayedHasLoadMissingRanges) {
+            // Use same improved logic for delayed detection
+            let missingCount = 0;
+            const missingIndices: number[] = [];
 
-      const range = calculateVisibleRangeUtil(
-        virtualScrollPosition,
-        containerSize,
-        itemSizeManager.getEstimatedItemSize(),
-        actualTotalItems,
-        overscan
-      );
+            for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
+              // Skip if index is beyond actual total items
+              if (i >= actualTotalItems) {
+                break;
+              }
 
-      return range;
-    };
+              // Check if item is missing (null, undefined, or array doesn't extend to this index)
+              const itemExists =
+                i < component.items.length &&
+                component.items[i] !== null &&
+                component.items[i] !== undefined;
 
-    /**
-     * Render items for the current visible range
-     */
-    const renderItems = (): void => {
-      if (!itemsContainer || !component.template) {
-        return;
-      }
+              if (!itemExists) {
+                missingCount++;
+                missingIndices.push(i);
+              }
+            }
 
-      const newVisibleRange = calculateVisibleRange();
+            if (missingCount > 0) {
+              console.log(
+                `🔄 [VIEWPORT] Delayed triggering collection load for ${missingCount} missing items in range ${newVisibleRange.start}-${newVisibleRange.end}`
+              );
+              console.log(
+                `🔍 [VIEWPORT] Delayed missing indices: [${missingIndices
+                  .slice(0, 10)
+                  .join(", ")}${missingIndices.length > 10 ? "..." : ""}]`
+              );
 
-      // Check if range has changed significantly
-      const rangeChanged =
-        newVisibleRange.start !== currentVisibleRange.start ||
-        newVisibleRange.end !== currentVisibleRange.end;
-
-      if (!rangeChanged && renderedElements.size > 0) {
-        return;
+              // Trigger collection to load missing ranges
+              delayedCollection
+                .loadMissingRanges(newVisibleRange)
+                .catch((error: any) => {
+                  console.error(
+                    "❌ [VIEWPORT] Failed to load missing ranges (delayed):",
+                    error
+                  );
+                });
+            }
+          }
+        }, 10); // Small delay to allow pipe composition to complete
       }
 
       // Remove elements outside the new range
@@ -352,12 +576,16 @@ export const withViewport =
 
       for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
         if (i >= component.items.length) {
+          console.log(
+            `⚠️ [VIEWPORT] Breaking at index ${i} - items.length: ${component.items.length}`
+          );
           break;
         }
 
         const item = component.items[i];
+
         if (!item) {
-          continue; // Skip empty slots
+          continue; // Skip empty slots - collection will load them
         }
 
         // Skip if already rendered
@@ -390,12 +618,6 @@ export const withViewport =
           // Make element visible after measurement
           element.style.visibility = "visible";
         });
-
-        console.log(
-          `📏 [VIEWPORT] Measured ${newElements.length} new items for indices ${
-            newElements[0].index
-          }-${newElements[newElements.length - 1].index}`
-        );
       }
 
       currentVisibleRange = newVisibleRange;
@@ -403,11 +625,12 @@ export const withViewport =
       // Position elements correctly with actual measured sizes
       updateItemPositions();
 
+      // Emit range rendered event
       component.emit?.("range:rendered", {
         range: newVisibleRange,
-        renderedCount: renderedElements.size,
+        renderedCount: newElements.length,
       });
-    };
+    }
 
     /**
      * Render a single item using the component template
@@ -498,66 +721,12 @@ export const withViewport =
     };
 
     /**
-     * Scroll to specific index
-     */
-    const scrollToIndex = (
-      index: number,
-      alignment: "start" | "center" | "end" = "start"
-    ): void => {
-      if (index < 0 || index >= component.totalItems) return;
-
-      let targetPosition = 0;
-
-      // Calculate position based on measured sizes
-      for (let i = 0; i < index; i++) {
-        targetPosition += itemSizeManager.getMeasuredSize(i);
-      }
-
-      // Apply alignment
-      if (alignment === "center") {
-        const itemSize = itemSizeManager.getMeasuredSize(index);
-        targetPosition -= (containerSize - itemSize) / 2;
-      } else if (alignment === "end") {
-        const itemSize = itemSizeManager.getMeasuredSize(index);
-        targetPosition -= containerSize - itemSize;
-      }
-
-      // Clamp to valid range
-      const maxScroll = Math.max(0, totalVirtualSize - containerSize);
-      targetPosition = clamp(targetPosition, 0, maxScroll);
-
-      virtualScrollPosition = targetPosition;
-      updateContainerPosition();
-      updateScrollbar();
-      showScrollbar();
-
-      component.emit?.("scroll:position:changed", {
-        position: targetPosition,
-        direction: "manual",
-        targetIndex: index,
-        alignment,
-      });
-    };
-
-    /**
-     * Scroll to specific page
-     */
-    const scrollToPage = (
-      page: number,
-      alignment: "start" | "center" | "end" = "start"
-    ): void => {
-      const pageSize = LIST_MANAGER_CONSTANTS.RANGE_LOADING.DEFAULT_RANGE_SIZE;
-      const targetIndex = (page - 1) * pageSize;
-      scrollToIndex(targetIndex, alignment);
-    };
-
-    /**
      * Get current viewport information
      */
     const getViewportInfo = (): ViewportInfo => {
       return calculateViewportInfoUtil(
-        virtualScrollPosition,
-        containerSize,
+        scrollingManager.getScrollPosition(),
+        virtualManager.getState().containerSize,
         component.totalItems,
         itemSizeManager.getEstimatedItemSize(),
         itemSizeManager.getMeasuredSizes(),
@@ -570,9 +739,9 @@ export const withViewport =
      */
     const updateViewport = (): void => {
       measureContainer();
-      updateTotalVirtualSize();
-      updateContainerPosition();
-      updateScrollbar();
+      virtualManager.updateTotalVirtualSize(component.totalItems);
+      scrollingManager.updateContainerPosition();
+      scrollingManager.updateScrollbar();
       renderItems();
     };
 
@@ -595,133 +764,9 @@ export const withViewport =
       itemsContainer.style.height = "100%";
 
       component.element.appendChild(itemsContainer);
-    };
 
-    /**
-     * Setup custom scrollbar
-     */
-    const setupScrollbar = (): void => {
-      if (!enableScrollbar) return;
-
-      // Create scrollbar track
-      scrollbarTrack = document.createElement("div");
-      scrollbarTrack.className = `${component.getClass(
-        "list-manager"
-      )}-scrollbar-track`;
-      scrollbarTrack.style.position = "absolute";
-      scrollbarTrack.style.backgroundColor = "rgba(0, 0, 0, 0.1)";
-      scrollbarTrack.style.borderRadius = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.BORDER_RADIUS}px`;
-      scrollbarTrack.style.opacity = "0";
-      scrollbarTrack.style.transition = "opacity 0.2s ease";
-
-      // Create scrollbar thumb
-      scrollbarThumb = document.createElement("div");
-      scrollbarThumb.className = `${component.getClass(
-        "list-manager"
-      )}-scrollbar-thumb`;
-      scrollbarThumb.style.position = "absolute";
-      scrollbarThumb.style.backgroundColor = "rgba(0, 0, 0, 0.4)";
-      scrollbarThumb.style.borderRadius = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.BORDER_RADIUS}px`;
-      scrollbarThumb.style.cursor = "pointer";
-
-      // Position scrollbar based on orientation
-      if (orientation === "vertical") {
-        scrollbarTrack.style.right = "2px";
-        scrollbarTrack.style.top = "0";
-        scrollbarTrack.style.bottom = "0";
-        scrollbarTrack.style.width = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.TRACK_WIDTH}px`;
-
-        scrollbarThumb.style.left = "0";
-        scrollbarThumb.style.right = "0";
-        scrollbarThumb.style.minHeight = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.THUMB_MIN_SIZE}px`;
-      } else {
-        scrollbarTrack.style.bottom = "2px";
-        scrollbarTrack.style.left = "0";
-        scrollbarTrack.style.right = "0";
-        scrollbarTrack.style.height = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.TRACK_WIDTH}px`;
-
-        scrollbarThumb.style.top = "0";
-        scrollbarThumb.style.bottom = "0";
-        scrollbarThumb.style.minWidth = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.THUMB_MIN_SIZE}px`;
-      }
-
-      scrollbarTrack.appendChild(scrollbarThumb);
-      component.element.appendChild(scrollbarTrack);
-
-      setupScrollbarEvents();
-    };
-
-    /**
-     * Setup scrollbar drag events
-     */
-    const setupScrollbarEvents = (): void => {
-      if (!scrollbarThumb || !scrollbarTrack) return;
-
-      let isDragging = false;
-      let startY = 0;
-      let startX = 0;
-      let startScrollPosition = 0;
-
-      const handleMouseDown = (e: MouseEvent) => {
-        isDragging = true;
-        startY = e.clientY;
-        startX = e.clientX;
-        startScrollPosition = virtualScrollPosition;
-
-        document.addEventListener("mousemove", handleMouseMove);
-        document.addEventListener("mouseup", handleMouseUp);
-        e.preventDefault();
-      };
-
-      const handleMouseMove = (e: MouseEvent) => {
-        if (!isDragging) return;
-
-        const trackSize =
-          orientation === "vertical"
-            ? scrollbarTrack!.offsetHeight
-            : scrollbarTrack!.offsetWidth;
-
-        const delta =
-          orientation === "vertical" ? e.clientY - startY : e.clientX - startX;
-
-        const scrollRatio = delta / trackSize;
-        const maxScroll = Math.max(0, totalVirtualSize - containerSize);
-        const newPosition = startScrollPosition + scrollRatio * maxScroll;
-
-        virtualScrollPosition = clamp(newPosition, 0, maxScroll);
-        updateContainerPosition();
-        updateScrollbar();
-
-        component.emit?.("scroll:position:changed", {
-          position: virtualScrollPosition,
-          direction: newPosition > startScrollPosition ? "forward" : "backward",
-          source: "scrollbar",
-        });
-      };
-
-      const handleMouseUp = () => {
-        isDragging = false;
-        document.removeEventListener("mousemove", handleMouseMove);
-        document.removeEventListener("mouseup", handleMouseUp);
-      };
-
-      scrollbarThumb.addEventListener("mousedown", handleMouseDown);
-    };
-
-    /**
-     * Setup event listeners
-     */
-    const setupEventListeners = (): void => {
-      component.element.addEventListener("wheel", wheelEventHandler, {
-        passive: false,
-      });
-    };
-
-    /**
-     * Remove event listeners
-     */
-    const removeEventListeners = (): void => {
-      component.element.removeEventListener("wheel", wheelEventHandler);
+      // Set items container reference in scrolling manager
+      (scrollingManager as any).setItemsContainer(itemsContainer);
     };
 
     /**
@@ -745,68 +790,14 @@ export const withViewport =
           ? component.element.offsetHeight
           : component.element.offsetWidth;
 
-      if (newSize !== containerSize) {
-        containerSize = newSize;
-        updateContainerPosition();
-        updateScrollbar();
+      const currentSize = virtualManager.getState().containerSize;
+      if (newSize !== currentSize) {
+        virtualManager.updateState({ containerSize: newSize });
+        scrollingManager.updateState({ containerSize: newSize });
+        scrollingManager.updateContainerPosition();
+        scrollingManager.updateScrollbar();
 
         component.emit?.("viewport:changed", getViewportInfo());
-      }
-    };
-
-    /**
-     * Show scrollbar with fade timeout
-     */
-    const showScrollbar = (): void => {
-      if (!scrollbarTrack || !enableScrollbar) return;
-
-      scrollbarTrack.style.opacity = "1";
-      scrollbarVisible = true;
-
-      // Clear existing timeout
-      if (scrollbarFadeTimeout) {
-        clearTimeout(scrollbarFadeTimeout);
-      }
-
-      // Set new fade timeout
-      scrollbarFadeTimeout = window.setTimeout(() => {
-        if (scrollbarTrack) {
-          scrollbarTrack.style.opacity = "0";
-          scrollbarVisible = false;
-        }
-      }, LIST_MANAGER_CONSTANTS.SCROLLBAR.FADE_TIMEOUT);
-    };
-
-    /**
-     * Destroy scrollbar
-     */
-    const destroyScrollbar = (): void => {
-      if (scrollbarTrack) {
-        scrollbarTrack.remove();
-        scrollbarTrack = null;
-        scrollbarThumb = null;
-      }
-    };
-
-    /**
-     * Update total virtual size
-     */
-    const updateTotalVirtualSize = (): void => {
-      let newTotalSize = 0;
-
-      for (let i = 0; i < component.totalItems; i++) {
-        newTotalSize += itemSizeManager.getMeasuredSize(i);
-      }
-
-      if (newTotalSize !== totalVirtualSize) {
-        totalVirtualSize = newTotalSize;
-        updateScrollbar();
-
-        component.emit?.("dimensions:changed", {
-          containerSize,
-          totalVirtualSize,
-          estimatedItemSize: itemSizeManager.getEstimatedItemSize(),
-        });
       }
     };
 
@@ -827,15 +818,18 @@ export const withViewport =
     // Viewport API
     const viewport = {
       // Virtual scrolling
-      getScrollPosition: () => virtualScrollPosition,
-      getContainerSize: () => containerSize,
-      getTotalVirtualSize: () => totalVirtualSize,
-      getVisibleRange: calculateVisibleRange,
+      getScrollPosition: () => scrollingManager.getScrollPosition(),
+      getContainerSize: () => virtualManager.getState().containerSize,
+      getTotalVirtualSize: () => virtualManager.getState().totalVirtualSize,
+      getVisibleRange: () =>
+        virtualManager.calculateVisibleRange(
+          scrollingManager.getScrollPosition()
+        ),
       getViewportInfo,
 
       // Navigation
-      scrollToIndex,
-      scrollToPage,
+      scrollToIndex: scrollingManager.scrollToIndex,
+      scrollToPage: scrollingManager.scrollToPage,
 
       // Item sizing
       measureItemSize,
@@ -855,9 +849,16 @@ export const withViewport =
       isInitialized: () => isViewportInitialized,
 
       // Manual updates
-      updateContainerPosition,
-      updateScrollbar,
+      updateContainerPosition: scrollingManager.updateContainerPosition,
+      updateScrollbar: scrollingManager.updateScrollbar,
       updateViewport,
+
+      // Proactive data loading
+      loadDataForRange,
+
+      // Lifecycle
+      initialize,
+      destroy,
     };
 
     return {

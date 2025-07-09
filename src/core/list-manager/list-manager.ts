@@ -1,182 +1,285 @@
 /**
- * List Manager - Performance and UI Management Layer
- * Pure virtual scrolling with functional composition
+ * List Manager - High-Performance Virtual List Management
+ * A clean, composable factory for creating optimized virtual lists
  */
 
-import { pipe } from "mtrl/src/core/compose";
-import { createBase } from "mtrl/src/core/compose";
-import { withEvents } from "mtrl/src/core/compose/features/events";
-import type { ListManagerConfig } from "./types";
-import { LIST_MANAGER_CONSTANTS } from "./constants";
-
-// Import all enhancers from new clean structure
-import {
-  withViewport,
-  withSpeedTracking,
-  withPlaceholders,
-} from "./features/viewport";
+import { pipe } from "../compose";
+import { withViewport } from "./features/viewport";
 import { withCollection } from "./features/collection";
+import { withPlaceholders } from "./features/viewport";
+import type { ListManagerComponent, ListManagerConfig } from "./types";
 
 /**
- * Type for the base List Manager component
+ * Configuration for list manager enhancers
  */
-export interface ListManagerComponent {
-  // mtrl base properties
-  element: HTMLElement;
-  config: ListManagerConfig;
-  componentName: string;
-  getClass: (name: string) => string;
-  emit?: (event: string, data?: any) => void;
-  on?: (event: string, handler: Function) => () => void;
-
-  // List Manager specific
-  items: any[];
-  totalItems: number;
-  template: ((item: any, index: number) => string | HTMLElement) | null;
-  isInitialized: boolean;
-  isDestroyed: boolean;
-
-  // Core methods
-  initialize(): void;
-  destroy(): void;
-  updateConfig(config: Partial<ListManagerConfig>): void;
-  getConfig(): ListManagerConfig;
+export interface ListManagerEnhancerConfig {
+  viewport?: Parameters<typeof withViewport>[0];
+  collection?: Parameters<typeof withCollection>[0];
+  placeholders?: Parameters<typeof withPlaceholders>[0];
 }
 
 /**
- * Creates the base List Manager component
- * Small factory function following mtrl patterns
+ * Creates a List Manager with all enhancers applied
+ *
+ * @param config - Configuration for the list manager
+ * @returns Enhanced List Manager component
  */
 export const createListManager = (
   config: ListManagerConfig
 ): ListManagerComponent => {
-  // Create mtrl base component
-  const base = createBase({
-    ...config,
-    componentName: "list-manager",
-    prefix: config.prefix || "mtrl",
-  });
+  // Base component factory
+  const createBaseComponent = (): ListManagerComponent => {
+    // Simple event system
+    const eventListeners = new Map<string, Function[]>();
 
-  // Ensure we have a container element
-  if (!config.container) {
-    throw new Error("List Manager requires a container element");
-  }
+    const emit = (event: string, data?: any) => {
+      console.log(`📡 ${event}:`, data);
+      const listeners = eventListeners.get(event) || [];
+      listeners.forEach((listener) => {
+        try {
+          listener(data);
+        } catch (error) {
+          console.error(`Error in event listener for ${event}:`, error);
+        }
+      });
+    };
 
-  return {
-    ...base,
+    const on = (event: string, listener: Function) => {
+      if (!eventListeners.has(event)) {
+        eventListeners.set(event, []);
+      }
+      eventListeners.get(event)!.push(listener);
 
-    // Override to ensure componentName is always string
-    componentName: "list-manager",
+      // Return unsubscribe function
+      return () => {
+        const listeners = eventListeners.get(event);
+        if (listeners) {
+          const index = listeners.indexOf(listener);
+          if (index > -1) {
+            listeners.splice(index, 1);
+          }
+        }
+      };
+    };
 
-    // Core properties
-    element: config.container,
-    items: config.items || [],
-    totalItems: (config as any).totalItems || 0, // Handle totalItems not being in config type
-    template: config.template?.template || null,
-
-    // Configuration
-    config: {
-      ...LIST_MANAGER_CONSTANTS,
-      ...config,
-    },
-
-    // State
-    isInitialized: false,
-    isDestroyed: false,
-
-    // Core methods
-    initialize(): void {
-      if (this.isInitialized) return;
-
-      // Setup container
-      this.element.style.position = "relative";
-      this.element.style.overflow = "hidden";
-
-      this.isInitialized = true;
-      this.emit?.("initialized", { config: this.config });
-    },
-
-    destroy(): void {
-      if (this.isDestroyed) return;
-
-      this.isInitialized = false;
-      this.isDestroyed = true;
-      this.emit?.("destroyed", { reason: "manual-destroy" });
-    },
-
-    // Configuration updates
-    updateConfig(newConfig: Partial<ListManagerConfig>): void {
-      this.config = { ...this.config, ...newConfig };
-      this.emit?.("config-updated", { config: this.config });
-    },
-
-    getConfig(): ListManagerConfig {
-      return { ...this.config };
-    },
+    return {
+      element: config.container,
+      config,
+      componentName: "list-manager",
+      items: config.items || [],
+      totalItems: config.items?.length || 0,
+      template: config.template?.template || null,
+      isInitialized: false,
+      isDestroyed: false,
+      getClass: (suffix: string) => `${config.prefix || "mtrl"}-${suffix}`,
+      emit,
+      on,
+      initialize: () => {},
+      destroy: () => {},
+      updateConfig: (newConfig: Partial<ListManagerConfig>) => {
+        Object.assign(config, newConfig);
+      },
+      getConfig: () => ({ ...config }),
+    };
   };
-};
 
-/**
- * Main factory function using pipe composition with all Phase 1 enhancers
- * This is how List Manager should be created
- */
-export const listManager = (config: ListManagerConfig) => {
-  return pipe(
-    createListManager,
-    withEvents(), // Add event system first
+  // Compose enhancers
+  const enhance = pipe(
     withViewport({
-      orientation: config.orientation?.orientation || "vertical",
-      estimatedItemSize: config.virtual?.estimatedItemSize || 50,
-      overscan: config.virtual?.overscan || 5,
+      orientation: config.orientation?.orientation,
+      estimatedItemSize: config.virtual?.estimatedItemSize,
+      overscan: config.virtual?.overscan,
       enableScrollbar: true,
+      // Pass callback to load data for a specific range
+      loadDataForRange: (range: { start: number; end: number }) => {
+        console.log(
+          `📡 [LIST-MANAGER] Proactive data request for range ${range.start}-${range.end}`
+        );
+
+        // This callback will be called during enhancement, we need to defer the collection access
+        // until after the component is fully enhanced
+        setTimeout(() => {
+          const collectionComponent = component as any;
+          if (
+            collectionComponent.collection &&
+            typeof collectionComponent.collection.loadMissingRanges ===
+              "function"
+          ) {
+            console.log(
+              `🌐 [LIST-MANAGER] Requesting collection to load range ${range.start}-${range.end}`
+            );
+            collectionComponent.collection
+              .loadMissingRanges(range)
+              .catch((error: any) => {
+                console.error(
+                  "❌ [LIST-MANAGER] Failed to load missing ranges:",
+                  error
+                );
+              });
+          } else {
+            console.log(
+              `⚠️ [LIST-MANAGER] Collection not available for proactive loading`
+            );
+          }
+        }, 0);
+      },
     }),
     withCollection({
-      collection: config.collection?.adapter || config.collection, // Support both nested and direct adapter
-      rangeSize: config.collection?.limit || 20,
+      collection: config.collection?.adapter,
+      rangeSize: config.collection?.pageSize || 20,
       strategy: config.collection?.strategy || "page",
-      fastThreshold: 1000,
-      slowThreshold: 100,
       enablePlaceholders: true,
-    }),
-    withSpeedTracking({
-      measurementWindow: 100,
-      decelerationFactor: 0.95,
-      enabled: true,
     }),
     withPlaceholders({
       enabled: true,
-      maskCharacter: "░",
-      analyzeAfterInitialLoad: true,
-      randomLengthVariance: true,
-      mode: "masked",
     })
-  )(config);
+  );
+
+  // Create and enhance component
+  const component = enhance(createBaseComponent());
+
+  // Add top-level convenience methods for easier access
+  const enhancedComponent = {
+    ...component,
+
+    // Expose viewport methods at top level for convenience
+    scrollToIndex: (index: number, alignment?: "start" | "center" | "end") => {
+      console.log(
+        `🎯 [LIST-MANAGER] Top-level scrollToIndex called: index=${index}, alignment=${alignment}`
+      );
+      console.log(
+        `🎯 [LIST-MANAGER] Viewport available:`,
+        !!component.viewport
+      );
+      if (component.viewport?.scrollToIndex) {
+        return component.viewport.scrollToIndex(index, alignment);
+      } else {
+        console.error(
+          "❌ [LIST-MANAGER] Viewport or scrollToIndex method not available"
+        );
+      }
+    },
+
+    scrollToPage: (page: number, alignment?: "start" | "center" | "end") => {
+      console.log(
+        `🎯 [LIST-MANAGER] Top-level scrollToPage called: page=${page}, alignment=${alignment}`
+      );
+      console.log(
+        `🎯 [LIST-MANAGER] Viewport available:`,
+        !!component.viewport
+      );
+      if (component.viewport?.scrollToPage) {
+        return component.viewport.scrollToPage(page, alignment);
+      } else {
+        console.error(
+          "❌ [LIST-MANAGER] Viewport or scrollToPage method not available"
+        );
+      }
+    },
+
+    getScrollPosition: () => {
+      return component.viewport?.getScrollPosition() || 0;
+    },
+
+    getVisibleRange: () => {
+      return component.viewport?.getVisibleRange() || { start: 0, end: 0 };
+    },
+
+    // Expose collection methods at top level
+    setItems: (items: any[]) => {
+      if (component.collection?.setItems) {
+        return component.collection.setItems(items);
+      }
+    },
+
+    getItems: () => {
+      return component.items || [];
+    },
+
+    getTotalItems: () => {
+      return component.totalItems || 0;
+    },
+  };
+
+  // Auto-initialize
+  enhancedComponent.initialize();
+
+  return enhancedComponent;
 };
 
 /**
- * Create List Manager with custom enhancer configuration
- * For advanced users who want to customize enhancer behavior
+ * Creates a List Manager with custom enhancer configuration
  */
 export const createCustomListManager = (
   config: ListManagerConfig,
-  enhancerConfigs: {
-    viewport?: Parameters<typeof withViewport>[0];
-    collection?: Parameters<typeof withCollection>[0];
-    speedTracking?: Parameters<typeof withSpeedTracking>[0];
-    placeholders?: Parameters<typeof withPlaceholders>[0];
-  } = {}
-) => {
-  return pipe(
-    createListManager,
-    withViewport(enhancerConfigs.viewport || {}),
-    withCollection(enhancerConfigs.collection || {}),
-    withSpeedTracking(enhancerConfigs.speedTracking || {}),
-    withPlaceholders(enhancerConfigs.placeholders || {})
-  )(config);
+  enhancerConfig: ListManagerEnhancerConfig = {}
+): ListManagerComponent => {
+  const createBaseComponent = (): ListManagerComponent => {
+    // Simple event system
+    const eventListeners = new Map<string, Function[]>();
+
+    const emit = (event: string, data?: any) => {
+      console.log(`📡 ${event}:`, data);
+      const listeners = eventListeners.get(event) || [];
+      listeners.forEach((listener) => {
+        try {
+          listener(data);
+        } catch (error) {
+          console.error(`Error in event listener for ${event}:`, error);
+        }
+      });
+    };
+
+    const on = (event: string, listener: Function) => {
+      if (!eventListeners.has(event)) {
+        eventListeners.set(event, []);
+      }
+      eventListeners.get(event)!.push(listener);
+
+      // Return unsubscribe function
+      return () => {
+        const listeners = eventListeners.get(event);
+        if (listeners) {
+          const index = listeners.indexOf(listener);
+          if (index > -1) {
+            listeners.splice(index, 1);
+          }
+        }
+      };
+    };
+
+    return {
+      element: config.container,
+      config,
+      componentName: "list-manager",
+      items: config.items || [],
+      totalItems: config.items?.length || 0,
+      template: config.template?.template || null,
+      isInitialized: false,
+      isDestroyed: false,
+      getClass: (suffix: string) => `${config.prefix || "mtrl"}-${suffix}`,
+      emit,
+      on,
+      initialize: () => {},
+      destroy: () => {},
+      updateConfig: (newConfig: Partial<ListManagerConfig>) => {
+        Object.assign(config, newConfig);
+      },
+      getConfig: () => ({ ...config }),
+    };
+  };
+
+  const enhance = pipe(
+    withViewport(enhancerConfig.viewport || {}),
+    withCollection(enhancerConfig.collection || {}),
+    withPlaceholders(enhancerConfig.placeholders || {})
+  );
+
+  const component = enhance(createBaseComponent());
+  component.initialize();
+
+  return component;
 };
 
-// Re-export enhancers for custom composition
-export { withViewport, withCollection, withSpeedTracking, withPlaceholders };
-
-// Re-export for convenience
-export { pipe } from "mtrl/src/core/compose";
+// Export enhancers for individual use
+export { withViewport, withCollection, withPlaceholders };

@@ -1,115 +1,167 @@
 /**
- * mtrl-addons Core System
- *
- * Exports all core modules: layout, collection, and list-manager
+ * @module core
+ * @description Core mtrl-addons functionality
  */
 
-// === Layout System ===
-export * from "./layout";
+// Collection system
+export { createCollection, createDataCollection } from "./collection";
+export type { Collection, DataCollection } from "./collection";
 
-// === Collection System ===
+// Layout system
 export {
-  // Main collection creation functions
-  createCollection,
-  createDataCollection,
-  createBaseCollection,
-  createRestAdapter,
-  // Collection plugins
-  withLoading,
-  withDataOperations,
-  // Collection events and state
-  CollectionDataEvents,
-  CollectionEvents,
-  createEventPayload,
-  createCollectionState,
-} from "./collection";
+  createLayout,
+  applyLayoutClasses,
+  cleanupLayoutClasses,
+} from "./layout";
+export type { Layout, LayoutConfig } from "./layout";
 
-// Collection types
-export type {
-  Collection,
-  BaseCollection,
-  CollectionConfig,
-  CollectionItem,
-  CollectionAdapter,
-  AdapterParams,
-  AdapterResponse,
-} from "./collection";
-
-// Collection constants (prefixed to avoid conflicts)
-export * as CollectionConstants from "./collection/constants";
-
-// === List Manager System (Phase 1 - Functional Composition) ===
-
-// List Manager - Main exports
+// List Manager system
 export {
-  listManager,
-  createCustomListManager,
   createListManager,
-  type ListManagerComponent,
-} from "./list-manager/list-manager";
-
-// List Manager - Individual enhancers for custom composition
-export {
+  createCustomListManager,
   withViewport,
   withCollection,
-  withSpeedTracking,
   withPlaceholders,
-} from "./list-manager/list-manager";
+} from "./list-manager";
 
-// List Manager - Component interfaces after enhancement
-export type { ViewportComponent } from "./list-manager/features/withViewport";
-export type { CollectionComponent } from "./list-manager/features/withCollection";
-export type { SpeedTrackingComponent } from "./list-manager/features/withSpeedTracking";
-export type { PlaceholdersComponent } from "./list-manager/features/withPlaceholders";
+// Compose system
+export {
+  pipe,
+  createBase,
+  withElement,
+  withEvents,
+  withLifecycle,
+  withCollection as withCompose,
+  withStyling,
+  withSelection,
+  withPerformance,
+} from "./compose";
 
-export type { ViewportConfig } from "./list-manager/features/withViewport";
-export type { CollectionConfig as ListManagerCollectionConfig } from "./list-manager/features/withCollection";
-export type { SpeedTrackingConfig } from "./list-manager/features/withSpeedTracking";
+// Types
 export type {
-  PlaceholdersConfig,
-  PlaceholderStructure,
-} from "./list-manager/features/withPlaceholders";
-
-// List Manager - Core types and configurations
-export type {
+  ListManagerComponent,
   ListManagerConfig,
+  ListManagerEnhancerConfig,
+  ViewportFeature,
+  CollectionFeature,
   ItemRange,
   ViewportInfo,
   SpeedTracker,
-  TemplateConfig,
-  VirtualConfig,
-  OrientationConfig,
-  InitialLoadConfig,
-  ErrorHandlingConfig,
-  PositioningConfig,
-  BoundariesConfig,
-  RecyclingConfig,
-  PerformanceConfig,
-  IntersectionConfig,
 } from "./list-manager/types";
 
-// List Manager - Constants
-export {
-  LIST_MANAGER_CONSTANTS,
-  PLACEHOLDER,
-  type ListManagerConstants,
-} from "./list-manager/constants";
+export type {
+  CollectionConfig,
+  CollectionComponent,
+  StylingConfig,
+  StylingComponent,
+  SelectionConfig,
+  SelectionComponent,
+  SelectableItem,
+  PerformanceConfig,
+  PerformanceComponent,
+  PerformanceMetrics,
+} from "./compose/features";
 
-// List Manager - Utility functions
-export {
-  calculateVisibleRange,
-  calculateTotalVirtualSize,
-  calculateContainerPosition,
-  calculateScrollPositionForIndex,
-  calculateScrollPositionForPage,
-  calculateScrollbarMetrics,
-  calculateViewportInfo,
-  calculateInitialRangeSize,
-  calculateMissingRanges,
-  calculateBufferRanges,
-  clamp,
-  applyBoundaryResistance,
-} from "./list-manager/utils/calculations";
+export type { ViewportComponent } from "./list-manager/features/viewport";
+export type { CollectionComponent as CollectionEnhancerComponent } from "./list-manager/features/collection";
+export type { PlaceholdersComponent } from "./list-manager/features/viewport";
 
-// Re-export functional composition utilities
-export { pipe } from "mtrl/src/core/compose";
+export type { ViewportConfig } from "./list-manager/features/viewport";
+export type { CollectionConfig as CollectionEnhancerConfig } from "./list-manager/features/collection";
+export type { PlaceholdersConfig } from "./list-manager/features/viewport";
+
+// Configuration types
+export type { Collection as CollectionInterface } from "./collection";
+export type { Layout as LayoutInterface } from "./layout";
+
+// Collection types
+export type {
+  DataAdapter,
+  LoadingStrategy,
+  LoadingConfig,
+  ApiResponse,
+  PaginationMeta,
+  DataState,
+  CacheStrategy,
+  CacheConfig,
+  LoadingState,
+  ErrorState,
+  EventData,
+  EventHandlers,
+  CollectionCreateConfig,
+  CollectionUpdateConfig,
+  CollectionDestroyConfig,
+  CollectionSetItemsConfig,
+  CollectionSetTotalItemsConfig,
+  CollectionSetLoadingConfig,
+  CollectionSetErrorConfig,
+  CollectionSetCacheConfig,
+  CollectionSetEventHandlersConfig,
+  CollectionGetItemsConfig,
+  CollectionGetTotalItemsConfig,
+  CollectionGetLoadingConfig,
+  CollectionGetErrorConfig,
+  CollectionGetCacheConfig,
+  CollectionGetEventHandlersConfig,
+  CollectionLoadConfig,
+  CollectionLoadMoreConfig,
+  CollectionReloadConfig,
+  CollectionUpdateItemConfig,
+  CollectionUpdateItemsConfig,
+  CollectionUpdateTotalItemsConfig,
+  CollectionUpdateLoadingConfig,
+  CollectionUpdateErrorConfig,
+  CollectionUpdateCacheConfig,
+  CollectionUpdateEventHandlersConfig,
+  CollectionClearConfig,
+  CollectionClearCacheConfig,
+  CollectionClearItemsConfig,
+  CollectionClearErrorConfig,
+  CollectionClearLoadingConfig,
+  CollectionClearEventHandlersConfig,
+  CollectionDestroyAllConfig,
+  CollectionDestroyAllCacheConfig,
+  CollectionDestroyAllItemsConfig,
+  CollectionDestroyAllErrorConfig,
+  CollectionDestroyAllLoadingConfig,
+  CollectionDestroyAllEventHandlersConfig,
+} from "./collection";
+
+// Layout types
+export type {
+  LayoutData,
+  LayoutElement,
+  LayoutElementData,
+  LayoutArrayConfig,
+  LayoutConfig as LayoutTypeConfig,
+  LayoutCreateConfig,
+  LayoutUpdateConfig,
+  LayoutDestroyConfig,
+  LayoutSetDataConfig,
+  LayoutSetElementConfig,
+  LayoutSetElementDataConfig,
+  LayoutSetArrayConfig,
+  LayoutSetConfigConfig,
+  LayoutGetDataConfig,
+  LayoutGetElementConfig,
+  LayoutGetElementDataConfig,
+  LayoutGetArrayConfig,
+  LayoutGetConfigConfig,
+  LayoutRenderConfig,
+  LayoutRenderElementConfig,
+  LayoutRenderElementDataConfig,
+  LayoutRenderArrayConfig,
+  LayoutRenderConfigConfig,
+  LayoutClearConfig,
+  LayoutClearDataConfig,
+  LayoutClearElementConfig,
+  LayoutClearElementDataConfig,
+  LayoutClearArrayConfig,
+  LayoutClearConfigConfig,
+  LayoutDestroyAllConfig,
+  LayoutDestroyAllDataConfig,
+  LayoutDestroyAllElementConfig,
+  LayoutDestroyAllElementDataConfig,
+  LayoutDestroyAllArrayConfig,
+  LayoutDestroyAllConfigConfig,
+} from "./layout";
