@@ -62,8 +62,8 @@ export interface ScrollingState {
 export interface ScrollingManager {
   // Core scrolling
   handleWheel(event: WheelEvent): void;
+  scrollToPosition(position: number): void;
   scrollToIndex(index: number, alignment?: "start" | "center" | "end"): void;
-  scrollToPage(page: number, alignment?: "start" | "center" | "end"): void;
 
   // Container positioning
   updateContainerPosition(): void;
@@ -382,15 +382,6 @@ export const createScrollingManager = (
       return;
     }
 
-    // PROACTIVE DATA LOADING: Request data for the target range BEFORE scrolling
-    const targetRange = calculateVisibleRange();
-    if (loadDataForRange) {
-      console.log(
-        `🎯 [SCROLL-TO-INDEX] Proactively requesting data for index ${index} (range ${targetRange.start}-${targetRange.end})`
-      );
-      loadDataForRange(targetRange);
-    }
-
     const previousPosition = virtualScrollPosition;
     let targetPosition = 0;
 
@@ -438,32 +429,43 @@ export const createScrollingManager = (
   };
 
   /**
-   * Scroll to specific page
+   * Scroll to a specific position
    */
-  const scrollToPage = (
-    page: number,
-    alignment: "start" | "center" | "end" = "start"
-  ): void => {
-    const pageSize = LIST_MANAGER_CONSTANTS.RANGE_LOADING.DEFAULT_RANGE_SIZE;
-    const targetIndex = (page - 1) * pageSize;
+  const scrollToPosition = (position: number): void => {
+    const maxScroll = Math.max(0, totalVirtualSize - containerSize);
+    const clampedPosition = clamp(position, 0, maxScroll);
 
-    // PROACTIVE DATA LOADING: Request page data BEFORE scrolling
-    const pageStartIndex = targetIndex;
-    const pageEndIndex = Math.min(
-      pageStartIndex + pageSize - 1,
-      (getTotalItems ? getTotalItems() : component.totalItems) - 1
-    );
-    const pageRange = { start: pageStartIndex, end: pageEndIndex };
-
-    if (loadDataForRange) {
-      console.log(
-        `🎯 [SCROLL-TO-PAGE] Proactively requesting page ${page} data (range ${pageRange.start}-${pageRange.end})`
-      );
-      loadDataForRange(pageRange);
+    if (clampedPosition === virtualScrollPosition) {
+      return;
     }
 
-    // Now scroll to the page
-    scrollToIndex(targetIndex, alignment);
+    const previousPosition = virtualScrollPosition;
+    virtualScrollPosition = clampedPosition;
+
+    // Update velocity tracking
+    const deltaPosition = virtualScrollPosition - previousPosition;
+    const deltaTime = 16; // Assume 60fps for wheel events
+    updateVelocityTracking(deltaPosition, deltaTime);
+
+    // Update UI
+    updateContainerPosition();
+    updateScrollbar();
+    showScrollbar();
+
+    // Trigger rendering for new visible range
+    renderItems();
+
+    // Emit events
+    const direction =
+      virtualScrollPosition > previousPosition ? "forward" : "backward";
+    onScrollPositionChanged?.({
+      position: virtualScrollPosition,
+      direction,
+      previousPosition,
+    });
+
+    const newVisibleRange = calculateVisibleRange();
+    onVirtualRangeChanged?.(newVisibleRange);
   };
 
   /**
@@ -785,7 +787,7 @@ export const createScrollingManager = (
     // Core scrolling
     handleWheel,
     scrollToIndex,
-    scrollToPage,
+    scrollToPosition,
 
     // Container positioning
     updateContainerPosition,

@@ -38,9 +38,9 @@ export interface ViewportComponent {
     getVisibleRange(): ItemRange;
     getViewportInfo(): ViewportInfo;
 
-    // Navigation
+    // Navigation - Visual positioning only
+    scrollToPosition(position: number): void;
     scrollToIndex(index: number, alignment?: "start" | "center" | "end"): void;
-    scrollToPage(page: number, alignment?: "start" | "center" | "end"): void;
 
     // Item sizing
     measureItemSize(element: HTMLElement, index: number): number;
@@ -827,9 +827,9 @@ export const withViewport =
         ),
       getViewportInfo,
 
-      // Navigation
+      // Navigation - Visual positioning only
+      scrollToPosition: scrollingManager.scrollToPosition,
       scrollToIndex: scrollingManager.scrollToIndex,
-      scrollToPage: scrollingManager.scrollToPage,
 
       // Item sizing
       measureItemSize,

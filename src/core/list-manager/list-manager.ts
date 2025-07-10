@@ -138,73 +138,10 @@ export const createListManager = (
   // Create and enhance component
   const component = enhance(createBaseComponent());
 
-  // Add top-level convenience methods for easier access
-  const enhancedComponent = {
-    ...component,
-
-    // Expose viewport methods at top level for convenience
-    scrollToIndex: (index: number, alignment?: "start" | "center" | "end") => {
-      console.log(
-        `🎯 [LIST-MANAGER] Top-level scrollToIndex called: index=${index}, alignment=${alignment}`
-      );
-      console.log(
-        `🎯 [LIST-MANAGER] Viewport available:`,
-        !!component.viewport
-      );
-      if (component.viewport?.scrollToIndex) {
-        return component.viewport.scrollToIndex(index, alignment);
-      } else {
-        console.error(
-          "❌ [LIST-MANAGER] Viewport or scrollToIndex method not available"
-        );
-      }
-    },
-
-    scrollToPage: (page: number, alignment?: "start" | "center" | "end") => {
-      console.log(
-        `🎯 [LIST-MANAGER] Top-level scrollToPage called: page=${page}, alignment=${alignment}`
-      );
-      console.log(
-        `🎯 [LIST-MANAGER] Viewport available:`,
-        !!component.viewport
-      );
-      if (component.viewport?.scrollToPage) {
-        return component.viewport.scrollToPage(page, alignment);
-      } else {
-        console.error(
-          "❌ [LIST-MANAGER] Viewport or scrollToPage method not available"
-        );
-      }
-    },
-
-    getScrollPosition: () => {
-      return component.viewport?.getScrollPosition() || 0;
-    },
-
-    getVisibleRange: () => {
-      return component.viewport?.getVisibleRange() || { start: 0, end: 0 };
-    },
-
-    // Expose collection methods at top level
-    setItems: (items: any[]) => {
-      if (component.collection?.setItems) {
-        return component.collection.setItems(items);
-      }
-    },
-
-    getItems: () => {
-      return component.items || [];
-    },
-
-    getTotalItems: () => {
-      return component.totalItems || 0;
-    },
-  };
-
   // Auto-initialize
-  enhancedComponent.initialize();
+  component.initialize();
 
-  return enhancedComponent;
+  return component;
 };
 
 /**

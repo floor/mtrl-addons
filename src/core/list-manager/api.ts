@@ -17,7 +17,34 @@ import { createListManager } from "./list-manager";
 /**
  * Enhanced List Manager API with convenient methods
  */
-export interface ListManagerAPI extends ListManager {
+export interface ListManagerAPI {
+  // Business logic API
+  loadRange(
+    pageOrOffset: number,
+    size: number,
+    strategy?: "page" | "offset",
+    alignment?: "start" | "center" | "end"
+  ): void;
+
+  // Navigation API
+  scrollToPosition(position: number): void;
+  scrollToIndex(index: number, alignment?: "start" | "center" | "end"): void;
+  scrollToPage(page: number, alignment?: "start" | "center" | "end"): void;
+
+  // State API
+  getScrollPosition(): number;
+  getItems(): any[];
+  getTotalItems(): number;
+  getVisibleRange(): ItemRange;
+
+  // Core lifecycle
+  initialize(): void;
+  destroy(): void;
+  updateConfig(config: Partial<ListManagerConfig>): void;
+
+  // Event system
+  on(event: string, listener: Function): () => void;
+
   // Convenience methods
   onScroll(
     callback: (position: number, direction: "forward" | "backward") => void
@@ -78,10 +105,10 @@ export interface ListManagerDebugInfo {
  * Event helper functions
  */
 export class ListManagerEventHelpers {
-  private listManager: ListManager;
+  private listManager: any; // Enhanced component from createListManager
   private eventSubscriptions: Map<string, () => void> = new Map();
 
-  constructor(listManager: ListManager) {
+  constructor(listManager: any) {
     this.listManager = listManager;
   }
 
@@ -91,13 +118,12 @@ export class ListManagerEventHelpers {
   onScroll(
     callback: (position: number, direction: "forward" | "backward") => void
   ): () => void {
-    const unsubscribe = this.listManager.subscribe((event, data) => {
-      if (event === ListManagerEvents.SCROLL_POSITION_CHANGED) {
-        const scrollData =
-          data as ListManagerEventData[ListManagerEvents.SCROLL_POSITION_CHANGED];
-        callback(scrollData.position, scrollData.direction);
+    const unsubscribe = this.listManager.on(
+      "scroll:position:changed",
+      (data: any) => {
+        callback(data.position, data.direction);
       }
-    });
+    );
 
     const key = `scroll-${Date.now()}`;
     this.eventSubscriptions.set(key, unsubscribe);
@@ -112,12 +138,12 @@ export class ListManagerEventHelpers {
    * Subscribe to visible range changes
    */
   onRangeChange(callback: (range: ItemRange) => void): () => void {
-    const unsubscribe = this.listManager.subscribe((event, data) => {
-      if (event === ListManagerEvents.VIRTUAL_RANGE_CHANGED) {
-        const range = data as ItemRange;
-        callback(range);
+    const unsubscribe = this.listManager.on(
+      "virtual:range:changed",
+      (data: any) => {
+        callback(data);
       }
-    });
+    );
 
     const key = `range-${Date.now()}`;
     this.eventSubscriptions.set(key, unsubscribe);
@@ -132,11 +158,8 @@ export class ListManagerEventHelpers {
    * Subscribe to viewport changes
    */
   onViewportChange(callback: (viewport: ViewportInfo) => void): () => void {
-    const unsubscribe = this.listManager.subscribe((event, data) => {
-      if (event === ListManagerEvents.VIEWPORT_CHANGED) {
-        const viewport = data as ViewportInfo;
-        callback(viewport);
-      }
+    const unsubscribe = this.listManager.on("viewport:changed", (data: any) => {
+      callback(data);
     });
 
     const key = `viewport-${Date.now()}`;
@@ -154,13 +177,12 @@ export class ListManagerEventHelpers {
   onLoading(
     callback: (range: ItemRange, strategy: string) => void
   ): () => void {
-    const unsubscribe = this.listManager.subscribe((event, data) => {
-      if (event === ListManagerEvents.LOADING_TRIGGERED) {
-        const loadingData =
-          data as ListManagerEventData[ListManagerEvents.LOADING_TRIGGERED];
-        callback(loadingData.range, loadingData.strategy);
+    const unsubscribe = this.listManager.on(
+      "loading:triggered",
+      (data: any) => {
+        callback(data.range, data.strategy);
       }
-    });
+    );
 
     const key = `loading-${Date.now()}`;
     this.eventSubscriptions.set(key, unsubscribe);
@@ -177,13 +199,12 @@ export class ListManagerEventHelpers {
   onPlaceholders(
     callback: (range: ItemRange, count: number) => void
   ): () => void {
-    const unsubscribe = this.listManager.subscribe((event, data) => {
-      if (event === ListManagerEvents.PLACEHOLDERS_SHOWN) {
-        const placeholderData =
-          data as ListManagerEventData[ListManagerEvents.PLACEHOLDERS_SHOWN];
-        callback(placeholderData.range, placeholderData.count);
+    const unsubscribe = this.listManager.on(
+      "placeholders:shown",
+      (data: any) => {
+        callback(data.range, data.count);
       }
-    });
+    );
 
     const key = `placeholders-${Date.now()}`;
     this.eventSubscriptions.set(key, unsubscribe);
@@ -207,92 +228,146 @@ export class ListManagerEventHelpers {
  * Enhanced List Manager implementation with API helpers
  */
 class ListManagerAPIImpl implements ListManagerAPI {
-  private listManager: ListManager;
+  private listManager: any; // Enhanced component from createListManager
   private eventHelpers: ListManagerEventHelpers;
 
-  constructor(listManager: ListManager) {
+  constructor(listManager: any) {
     this.listManager = listManager;
     this.eventHelpers = new ListManagerEventHelpers(listManager);
   }
 
-  // Delegate all core methods to the underlying list manager
+  // Business logic API
+  loadRange(
+    pageOrOffset: number,
+    size: number,
+    strategy: "page" | "offset" = "page",
+    alignment: "start" | "center" | "end" = "start"
+  ): void {
+    console.log(
+      `🎯 [LIST-MANAGER-API] loadRange called: ${pageOrOffset}, size=${size}, strategy=${strategy}, alignment=${alignment}`
+    );
+
+    let targetIndex: number;
+    let dataRange: { start: number; end: number };
+
+    if (strategy === "page") {
+      // Page-based loading: page 1 = items 0-19, page 2 = items 20-39
+      const pageSize = size;
+      targetIndex = (pageOrOffset - 1) * pageSize;
+      dataRange = {
+        start: targetIndex,
+        end: targetIndex + pageSize - 1,
+      };
+      console.log(
+        `📄 [LIST-MANAGER-API] Page ${pageOrOffset} → index ${targetIndex}, range ${dataRange.start}-${dataRange.end}`
+      );
+    } else {
+      // Offset-based loading: offset 2 = start at item 2, load 'size' items
+      targetIndex = pageOrOffset;
+      dataRange = {
+        start: targetIndex,
+        end: targetIndex + size - 1,
+      };
+      console.log(
+        `📍 [LIST-MANAGER-API] Offset ${pageOrOffset} → range ${dataRange.start}-${dataRange.end}`
+      );
+    }
+
+    // 1. First, request data from collection (proactive)
+    console.log(
+      `📡 [LIST-MANAGER-API] Requesting data for range ${dataRange.start}-${dataRange.end}`
+    );
+    if (
+      this.listManager.collection &&
+      typeof this.listManager.collection.loadMissingRanges === "function"
+    ) {
+      this.listManager.collection
+        .loadMissingRanges(dataRange)
+        .catch((error: any) => {
+          console.error("❌ [LIST-MANAGER-API] Failed to load range:", error);
+        });
+    }
+
+    // 2. Then, tell viewport to scroll to visual position
+    console.log(
+      `🎯 [LIST-MANAGER-API] Instructing viewport to scroll to index ${targetIndex}`
+    );
+    if (this.listManager.viewport?.scrollToIndex) {
+      this.listManager.viewport.scrollToIndex(targetIndex, alignment);
+    } else {
+      console.error(
+        "❌ [LIST-MANAGER-API] Viewport or scrollToIndex method not available"
+      );
+    }
+  }
+
+  // Navigation API
+  scrollToPosition(position: number): void {
+    console.log(`🎯 [LIST-MANAGER-API] scrollToPosition called: ${position}px`);
+    if (this.listManager.viewport?.scrollToPosition) {
+      this.listManager.viewport.scrollToPosition(position);
+    } else {
+      console.error(
+        "❌ [LIST-MANAGER-API] Viewport or scrollToPosition method not available"
+      );
+    }
+  }
+
+  // Delegate core methods to the enhanced component
   scrollToIndex(index: number, alignment?: "start" | "center" | "end"): void {
-    this.listManager.scrollToIndex(index, alignment);
+    console.log(
+      `🎯 [LIST-MANAGER-API] scrollToIndex called: index=${index}, alignment=${alignment}`
+    );
+    if (this.listManager.viewport?.scrollToIndex) {
+      this.listManager.viewport.scrollToIndex(index, alignment);
+    } else {
+      console.error(
+        "❌ [LIST-MANAGER-API] Viewport or scrollToIndex method not available"
+      );
+    }
   }
 
   scrollToPage(page: number, alignment?: "start" | "center" | "end"): void {
-    this.listManager.scrollToPage(page, alignment);
+    // Legacy method - redirect to loadRange for better architecture
+    this.loadRange(page, 20, "page", alignment);
   }
 
+  // State API
   getScrollPosition(): number {
-    return this.listManager.getScrollPosition();
-  }
-
-  getVisibleRange(): ItemRange {
-    return this.listManager.getVisibleRange();
-  }
-
-  getViewportInfo(): ViewportInfo {
-    return this.listManager.getViewportInfo();
-  }
-
-  updateViewport(): void {
-    this.listManager.updateViewport();
-  }
-
-  setItems(items: any[]): void {
-    this.listManager.setItems(items);
-  }
-
-  setTotalItems(total: number): void {
-    this.listManager.setTotalItems(total);
+    return this.listManager.viewport?.getScrollPosition() || 0;
   }
 
   getItems(): any[] {
-    return this.listManager.getItems();
+    return this.listManager.items || [];
   }
 
   getTotalItems(): number {
-    return this.listManager.getTotalItems();
+    return this.listManager.totalItems || 0;
   }
 
-  setPaginationStrategy(strategy: "page" | "offset" | "cursor"): void {
-    this.listManager.setPaginationStrategy(strategy);
+  getVisibleRange(): ItemRange {
+    return this.listManager.viewport?.getVisibleRange() || { start: 0, end: 0 };
   }
 
-  getPaginationStrategy(): "page" | "offset" | "cursor" {
-    return this.listManager.getPaginationStrategy();
-  }
-
-  updateConfig(config: any): void {
-    this.listManager.updateConfig(config);
-  }
-
-  getConfig(): ListManagerConfig {
-    return this.listManager.getConfig();
-  }
-
-  subscribe(observer: ListManagerObserver): () => void {
-    return this.listManager.subscribe(observer);
-  }
-
-  emit<T extends ListManagerEvents>(
-    event: T,
-    data: ListManagerEventData[T]
-  ): void {
-    this.listManager.emit(event, data);
-  }
-
+  // Core lifecycle
   initialize(): void {
     this.listManager.initialize();
   }
 
   destroy(): void {
-    this.eventHelpers.destroy();
     this.listManager.destroy();
   }
 
-  // Enhanced API methods
+  updateConfig(config: Partial<ListManagerConfig>): void {
+    this.listManager.updateConfig(config);
+  }
+
+  // Event system
+  on(event: string, listener: Function): () => void {
+    return this.listManager.on(event, listener);
+  }
+
+  // Convenience methods
   onScroll(
     callback: (position: number, direction: "forward" | "backward") => void
   ): () => void {
@@ -340,9 +415,9 @@ class ListManagerAPIImpl implements ListManagerAPI {
   }
 
   getDebugInfo(): ListManagerDebugInfo {
-    const config = this.getConfig();
-    const viewport = this.getViewportInfo();
-    const visibleRange = this.getVisibleRange();
+    const config = this.listManager.getConfig(); // Assuming getConfig is available on the enhanced component
+    const viewport = this.listManager.getViewportInfo(); // Assuming getViewportInfo is available on the enhanced component
+    const visibleRange = this.listManager.getVisibleRange(); // Assuming getVisibleRange is available on the enhanced component
 
     return {
       config,
@@ -351,7 +426,7 @@ class ListManagerAPIImpl implements ListManagerAPI {
         totalItems: this.getTotalItems(),
         visibleRange,
         scrollPosition: this.getScrollPosition(),
-        paginationStrategy: this.getPaginationStrategy(),
+        paginationStrategy: this.listManager.getPaginationStrategy(), // Assuming getPaginationStrategy is available on the enhanced component
       },
       performance: {
         scrollVelocity: 0, // TODO: Access speed tracker
@@ -376,11 +451,11 @@ class ListManagerAPIImpl implements ListManagerAPI {
   }
 
   enableDebug(): void {
-    this.updateConfig({ debug: true });
+    this.listManager.updateConfig({ debug: true }); // Assuming updateConfig is available on the enhanced component
   }
 
   disableDebug(): void {
-    this.updateConfig({ debug: false });
+    this.listManager.updateConfig({ debug: false }); // Assuming updateConfig is available on the enhanced component
   }
 }
 
@@ -423,7 +498,7 @@ export const ListManagerUtils = {
   createTestConfig: (
     container: HTMLElement,
     itemCount: number = 1000
-  ): ListManagerConfig => {
+  ): Partial<ListManagerConfig> => {
     const items = Array.from({ length: itemCount }, (_, i) => ({
       id: i,
       name: `Item ${i}`,

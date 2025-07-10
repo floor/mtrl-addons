@@ -1,7 +1,7 @@
 import type { ListConfig, ListComponent, ListState } from "../types";
 import type { BaseComponent, ElementComponent } from "mtrl/src/core/compose";
 import type { CollectionItem } from "../../../core/collection/types";
-import { createListManager } from "../../../core/list-manager/list-manager";
+import { createListManagerAPI } from "../../../core/list-manager/api";
 import type { ListManagerConfig } from "../../../core/list-manager/types";
 
 /**
@@ -109,7 +109,7 @@ export const withListManager =
     };
 
     // Create Phase 1 List Manager with functional composition
-    const manager = createListManager(listManagerConfig);
+    const manager = createListManagerAPI(listManagerConfig);
 
     console.log(`📋 List Manager created with Phase 1 functional composition`);
 
@@ -201,7 +201,7 @@ export const withListManager =
       config.on?.onItemClick?.(item, index, event);
 
       // Emit selection events
-      const items = manager.items || [];
+      const items = manager.getItems();
       const selectedItems = state.selectedIndices
         .map((i) => items[i])
         .filter(Boolean);
@@ -252,7 +252,7 @@ export const withListManager =
         enhancedManager.collection?.setItems([]);
       },
       addItems: (items: T[], position: "start" | "end" = "end") => {
-        const currentItems = manager.items || [];
+        const currentItems = manager.getItems();
         const newItems =
           position === "start"
             ? [...items, ...currentItems]
@@ -260,25 +260,25 @@ export const withListManager =
         enhancedManager.collection?.setItems(newItems);
       },
       removeItems: (indices: number[]) => {
-        const currentItems = manager.items || [];
+        const currentItems = manager.getItems();
         const newItems = currentItems.filter(
           (_: any, index: number) => !indices.includes(index)
         );
         enhancedManager.collection?.setItems(newItems);
       },
       updateItem: (index: number, item: T) => {
-        const currentItems = [...(manager.items || [])];
+        const currentItems = [...manager.getItems()];
         if (index >= 0 && index < currentItems.length) {
           currentItems[index] = item;
           enhancedManager.collection?.setItems(currentItems);
         }
       },
       getItem: (index: number) => {
-        const items = manager.items || [];
+        const items = manager.getItems();
         return items[index];
       },
-      getItems: () => manager.items || [],
-      getItemCount: () => manager.totalItems || 0,
+      getItems: () => manager.getItems(),
+      getItemCount: () => manager.getTotalItems(),
 
       // Scrolling operations (delegate to viewport)
       scrollToIndex: (
@@ -290,13 +290,31 @@ export const withListManager =
         return Promise.resolve();
       },
 
-      scrollToPage: (
-        page: number,
-        alignment: "start" | "center" | "end" = "start",
-        animate?: boolean
+      // NEW: Business logic for loading data ranges with positioning
+      loadRange: (
+        pageOrOffset: number,
+        size: number,
+        strategy: "page" | "offset" = "page",
+        alignment: "start" | "center" | "end" = "start"
       ) => {
-        enhancedManager.viewport?.scrollToPage(page, alignment);
-        return Promise.resolve();
+        console.log(
+          `🎯 [LIST-COMPONENT] loadRange called: ${pageOrOffset}, size=${size}, strategy=${strategy}, alignment=${alignment}`
+        );
+
+        // Delegate to the enhanced list manager's loadRange method
+        if (enhancedManager.loadRange) {
+          return enhancedManager.loadRange(
+            pageOrOffset,
+            size,
+            strategy,
+            alignment
+          );
+        } else {
+          console.error(
+            "❌ [LIST-COMPONENT] loadRange method not available on list manager"
+          );
+          return Promise.resolve();
+        }
       },
 
       scrollToItem: async (
@@ -305,7 +323,7 @@ export const withListManager =
         animate?: boolean
       ) => {
         // Find item in current data
-        const items = manager.items || [];
+        const items = manager.getItems();
         const index = items.findIndex(
           (item: any) => String(item.id) === String(itemId)
         );
@@ -325,7 +343,7 @@ export const withListManager =
       },
 
       scrollToBottom: () => {
-        const totalItems = manager.totalItems || 0;
+        const totalItems = manager.getTotalItems() || 0;
         if (totalItems > 0) {
           enhancedManager.viewport?.scrollToIndex(totalItems - 1, "end");
         }
@@ -359,7 +377,7 @@ export const withListManager =
         state.selectedIndices = [];
       },
       getSelectedItems: () => {
-        const items = manager.items || [];
+        const items = manager.getItems();
         return state.selectedIndices.map((i) => items[i]).filter(Boolean);
       },
       getSelectedIndices: () => [...state.selectedIndices],
@@ -378,7 +396,7 @@ export const withListManager =
         enhancedManager.collection?.getPendingRanges().size > 0 || false,
       hasPrevious: () => false, // Not implemented yet
       getSelectedIds: () => {
-        const items = manager.items || [];
+        const items = manager.getItems();
         return state.selectedIndices.map((i) => items[i]?.id).filter(Boolean);
       },
       getMetrics: () => ({
@@ -398,7 +416,7 @@ export const withListManager =
       isLoading: () =>
         enhancedManager.collection?.getPendingRanges().size > 0 || false,
       hasError: () => state.error !== null,
-      isEmpty: () => (manager.totalItems || 0) === 0,
+      isEmpty: () => (manager.getTotalItems() || 0) === 0,
 
       // Rendering
       render: () => {
