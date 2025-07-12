@@ -24,39 +24,80 @@ export interface CollectionConfig {
 }
 
 /**
+ * Calculate optimal range size based on viewport dimensions
+ * @param containerSize - Viewport container size in pixels
+ * @param estimatedItemSize - Estimated item size in pixels
+ * @param overscan - Number of items to render outside viewport
+ * @returns Optimal range size for data loading
+ */
+function calculateOptimalRangeSize(
+  containerSize: number,
+  estimatedItemSize: number,
+  overscan: number = 5
+): number {
+  // Calculate how many items fit in the viewport
+  const itemsInViewport = Math.ceil(containerSize / estimatedItemSize);
+
+  // Add overscan buffer for smooth scrolling
+  const withOverscan = itemsInViewport + overscan * 2;
+
+  // Add preload buffer for better UX (50% more items)
+  const withPreload = Math.ceil(withOverscan * 1.5);
+
+  // Ensure minimum of 10 items and maximum of 100 items per range
+  const optimalRangeSize = Math.max(10, Math.min(100, withPreload));
+
+  console.log(`📊 [COLLECTION] Optimal range size calculation:
+    Container: ${containerSize}px
+    Item size: ${estimatedItemSize}px
+    Items in viewport: ${itemsInViewport}
+    With overscan: ${withOverscan}
+    With preload: ${withPreload}
+    Final range size: ${optimalRangeSize}`);
+
+  return optimalRangeSize;
+}
+
+/**
  * Component interface after collection enhancement
  */
 export interface CollectionComponent {
   collection: {
     // Data management
-    setItems(items: any[]): void;
-    getItems(): any[];
-    setTotalItems(total: number): void;
-    getTotalItems(): number;
+    setItems: (items: any[]) => void;
+    getItems: () => any[];
+    setTotalItems: (total: number) => void;
+    getTotalItems: () => number;
 
     // Range management
-    loadRange(offset: number, limit: number): Promise<any[]>;
-    loadMissingRanges(visibleRange: ItemRange): Promise<void>;
-    getLoadedRanges(): Set<number>;
-    getPendingRanges(): Set<number>;
+    loadRange: (offset: number, limit: number) => Promise<any[]>;
+    loadMissingRanges: (range: ItemRange) => Promise<void>;
+    getLoadedRanges: () => Set<number>;
+    getPendingRanges: () => Set<number>;
 
     // Speed tracking
-    handleSpeedChange(speed: number): void;
-    getSpeedTracker(): SpeedTracker;
+    handleSpeedChange: (
+      speed: number,
+      direction: "forward" | "backward"
+    ) => void;
+    getSpeedTracker: () => SpeedTracker;
 
     // Pagination strategy
-    setPaginationStrategy(strategy: "page" | "offset" | "cursor"): void;
-    getPaginationStrategy(): "page" | "offset" | "cursor";
+    setPaginationStrategy: (strategy: "page" | "offset" | "cursor") => void;
+    getPaginationStrategy: () => "page" | "offset" | "cursor";
 
     // Placeholder system
-    analyzeDataStructure(items: any[]): void;
-    generatePlaceholderItem(index: number): any;
-    showPlaceholders(range: ItemRange): void;
-    getPlaceholderStructure(): Map<string, { min: number; max: number }> | null;
+    analyzeDataStructure: (items: any[]) => void;
+    generatePlaceholderItem: (index: number) => any;
+    showPlaceholders: (count: number) => void;
+    getPlaceholderStructure: () => Map<
+      string,
+      { min: number; max: number }
+    > | null;
 
     // State
-    isInitialized(): boolean;
-    updateLoadedData(items: any[], offset: number): void;
+    isInitialized: () => boolean;
+    updateLoadedData: (items: any[], offset: number) => void;
   };
 }
 
@@ -69,11 +110,20 @@ export interface CollectionComponent {
 export const withCollection =
   (config: CollectionConfig = {}) =>
   <T extends ListManagerComponent>(component: T): T & CollectionComponent => {
-    // Configuration with defaults
+    // Configuration with defaults - now uses dynamic range size
     const collection = config.collection;
+
+    // Calculate optimal range size based on component dimensions
+    const containerElement = component.element;
+    const containerSize = containerElement?.offsetHeight || 600; // Default to 600px
+    const estimatedItemSize = 50; // Default estimated item size
+    const overscan = 5; // Default overscan
+
+    // Use calculated optimal range size or fallback to config/default
     const rangeSize =
       config.rangeSize ||
-      LIST_MANAGER_CONSTANTS.RANGE_LOADING.DEFAULT_RANGE_SIZE;
+      calculateOptimalRangeSize(containerSize, estimatedItemSize, overscan);
+
     let paginationStrategy: "page" | "offset" | "cursor" =
       config.strategy || "page";
     const fastThreshold =
@@ -429,14 +479,14 @@ export const withCollection =
     };
 
     /**
-     * Show placeholders for a range
+     * Show placeholders for a count of items
      */
-    const showPlaceholders = (range: ItemRange): void => {
+    const showPlaceholders = (count: number): void => {
       if (!enablePlaceholders) return;
 
       const placeholderItems: any[] = [];
 
-      for (let i = range.start; i <= range.end; i++) {
+      for (let i = 0; i < count; i++) {
         const placeholderItem = generatePlaceholderItem(i);
         placeholderItems.push(placeholderItem);
 
@@ -447,9 +497,8 @@ export const withCollection =
       }
 
       component.emit?.("placeholders:shown", {
-        range,
+        count,
         items: placeholderItems,
-        count: placeholderItems.length,
       });
     };
 
@@ -537,8 +586,9 @@ export const withCollection =
         end: 10,
       };
 
-      // Show placeholders immediately
-      showPlaceholders(visibleRange);
+      // Show placeholders immediately (count = range size)
+      const placeholderCount = visibleRange.end - visibleRange.start + 1;
+      showPlaceholders(placeholderCount);
 
       // Defer actual loading slightly to avoid spam
       setTimeout(() => {

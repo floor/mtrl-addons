@@ -58,6 +58,11 @@ export const createItemSizeManager = (
   const measuredSizes = new Map<number, number>();
   let currentEstimatedItemSize = initialEstimate;
 
+  // Batching state for performance optimization
+  let batchUpdateTimeout: number | null = null;
+  let pendingMeasurements = 0;
+  let batchStartTime = 0;
+
   /**
    * Cache a specific item size with cache size management
    */
@@ -78,7 +83,43 @@ export const createItemSizeManager = (
   };
 
   /**
-   * Measure actual item size and update cache
+   * Trigger batched updates after measurements are complete
+   */
+  const triggerBatchedUpdates = (): void => {
+    // Update estimated size based on all measurements
+    updateEstimatedSize();
+
+    // Notify about total size update
+    if (onSizeUpdated) {
+      const totalSize = calculateTotalSize();
+      onSizeUpdated(totalSize);
+    }
+
+    // Reset batch state
+    pendingMeasurements = 0;
+    batchUpdateTimeout = null;
+  };
+
+  /**
+   * Schedule batched updates (debounced)
+   */
+  const scheduleBatchedUpdates = (): void => {
+    if (batchUpdateTimeout) {
+      clearTimeout(batchUpdateTimeout);
+    }
+
+    // Short timeout to batch rapid measurements
+    batchUpdateTimeout = window.setTimeout(() => {
+      const batchDuration = Date.now() - batchStartTime;
+      console.log(
+        `🔄 [ITEM-SIZE-BATCH] Triggering batched updates for ${pendingMeasurements} measurements (${batchDuration}ms)`
+      );
+      triggerBatchedUpdates();
+    }, 16); // ~1 frame delay to batch measurements
+  };
+
+  /**
+   * Measure actual item size and update cache (with batching)
    */
   const measureItem = (
     element: HTMLElement,
@@ -102,6 +143,12 @@ export const createItemSizeManager = (
       const previousSize = measuredSizes.get(index);
       cacheItemSize(index, size);
 
+      // Track batch state
+      if (pendingMeasurements === 0) {
+        batchStartTime = Date.now();
+      }
+      pendingMeasurements++;
+
       // Log if this is a new measurement or size changed significantly
       if (!previousSize || Math.abs(size - previousSize) > 1) {
         console.log(
@@ -111,14 +158,8 @@ export const createItemSizeManager = (
         );
       }
 
-      // Update estimated size based on all measurements
-      updateEstimatedSize();
-
-      // Notify about total size update
-      if (onSizeUpdated) {
-        const totalSize = calculateTotalSize();
-        onSizeUpdated(totalSize);
-      }
+      // Schedule batched updates instead of immediate callbacks
+      scheduleBatchedUpdates();
 
       return size;
     }
@@ -130,7 +171,7 @@ export const createItemSizeManager = (
   };
 
   /**
-   * Update estimated item size based on measured sizes
+   * Update estimated item size based on measured sizes (with change threshold)
    */
   const updateEstimatedSize = (): void => {
     if (measuredSizes.size === 0) return;
@@ -139,17 +180,27 @@ export const createItemSizeManager = (
     const average = sizes.reduce((sum, size) => sum + size, 0) / sizes.length;
     const newEstimate = Math.max(1, Math.round(average));
 
-    if (newEstimate !== currentEstimatedItemSize) {
+    // Only update if the change is significant (>2px or >5% change)
+    const changeThreshold = Math.max(
+      2,
+      Math.round(currentEstimatedItemSize * 0.05)
+    );
+    const absoluteChange = Math.abs(newEstimate - currentEstimatedItemSize);
+
+    if (absoluteChange >= changeThreshold) {
       const previousEstimate = currentEstimatedItemSize;
       currentEstimatedItemSize = newEstimate;
 
       console.log(
-        `📊 [ITEM-SIZE] Updated estimate: ${previousEstimate}px → ${newEstimate}px (from ${sizes.length} measurements)`
+        `📊 [ITEM-SIZE] Updated estimate: ${previousEstimate}px → ${newEstimate}px (from ${sizes.length} measurements, change: ${absoluteChange}px)`
       );
 
       if (onEstimatedSizeChanged) {
         onEstimatedSizeChanged(newEstimate);
       }
+    } else if (absoluteChange > 0) {
+      // Silent update for small changes
+      currentEstimatedItemSize = newEstimate;
     }
   };
 

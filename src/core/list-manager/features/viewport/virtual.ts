@@ -41,6 +41,10 @@ export interface VirtualManager {
   updateTotalVirtualSize(totalItems: number): void;
   getTotalVirtualSize(): number;
 
+  // Height capping utilities
+  calculateVirtualPositionForIndex(index: number): number;
+  getHeightCapInfo(): any;
+
   // State management
   updateState(updates: Partial<VirtualState>): void;
   getState(): VirtualState;
@@ -57,12 +61,17 @@ export const createVirtualManager = (
 ): VirtualManager => {
   const { orientation, overscan, onDimensionsChanged } = config;
 
+  // Browser height limits (safe maximum to avoid DOM limitations)
+  const MAX_SAFE_VIRTUAL_SIZE = 16 * 1000 * 1000; // 16M pixels (safe for all browsers)
+
   // Virtual scrolling state
   let totalVirtualSize = 0;
+  let actualTotalSize = 0; // The real total size if uncapped
   let containerSize = 0;
+  let isVirtualSizeCapped = false;
 
   /**
-   * Calculate visible range based on scroll position
+   * Calculate visible range based on scroll position (with height capping support)
    */
   const calculateVisibleRange = (scrollPosition: number): ItemRange => {
     // Use getTotalItems callback if available, otherwise fall back to component.totalItems
@@ -73,42 +82,107 @@ export const createVirtualManager = (
     // Also ensure we use the larger of totalItems or items.length for safety
     const finalTotalItems = Math.max(actualTotalItems, component.items.length);
 
+    if (!isVirtualSizeCapped) {
+      // Standard calculation for smaller datasets
+      const range = calculateVisibleRangeUtil(
+        scrollPosition,
+        containerSize,
+        itemSizeManager.getEstimatedItemSize(),
+        finalTotalItems,
+        overscan,
+        itemSizeManager.getMeasuredSizes()
+      );
+      return range;
+    }
+
+    // Height-capped calculation for massive datasets
+    // CRITICAL FIX: Ensure we're using the correct virtual size for massive datasets
+    // The totalVirtualSize should be 16M pixels for 1M items, not based on loaded items
+    const currentTotalVirtualSize = isVirtualSizeCapped
+      ? MAX_SAFE_VIRTUAL_SIZE
+      : totalVirtualSize;
+    const currentActualTotalSize = isVirtualSizeCapped
+      ? finalTotalItems * itemSizeManager.getEstimatedItemSize()
+      : actualTotalSize;
+
+    // Map scroll position from capped virtual space to actual data range
+    const scrollRatio =
+      currentTotalVirtualSize > 0
+        ? scrollPosition / currentTotalVirtualSize
+        : 0;
+    const actualScrollPosition = scrollRatio * currentActualTotalSize;
+
+    // Calculate visible range using actual scroll position
     const range = calculateVisibleRangeUtil(
-      scrollPosition,
+      actualScrollPosition,
       containerSize,
       itemSizeManager.getEstimatedItemSize(),
       finalTotalItems,
       overscan,
-      itemSizeManager.getMeasuredSizes() // Pass measured sizes for accurate calculations
+      itemSizeManager.getMeasuredSizes()
     );
 
     return range;
   };
 
   /**
-   * Update total virtual size for massive lists
+   * Update total virtual size for massive lists (with height capping)
    */
   const updateTotalVirtualSize = (totalItems: number): void => {
-    // For massive lists, calculate total virtual size as:
-    // estimatedItemSize × totalItems (not just loaded items)
+    // Calculate the actual total size (unlimited)
     const estimatedItemSize = itemSizeManager.getEstimatedItemSize();
-    const newTotalSize = estimatedItemSize * totalItems;
+    const newActualTotalSize = estimatedItemSize * totalItems;
 
-    if (newTotalSize !== totalVirtualSize) {
-      totalVirtualSize = newTotalSize;
+    // Determine if we need to cap the virtual size
+    const needsCapping = newActualTotalSize > MAX_SAFE_VIRTUAL_SIZE;
+    const newTotalVirtualSize = needsCapping
+      ? MAX_SAFE_VIRTUAL_SIZE
+      : newActualTotalSize;
 
-      console.log(
-        `📐 [VIRTUAL] Total virtual size updated: ${(
-          newTotalSize / 1000000
-        ).toFixed(
-          1
-        )}M px (${estimatedItemSize}px × ${totalItems.toLocaleString()} items)`
-      );
+    // Only update if something changed
+    if (
+      newTotalVirtualSize !== totalVirtualSize ||
+      newActualTotalSize !== actualTotalSize
+    ) {
+      actualTotalSize = newActualTotalSize;
+      totalVirtualSize = newTotalVirtualSize;
+      isVirtualSizeCapped = needsCapping;
+
+      if (needsCapping) {
+        const compressionRatio = (
+          (newTotalVirtualSize / newActualTotalSize) *
+          100
+        ).toFixed(1);
+        console.log(
+          `📐 [VIRTUAL-CAPPED] Virtual size capped for browser safety:`
+        );
+        console.log(
+          `    Actual: ${(newActualTotalSize / 1000000).toFixed(
+            1
+          )}M px (${estimatedItemSize}px × ${totalItems.toLocaleString()} items)`
+        );
+        console.log(
+          `    Virtual: ${(newTotalVirtualSize / 1000000).toFixed(
+            1
+          )}M px (${compressionRatio}% of actual)`
+        );
+        console.log(
+          `    🚀 Height optimization: Active for ${totalItems.toLocaleString()} items`
+        );
+      } else {
+        console.log(
+          `📐 [VIRTUAL] Total virtual size updated: ${(
+            newTotalVirtualSize / 1000000
+          ).toFixed(
+            1
+          )}M px (${estimatedItemSize}px × ${totalItems.toLocaleString()} items)`
+        );
+      }
 
       // Notify about dimensions change
       onDimensionsChanged?.({
         containerSize,
-        totalVirtualSize: newTotalSize,
+        totalVirtualSize: newTotalVirtualSize,
         estimatedItemSize,
         totalItems,
       });
@@ -140,6 +214,45 @@ export const createVirtualManager = (
     containerSize,
   });
 
+  /**
+   * Calculate virtual scroll position for a given item index (with height capping support)
+   */
+  const calculateVirtualPositionForIndex = (index: number): number => {
+    if (!isVirtualSizeCapped) {
+      // Standard calculation for smaller datasets
+      let position = 0;
+      for (let i = 0; i < index; i++) {
+        position += itemSizeManager.getMeasuredSize(i);
+      }
+      return position;
+    }
+
+    // Height-capped calculation for massive datasets
+    // Calculate actual position first
+    let actualPosition = 0;
+    for (let i = 0; i < index; i++) {
+      actualPosition += itemSizeManager.getMeasuredSize(i);
+    }
+
+    // Map actual position to capped virtual space
+    const positionRatio =
+      actualTotalSize > 0 ? actualPosition / actualTotalSize : 0;
+    return positionRatio * totalVirtualSize;
+  };
+
+  /**
+   * Get height capping information
+   */
+  const getHeightCapInfo = () => ({
+    isVirtualSizeCapped,
+    actualTotalSize,
+    virtualTotalSize: totalVirtualSize,
+    maxSafeVirtualSize: MAX_SAFE_VIRTUAL_SIZE,
+    compressionRatio: isVirtualSizeCapped
+      ? totalVirtualSize / actualTotalSize
+      : 1,
+  });
+
   return {
     // Range calculations
     calculateVisibleRange,
@@ -147,6 +260,10 @@ export const createVirtualManager = (
     // Size management
     updateTotalVirtualSize,
     getTotalVirtualSize,
+
+    // Height capping utilities
+    calculateVirtualPositionForIndex,
+    getHeightCapInfo,
 
     // State management
     updateState,

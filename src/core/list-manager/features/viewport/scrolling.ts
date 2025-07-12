@@ -158,18 +158,8 @@ export const createScrollingManager = (
   let currentAcceleration = 0;
   let animationFrameId: number | null = null;
 
-  // Scrollbar state and elements
-  let scrollbarTrack: HTMLElement | null = null;
-  let scrollbarThumb: HTMLElement | null = null;
-
-  // Store handler references for cleanup
-  let scrollbarHandlers: {
-    mouseDown?: (e: MouseEvent) => void;
-    mouseMove?: (e: MouseEvent) => void;
-    mouseUp?: () => void;
-    mouseEnter?: () => void;
-    mouseLeave?: () => void;
-  } = {};
+  // Scrollbar state (managed by external plugin)
+  let scrollbarPlugin: any = null;
 
   // Items container reference
   let itemsContainer: HTMLElement | null = null;
@@ -469,229 +459,86 @@ export const createScrollingManager = (
   };
 
   /**
-   * Update container position for virtual scrolling
+   * Update container position for virtual scrolling with element accumulation
    */
   const updateContainerPosition = (): void => {
     if (!itemsContainer) return;
 
-    const visibleRange = calculateVisibleRange();
-    let offset = 0;
+    // Use scroll position directly for smooth scrolling that reflects exact deltas
+    let offset = virtualScrollPosition;
 
-    // Calculate offset based on measured sizes
-    for (let i = 0; i < visibleRange.start; i++) {
-      offset += itemSizeManager.getMeasuredSize(i);
+    // Apply height-capped adjustment if needed for massive datasets
+    const actualTotalItems = getTotalItems
+      ? getTotalItems()
+      : component.totalItems;
+    if (actualTotalItems > 0) {
+      const estimatedItemSize = itemSizeManager.getEstimatedItemSize();
+      const actualTotalSize = actualTotalItems * estimatedItemSize;
+      const maxVirtualSize = 16 * 1000 * 1000; // 16M pixels (match virtual.ts)
+
+      if (actualTotalSize > maxVirtualSize) {
+        // Height-capped: map virtual position to actual position for smooth scrolling
+        const scrollRatio =
+          totalVirtualSize > 0 ? virtualScrollPosition / totalVirtualSize : 0;
+        offset = scrollRatio * actualTotalSize;
+      }
     }
 
     const transformProperty =
       orientation === "vertical" ? "translateY" : "translateX";
     itemsContainer.style.transform = `${transformProperty}(-${offset}px)`;
+
+    console.log(
+      `📐 [SCROLLING] Container positioned: ${transformProperty}(-${offset.toFixed(
+        2
+      )}px) from scroll=${virtualScrollPosition.toFixed(2)}px`
+    );
   };
 
   /**
-   * Update scrollbar thumb position and size
+   * Update scrollbar thumb position and size (delegated to external plugin)
    */
   const updateScrollbar = (): void => {
-    if (!scrollbarThumb || !scrollbarTrack || !enableScrollbar) return;
+    if (!enableScrollbar || !scrollbarPlugin) return;
 
-    const trackSize =
-      orientation === "vertical"
-        ? scrollbarTrack.offsetHeight
-        : scrollbarTrack.offsetWidth;
-
-    // Calculate thumb size based on container to total ratio
-    const thumbSize = Math.max(
-      LIST_MANAGER_CONSTANTS.SCROLLBAR.THUMB_MIN_SIZE,
-      (containerSize / totalVirtualSize) * trackSize
-    );
-
-    // Calculate thumb position based on scroll position
+    // Calculate scroll ratio for external scrollbar plugin
     const scrollRatio =
       totalVirtualSize > containerSize
         ? virtualScrollPosition / (totalVirtualSize - containerSize)
         : 0;
-    const newThumbPosition = scrollRatio * (trackSize - thumbSize);
 
-    thumbPosition = Math.max(0, newThumbPosition);
-
-    // Update thumb styles
-    if (orientation === "vertical") {
-      scrollbarThumb.style.top = `${thumbPosition}px`;
-      scrollbarThumb.style.height = `${Math.min(thumbSize, trackSize)}px`;
-    } else {
-      scrollbarThumb.style.left = `${thumbPosition}px`;
-      scrollbarThumb.style.width = `${Math.min(thumbSize, trackSize)}px`;
+    // Update external scrollbar plugin
+    if (scrollbarPlugin.updateScrollPosition) {
+      scrollbarPlugin.updateScrollPosition(virtualScrollPosition);
     }
   };
 
   /**
-   * Setup custom scrollbar
+   * Setup scrollbar (delegated to external plugin)
    */
   const setupScrollbar = (): void => {
-    if (!enableScrollbar) return;
-
-    // Create scrollbar track
-    scrollbarTrack = document.createElement("div");
-    scrollbarTrack.className = `${component.getClass(
-      "list-manager"
-    )}-scrollbar-track`;
-    scrollbarTrack.style.position = "absolute";
-    scrollbarTrack.style.backgroundColor = "rgba(0, 0, 0, 0.1)";
-    scrollbarTrack.style.borderRadius = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.BORDER_RADIUS}px`;
-    scrollbarTrack.style.opacity = "0";
-    scrollbarTrack.style.transition = "opacity 0.2s ease";
-
-    // Create scrollbar thumb
-    scrollbarThumb = document.createElement("div");
-    scrollbarThumb.className = `${component.getClass(
-      "list-manager"
-    )}-scrollbar-thumb`;
-    scrollbarThumb.style.position = "absolute";
-    scrollbarThumb.style.backgroundColor = "rgba(0, 0, 0, 0.4)";
-    scrollbarThumb.style.borderRadius = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.BORDER_RADIUS}px`;
-    scrollbarThumb.style.cursor = "pointer";
-
-    // Position scrollbar based on orientation
-    if (orientation === "vertical") {
-      scrollbarTrack.style.right = "2px";
-      scrollbarTrack.style.top = "0";
-      scrollbarTrack.style.bottom = "0";
-      scrollbarTrack.style.width = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.TRACK_WIDTH}px`;
-
-      scrollbarThumb.style.left = "0";
-      scrollbarThumb.style.right = "0";
-      scrollbarThumb.style.minHeight = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.THUMB_MIN_SIZE}px`;
-    } else {
-      scrollbarTrack.style.bottom = "2px";
-      scrollbarTrack.style.left = "0";
-      scrollbarTrack.style.right = "0";
-      scrollbarTrack.style.height = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.TRACK_WIDTH}px`;
-
-      scrollbarThumb.style.top = "0";
-      scrollbarThumb.style.bottom = "0";
-      scrollbarThumb.style.minWidth = `${LIST_MANAGER_CONSTANTS.SCROLLBAR.THUMB_MIN_SIZE}px`;
-    }
-
-    scrollbarTrack.appendChild(scrollbarThumb);
-    component.element.appendChild(scrollbarTrack);
-
-    setupScrollbarEvents();
+    // Scrollbar setup is handled by external plugin
+    // This method is kept for API compatibility
   };
 
   /**
-   * Setup scrollbar drag events
+   * Setup scrollbar events (delegated to external plugin)
    */
   const setupScrollbarEvents = (): void => {
-    if (!scrollbarThumb || !scrollbarTrack) return;
-
-    let isDragging = false;
-    let startY = 0;
-    let startX = 0;
-    let startScrollPosition = 0;
-
-    scrollbarHandlers.mouseDown = (e: MouseEvent) => {
-      isDragging = true;
-      startY = e.clientY;
-      startX = e.clientX;
-      startScrollPosition = virtualScrollPosition;
-
-      document.addEventListener("mousemove", scrollbarHandlers.mouseMove!);
-      document.addEventListener("mouseup", scrollbarHandlers.mouseUp!);
-      e.preventDefault();
-    };
-
-    scrollbarHandlers.mouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
-
-      const trackSize =
-        orientation === "vertical"
-          ? scrollbarTrack!.offsetHeight
-          : scrollbarTrack!.offsetWidth;
-
-      const delta =
-        orientation === "vertical" ? e.clientY - startY : e.clientX - startX;
-      const scrollRatio = delta / trackSize;
-      const maxScroll = Math.max(0, totalVirtualSize - containerSize);
-      const newPosition = startScrollPosition + scrollRatio * maxScroll;
-
-      virtualScrollPosition = clamp(newPosition, 0, maxScroll);
-      updateContainerPosition();
-      updateScrollbar();
-
-      onScrollPositionChanged?.({
-        position: virtualScrollPosition,
-        direction: newPosition > startScrollPosition ? "forward" : "backward",
-        source: "scrollbar",
-      });
-    };
-
-    scrollbarHandlers.mouseUp = () => {
-      isDragging = false;
-      document.removeEventListener("mousemove", scrollbarHandlers.mouseMove!);
-      document.removeEventListener("mouseup", scrollbarHandlers.mouseUp!);
-    };
-
-    // Add hover events to show/hide scrollbar
-    scrollbarHandlers.mouseEnter = () => {
-      if (scrollbarTrack) {
-        // Remove transition temporarily for immediate visibility
-        scrollbarTrack.style.transition = "none";
-        scrollbarTrack.style.opacity = "1";
-        scrollbarVisible = true;
-
-        // Restore transition after immediate change
-        requestAnimationFrame(() => {
-          if (scrollbarTrack) {
-            scrollbarTrack.style.transition = "opacity 0.2s ease";
-          }
-        });
-
-        // Clear any existing fade timeout
-        if (scrollbarFadeTimeout) {
-          clearTimeout(scrollbarFadeTimeout);
-          scrollbarFadeTimeout = null;
-        }
-      }
-    };
-
-    scrollbarHandlers.mouseLeave = () => {
-      if (scrollbarTrack && !isDragging) {
-        // Set fade timeout when mouse leaves
-        scrollbarFadeTimeout = window.setTimeout(() => {
-          if (scrollbarTrack) {
-            scrollbarTrack.style.opacity = "0";
-            scrollbarVisible = false;
-          }
-        }, 500); // Slight delay before hiding
-      }
-    };
-
-    // Set up all event listeners
-    scrollbarThumb.addEventListener("mousedown", scrollbarHandlers.mouseDown);
-    scrollbarTrack.addEventListener("mouseenter", scrollbarHandlers.mouseEnter);
-    scrollbarTrack.addEventListener("mouseleave", scrollbarHandlers.mouseLeave);
+    // Scrollbar events are handled by external plugin
+    // This method is kept for API compatibility
   };
 
   /**
-   * Show scrollbar with fade timeout
+   * Show scrollbar (delegated to external plugin)
    */
   const showScrollbar = (): void => {
-    if (!scrollbarTrack || !enableScrollbar) return;
+    if (!enableScrollbar || !scrollbarPlugin) return;
 
-    scrollbarTrack.style.opacity = "1";
-    scrollbarVisible = true;
-
-    // Clear existing timeout
-    if (scrollbarFadeTimeout) {
-      clearTimeout(scrollbarFadeTimeout);
+    // Show scrollbar through external plugin
+    if (scrollbarPlugin.showScrollbar) {
+      scrollbarPlugin.showScrollbar();
     }
-
-    // Set new fade timeout
-    scrollbarFadeTimeout = window.setTimeout(() => {
-      if (scrollbarTrack) {
-        scrollbarTrack.style.opacity = "0";
-        scrollbarVisible = false;
-      }
-    }, LIST_MANAGER_CONSTANTS.SCROLLBAR.FADE_TIMEOUT);
   };
 
   /**
@@ -703,37 +550,13 @@ export const createScrollingManager = (
   };
 
   /**
-   * Destroy scrollbar
+   * Destroy scrollbar (delegated to external plugin)
    */
   const destroyScrollbar = (): void => {
-    if (scrollbarTrack) {
-      // Remove event listeners before destroying
-      if (scrollbarThumb && scrollbarHandlers.mouseDown) {
-        scrollbarThumb.removeEventListener(
-          "mousedown",
-          scrollbarHandlers.mouseDown
-        );
-      }
-      if (scrollbarHandlers.mouseEnter) {
-        scrollbarTrack.removeEventListener(
-          "mouseenter",
-          scrollbarHandlers.mouseEnter
-        );
-      }
-      if (scrollbarHandlers.mouseLeave) {
-        scrollbarTrack.removeEventListener(
-          "mouseleave",
-          scrollbarHandlers.mouseLeave
-        );
-      }
-
-      scrollbarTrack.remove();
-      scrollbarTrack = null;
-      scrollbarThumb = null;
+    if (scrollbarPlugin && scrollbarPlugin.destroy) {
+      scrollbarPlugin.destroy();
     }
-
-    // Clear handler references
-    scrollbarHandlers = {};
+    scrollbarPlugin = null;
 
     if (scrollbarFadeTimeout) {
       clearTimeout(scrollbarFadeTimeout);
@@ -852,6 +675,9 @@ export const createScrollingManager = (
 
     // Internal (for viewport setup)
     setItemsContainer,
+    setScrollbarPlugin: (plugin: any) => {
+      scrollbarPlugin = plugin;
+    },
   } as ScrollingManager & {
     setItemsContainer: (container: HTMLElement) => void;
   };

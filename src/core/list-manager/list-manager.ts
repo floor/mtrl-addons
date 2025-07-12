@@ -83,8 +83,18 @@ export const createListManager = (
     };
   };
 
-  // Compose enhancers
+  // Compose enhancers - CRITICAL: Collection must be applied before viewport
+  // so that viewport can access collection.loadMissingRanges
   const enhance = pipe(
+    withCollection({
+      collection: config.collection?.adapter,
+      rangeSize: config.collection?.pageSize || 20,
+      strategy: config.collection?.strategy || "page",
+      enablePlaceholders: true,
+    }),
+    withPlaceholders({
+      enabled: true,
+    }),
     withViewport({
       orientation: config.orientation?.orientation,
       estimatedItemSize: config.virtual?.estimatedItemSize,
@@ -123,15 +133,6 @@ export const createListManager = (
           }
         }, 0);
       },
-    }),
-    withCollection({
-      collection: config.collection?.adapter,
-      rangeSize: config.collection?.pageSize || 20,
-      strategy: config.collection?.strategy || "page",
-      enablePlaceholders: true,
-    }),
-    withPlaceholders({
-      enabled: true,
     })
   );
 

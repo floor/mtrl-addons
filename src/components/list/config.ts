@@ -5,9 +5,12 @@
  * Follows mtrl patterns for component configuration.
  */
 
+import {
+  createComponentConfig,
+  createElementConfig as coreCreateElementConfig,
+} from "mtrl/src/core/config/component";
 import { LIST_DEFAULTS, LIST_CLASSES } from "./constants";
 import type { ListConfig, ListItem } from "./types";
-import type { ElementConfig } from "mtrl/src/core/compose";
 import type { ListComponent } from "./types";
 import { DATA_PAGINATION } from "../../core/collection/constants";
 import { VIRTUAL_SCROLLING } from "../../core/list-manager/constants";
@@ -22,53 +25,36 @@ import {
 export const defaultConfig: Partial<ListConfig> = {
   // Collection settings (for API-connected lists)
   adapter: undefined,
-  transform: (item: any) => item,
-  validate: (item: any) => true,
 
   // Static data (for in-memory lists)
   items: [],
 
   // Template settings
   template: undefined, // Will use default template if not provided
-  templateEngine: "object",
-
-  // Rendering settings
-  initialCapacity: LIST_DEFAULTS.INITIAL_CAPACITY,
 
   // Selection settings
   selection: {
     enabled: false,
-    multiple: false,
-    selectableFilter: undefined,
+    mode: "none",
+    selectedIndices: [],
   },
 
-  // Styling settings
-  listStyle: {
-    itemHeight: "auto",
-    gap: 0,
-    padding: 0,
-    striped: false,
-    hoverable: true,
-    bordered: false,
-  },
-
-  // Performance settings
-  performance: {
-    recycleElements: true,
-    bufferSize: LIST_DEFAULTS.RENDER_BUFFER_SIZE,
-    renderDebounce: LIST_DEFAULTS.RENDER_DEBOUNCE,
-  },
-
-  // Virtual scrolling settings
-  virtualScroll: {
-    enabled: false,
-    strategy: "window-based",
-    itemHeight: "auto",
+  // Scroll settings
+  scroll: {
+    virtual: true,
+    itemSize: "auto",
+    estimatedItemSize: 50,
+    overscan: 5,
+    animation: false,
+    restorePosition: false,
   },
 
   // Component settings
   className: LIST_CLASSES.BASE,
+  prefix: "mtrl",
+  componentName: "list",
   ariaLabel: "List",
+  debug: false,
 };
 
 /**
@@ -95,32 +81,8 @@ export function createBaseConfig<T extends ListItem = ListItem>(
     );
   }
 
-  // Deep merge configuration with defaults
-  const mergedConfig = {
-    ...defaultConfig,
-    ...config,
-
-    // Deep merge nested objects
-    selection: {
-      ...defaultConfig.selection,
-      ...config.selection,
-    },
-
-    listStyle: {
-      ...defaultConfig.listStyle,
-      ...config.listStyle,
-    },
-
-    performance: {
-      ...defaultConfig.performance,
-      ...config.performance,
-    },
-
-    virtualScroll: {
-      ...defaultConfig.virtualScroll,
-      ...config.virtualScroll,
-    },
-  } as Required<ListConfig<T>>;
+  // Use mtrl core config system for proper merging and validation
+  const mergedConfig = createComponentConfig(defaultConfig, config, "list");
 
   // Convert renderItem object to template function if provided
   if (
@@ -138,14 +100,14 @@ export function createBaseConfig<T extends ListItem = ListItem>(
 
   // Validate selection configuration
   if (
-    mergedConfig.selection.enabled &&
-    mergedConfig.selection.multiple === undefined
+    mergedConfig.selection?.enabled &&
+    mergedConfig.selection?.mode === undefined
   ) {
-    mergedConfig.selection.multiple = false;
+    mergedConfig.selection.mode = "single";
   }
 
   console.log("✅ [MTRL-ADDONS-LIST] Base configuration created");
-  return mergedConfig;
+  return mergedConfig as Required<ListConfig<T>>;
 }
 
 /**
@@ -156,37 +118,27 @@ export function createBaseConfig<T extends ListItem = ListItem>(
 export function getElementConfig<T extends ListItem = ListItem>(
   config: ListConfig<T>
 ): any {
-  return {
-    tag: "div",
-    className: `${LIST_CLASSES.BASE} ${LIST_CLASSES.ADDONS}`, // Clean: list list-addons
-    attributes: {
-      "data-component": "list",
-      "data-addons": "true",
-      role: "list",
-      "aria-label": config.ariaLabel || "List",
-      ...(config.id && { id: config.id }),
-    },
-    // Fixed: Use 'parent' for DOM mounting (mtrl convention)
-    parent: config.container || null,
-    // Styling
-    style: {
-      position: "relative",
-      overflow: "hidden",
-      ...config.style,
-    },
+  const attributes = {
+    "data-component": "list",
+    "data-addons": "true",
+    role: "list",
+    "aria-label": config.ariaLabel || "List",
   };
+
+  // Create element config using mtrl core system
+  return coreCreateElementConfig(config, {
+    tag: "div",
+    attributes,
+    className: [LIST_CLASSES.BASE, LIST_CLASSES.ADDONS], // Clean: list list-addons
+  });
 }
 
 /**
  * Creates API configuration for the List component
  * @param {Object} component - Component with list functionality
- * @param {ListConfig} config - Base configuration
  * @returns {Object} API configuration object for withApi
  */
-export function getApiConfig<T extends ListItem = ListItem>(
-  component: any,
-  config: Required<ListConfig<T>>
-) {
+export function getApiConfig<T extends ListItem = ListItem>(component: any) {
   return {
     // Data operations
     data: {
@@ -206,7 +158,7 @@ export function getApiConfig<T extends ListItem = ListItem>(
     },
 
     // Selection operations (if enabled)
-    selection: config.selection.enabled
+    selection: component.config?.selection?.enabled
       ? {
           selectItem: component.selectItem,
           deselectItem: component.deselectItem,
@@ -251,87 +203,11 @@ export function getApiConfig<T extends ListItem = ListItem>(
 
     // Configuration access
     config: {
-      selection: config.selection,
-      listStyle: config.listStyle,
-      performance: config.performance,
-      virtualScroll: config.virtualScroll,
+      selection: component.config?.selection,
+      scroll: component.config?.scroll,
     },
   };
 }
-
-export default defaultConfig;
-
-/**
- * Default list configuration
- */
-const DEFAULT_CONFIG: Partial<ListConfig> = {
-  // Styling defaults
-  prefix: "mtrl",
-  componentName: "list",
-  variant: "default",
-  density: "default",
-
-  // Orientation defaults
-  orientation: {
-    orientation: "vertical",
-    autoDetect: false,
-    reverse: false,
-    crossAxisAlignment: "stretch",
-  },
-
-  // Scroll defaults
-  scroll: {
-    virtual: true,
-    itemSize: "auto",
-    estimatedItemSize: 50,
-    overscan: VIRTUAL_SCROLLING.DEFAULT_OVERSCAN,
-    animation: false,
-    restorePosition: false,
-  },
-
-  // Selection defaults
-  selection: {
-    enabled: false,
-    mode: "none",
-    selectedIndices: [],
-  },
-
-  // Collection defaults
-  collection: {
-    limit: DATA_PAGINATION.DEFAULT_PAGE_SIZE,
-    strategy: "page",
-    cache: {
-      enabled: true,
-      maxSize: 1000,
-      ttl: 300000, // 5 minutes
-    },
-  },
-
-  // List Manager defaults
-  listManager: {
-    virtual: {
-      enabled: true,
-      itemHeight: "auto",
-      estimatedItemHeight: 50,
-      overscan: VIRTUAL_SCROLLING.DEFAULT_OVERSCAN,
-    },
-    recycling: {
-      enabled: true,
-      maxPoolSize: 100,
-      minPoolSize: 10,
-    },
-    performance: {
-      frameScheduling: true,
-      memoryCleanup: true,
-    },
-  },
-
-  // Accessibility
-  ariaLabel: "List",
-
-  // Debug
-  debug: false,
-};
 
 /**
  * Validates list configuration
@@ -406,36 +282,15 @@ export const validateConfig = (config: ListConfig): void => {
 /**
  * Creates Collection configuration from List config
  */
-export const getCollectionConfig = <T = any>(config: ListConfig<T>) => ({
-  // Data configuration
-  limit: config.collection?.limit || DATA_PAGINATION.DEFAULT_PAGE_SIZE,
-  strategy: config.collection?.strategy || "page",
-
-  // API configuration - check both top level and nested
-  baseUrl: config.collection?.baseUrl,
-  endpoint: config.collection?.endpoint,
-  adapter: config.adapter || config.collection?.adapter,
-
-  // Cache configuration
-  cache: {
-    enabled: config.collection?.cache?.enabled ?? true,
-    maxSize: config.collection?.cache?.maxSize || 1000,
-    ttl: config.collection?.cache?.ttl || 300000,
-    ...config.collection?.cache,
-  },
-
-  // Persistence configuration
-  persistence: config.collection?.persistence,
-
-  // Data features
-  validation: config.collection?.validation,
-  transformation: config.collection?.transformation,
-
-  // Static data
+export const getCollectionConfig = (config: ListConfig) => ({
+  adapter: config.adapter,
   items: config.items,
-
-  // Debug
-  debug: config.debug,
+  pageSize: config.collection?.limit || DATA_PAGINATION.DEFAULT_PAGE_SIZE,
+  cache: config.collection?.cache || {
+    enabled: true,
+    maxSize: 1000,
+    ttl: 300000, // 5 minutes
+  },
 });
 
 /**
@@ -470,7 +325,6 @@ export const getListManagerConfig = (config: ListConfig) => ({
     itemSize: config.scroll?.itemSize ?? "auto",
     estimatedItemSize: config.scroll?.estimatedItemSize ?? 50,
     overscan: config.scroll?.overscan ?? VIRTUAL_SCROLLING.DEFAULT_OVERSCAN,
-    windowSize: config.listManager?.virtual?.windowSize,
     ...config.listManager?.virtual,
   },
 
@@ -480,13 +334,6 @@ export const getListManagerConfig = (config: ListConfig) => ({
     maxPoolSize: config.listManager?.recycling?.maxPoolSize ?? 100,
     minPoolSize: config.listManager?.recycling?.minPoolSize ?? 10,
     ...config.listManager?.recycling,
-  },
-
-  // Scroll behavior
-  scroll: {
-    smooth: config.scroll?.animation ?? true,
-    restore: config.scroll?.restorePosition ?? false,
-    ...config.listManager?.scroll,
   },
 
   // Intersection observers
@@ -503,31 +350,14 @@ export const getListManagerConfig = (config: ListConfig) => ({
     },
   },
 
-  // Performance features
+  // Performance configuration
   performance: {
-    frameScheduling: config.listManager?.performance?.frameScheduling ?? true,
-    memoryCleanup: config.listManager?.performance?.memoryCleanup ?? true,
+    frameScheduling: true,
+    memoryCleanup: true,
     ...config.listManager?.performance,
   },
 
-  // Debug
-  debug: config.debug,
-});
-
-/**
- * Creates styling configuration
- */
-export const getStylingConfig = (config: ListConfig) => ({
-  className: config.className || LIST_CLASSES.BASE,
-  style: config.style || {},
-  density: config.density || "default",
-  variant: config.variant || "default",
-});
-
-/**
- * Gets the complete element configuration for the list
- */
-export const getCompleteElementConfig = (config: ListConfig) => ({
-  ...getElementConfig(config),
-  ...getStylingConfig(config),
+  // Debug and styling
+  debug: config.debug || false,
+  componentName: "list-manager",
 });

@@ -14,24 +14,15 @@ import type {
 } from "./types";
 
 // Import mtrl compose system
-import {
-  pipe,
-  createBase,
-  withElement,
-  withEvents,
-  withLifecycle,
-  withCollection,
-  withStyling,
-  withSelection,
-  withPerformance,
-} from "../../core/compose";
+import { pipe } from "mtrl/src/core/compose/pipe";
+import { createBase, withElement } from "mtrl/src/core/compose/component";
+import { withEvents, withLifecycle } from "mtrl/src/core/compose/features";
 
 // Import list-specific utilities
-import { withApi } from "./features/api";
-import { createBaseConfig, getElementConfig } from "./config";
+import { createBaseConfig, getElementConfig, getApiConfig } from "./config";
 import { LIST_CLASSES } from "./constants";
 import { withListManager } from "./features/list-manager";
-import { withAPI, getApiConfig } from "./api";
+import { withAPI } from "./api";
 
 /**
  * Creates list-specific configuration from user config
@@ -164,7 +155,7 @@ export const createList = <T = any>(
       withLifecycle(), // Lifecycle management
 
       // 4. Public API layer
-      (comp) => withAPI(getApiConfig(comp))(comp) // Clean public API
+      (comp) => withAPI({ component: comp as any, config: baseConfig })(comp) // Clean public API
     )(baseConfig);
 
     // Set up initial event handlers from config

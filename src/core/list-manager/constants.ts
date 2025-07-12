@@ -677,7 +677,7 @@ export const LIST_MANAGER_CONSTANTS = {
     TRACK_WIDTH: 8, // for vertical scrollbar, becomes height for horizontal
     THUMB_MIN_SIZE: 20, // minimum thumb size
     FADE_TIMEOUT: 1500,
-    BORDER_RADIUS: 4,
+    BORDER_RADIUS: '4px',
   },
 
   RECYCLING: {

@@ -5,6 +5,41 @@ import { createListManagerAPI } from "../../../core/list-manager/api";
 import type { ListManagerConfig } from "../../../core/list-manager/types";
 
 /**
+ * Calculate optimal collection limit based on viewport dimensions
+ * @param containerSize - Viewport container size in pixels
+ * @param estimatedItemSize - Estimated item size in pixels
+ * @param overscan - Number of items to render outside viewport
+ * @returns Optimal limit for collection API requests
+ */
+function calculateOptimalLimit(
+  containerSize: number,
+  estimatedItemSize: number,
+  overscan: number = 5
+): number {
+  // Calculate how many items fit in the viewport
+  const itemsInViewport = Math.ceil(containerSize / estimatedItemSize);
+
+  // Add overscan buffer for smooth scrolling
+  const withOverscan = itemsInViewport + overscan * 2;
+
+  // Add preload buffer for better UX (50% more items)
+  const withPreload = Math.ceil(withOverscan * 1.5);
+
+  // Ensure minimum of 10 items and maximum of 100 items per request
+  const optimalLimit = Math.max(10, Math.min(100, withPreload));
+
+  console.log(`📊 [LIST-MANAGER] Optimal limit calculation:
+    Container: ${containerSize}px
+    Item size: ${estimatedItemSize}px
+    Items in viewport: ${itemsInViewport}
+    With overscan: ${withOverscan}
+    With preload: ${withPreload}
+    Final limit: ${optimalLimit}`);
+
+  return optimalLimit;
+}
+
+/**
  * List Manager feature that creates and manages the enhanced List Manager
  * with built-in Collection support using Phase 1 functional composition.
  *
@@ -16,6 +51,19 @@ export const withListManager =
   <C extends BaseComponent & ElementComponent>(
     component: C
   ): C & Partial<ListComponent<T>> => {
+    // Get container dimensions for optimal limit calculation
+    const containerElement = component.element;
+    const containerSize = containerElement.offsetHeight || 600; // Default to 600px
+    const estimatedItemSize = config.scroll?.estimatedItemSize || 50;
+    const overscan = config.scroll?.overscan || 5;
+
+    // Calculate optimal limit based on viewport dimensions
+    const optimalLimit = calculateOptimalLimit(
+      containerSize,
+      estimatedItemSize,
+      overscan
+    );
+
     // Convert List Config to Phase 1 List Manager Config
     const listManagerConfig: ListManagerConfig = {
       container: component.element,
@@ -44,11 +92,11 @@ export const withListManager =
         crossAxisAlignment: config.orientation?.crossAxisAlignment || "stretch",
       },
 
-      // Collection configuration (if using API)
+      // Collection configuration (if using API) - Now uses optimal limit
       collection: config.adapter
         ? {
             adapter: config.adapter,
-            pageSize: config.collection?.limit || 20,
+            pageSize: optimalLimit, // Use calculated optimal limit instead of fixed 20
             strategy: "page" as const,
           }
         : undefined,

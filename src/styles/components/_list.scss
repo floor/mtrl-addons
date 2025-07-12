@@ -27,6 +27,7 @@ $scrollbar-fade-transition: opacity 0.2s ease;
 // Addons-specific enhancements only
 .#{$base-component}.#{$addons-component} {
   // Collection data management integration (scroll optimization)
+  background-color: var(--mtrl-sys-color-surface);
   &[data-addons="true"] {
     // Enhanced scroll performance for large lists
     scroll-behavior: smooth;
@@ -135,4 +136,64 @@ $scrollbar-fade-transition: opacity 0.2s ease;
   // - Custom selection modes beyond what mtrl provides
   // - Integration with external data sources
   // - Advanced virtualization strategies
+}
+
+// users list
+.#{base.$prefix}-list--users {
+  height: 600px;
+  width: 320px;
+
+  .user-item {
+    padding: 12px 16px;
+    display: flex;
+    align-items: start;
+    transition: background-color 0.2s ease;
+  }
+
+  .user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: var(--mtrl-sys-color-primary-container);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  .user-details {
+    flex: 1;
+    min-width: 0;
+    margin-left: 12px;
+  }
+
+  .user-name {
+    font-weight: 500;
+  }
+
+  .user-email {
+    // color: #666;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-phone {
+    color: var(--mtrl-sys-color-primary);
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-role {
+    color: var(--mtrl-sys-color-on-surface-variant);
+    font-size: 12px;
+    margin-top: 2px;
+  }
 }
