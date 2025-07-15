@@ -68,8 +68,9 @@ export function calculateVisibleRange(
     startIndex = Math.floor(virtualScrollPosition / estimatedItemSize);
   }
 
-  // Calculate how many items fit in the container (use estimated size as average)
-  const visibleItemsCount = Math.ceil(containerSize / estimatedItemSize);
+  // Calculate how many items fit in the container
+  // Add extra items to ensure smooth scrolling without gaps
+  const visibleItemsCount = Math.ceil(containerSize / estimatedItemSize) + 2; // Add 2 extra items for smoother scrolling
 
   // Calculate end index with overscan buffer
   const endIndex = Math.min(
@@ -78,7 +79,8 @@ export function calculateVisibleRange(
   );
 
   // Apply overscan to start (but don't go below 0)
-  const bufferedStartIndex = Math.max(0, startIndex - overscan);
+  // Increase overscan for smoother scrolling
+  const bufferedStartIndex = Math.max(0, startIndex - overscan - 1); // Add 1 extra item before
 
   const result = {
     start: bufferedStartIndex,

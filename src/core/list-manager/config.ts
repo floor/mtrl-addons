@@ -32,8 +32,8 @@ export const defaultOrientationConfig = {
  */
 export const defaultVirtualConfig = {
   enabled: true,
-  itemHeight: 50,
-  estimatedItemHeight: 50,
+  itemHeight: 84,
+  estimatedItemHeight: 84,
   overscan: VIRTUAL_SCROLLING.DEFAULT_OVERSCAN,
   windowSize: 20,
 } as const;

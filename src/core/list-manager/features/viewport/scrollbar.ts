@@ -39,7 +39,7 @@ export const scrollbar = (
       trackColor: "#f0f0f0",
       borderRadius: 6,
       fadeTimeout: 1000,
-      itemHeight: 50,
+      itemHeight: 84,
       totalItems: 0,
       ...config,
       ...(pluginConfig || {}),

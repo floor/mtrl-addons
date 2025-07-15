@@ -76,7 +76,10 @@ export const withViewport =
   <T extends ListManagerComponent>(component: T): T & ViewportComponent => {
     // Configuration with defaults
     const orientation = config.orientation || "vertical";
-    const estimatedItemSize = 60; // Force smaller item size for testing
+    const estimatedItemSize = 84;
+    // const estimatedItemSize =
+    //   config.estimatedItemSize ||
+    //   LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.DEFAULT_ITEM_SIZE;
     const overscan =
       config.overscan || LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER;
     const enableScrollbar = config.enableScrollbar !== false;
@@ -355,6 +358,13 @@ export const withViewport =
       setupResizeObserver();
       measureContainer();
 
+      if (itemsContainer) {
+        // Set items container styles: relative, no transform, flex for orientation
+        itemsContainer.style.position = "relative";
+        // Remove flex layout as it conflicts with absolute positioning of items
+        itemsContainer.style.overflow = "hidden"; // Prevent overflow issues
+      }
+
       isViewportInitialized = true;
       component.emit?.("viewport:initialized", {
         orientation,
@@ -470,11 +480,15 @@ export const withViewport =
         scrollingManager.getScrollPosition()
       );
 
-      // Skip if range hasn't changed
-      if (
-        newVisibleRange.start === currentVisibleRange.start &&
-        newVisibleRange.end === currentVisibleRange.end
-      ) {
+      // Always update item positions when scrolling, even if range hasn't changed
+      // This ensures smooth scrolling without snapping
+      const rangeChanged =
+        newVisibleRange.start !== currentVisibleRange.start ||
+        newVisibleRange.end !== currentVisibleRange.end;
+
+      // Update positions even if range hasn't changed
+      if (!rangeChanged) {
+        updateItemPositions();
         return;
       }
 
@@ -649,13 +663,24 @@ export const withViewport =
         }, 10); // Small delay to allow pipe composition to complete
       }
 
-      // DISABLE ELEMENT RECYCLING - Keep all rendered elements
-      // Items will accumulate as we scroll (no removal)
+      // Recycle out-of-range items
+      const buffer = overscan * 2; // Extra buffer for smooth scrolling
+      const recycleStart = newVisibleRange.start - buffer;
+      const recycleEnd = newVisibleRange.end + buffer;
+
+      for (const [index, element] of renderedElements) {
+        if (index < recycleStart || index > recycleEnd) {
+          // Remove from DOM
+          element.remove();
+          renderedElements.delete(index);
+        }
+      }
+
       console.log(
-        `🔄 [VIEWPORT] Element recycling disabled - keeping all ${renderedElements.size} existing elements`
+        `♻️ [VIEWPORT] Removed out-of-range elements, renderedElements now: ${renderedElements.size}`
       );
 
-      // Render new items in range
+      // Render new items
       const newElements: { element: HTMLElement; index: number }[] = [];
 
       for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
@@ -669,7 +694,7 @@ export const withViewport =
         const item = component.items[i];
 
         if (!item) {
-          continue; // Skip empty slots - collection will load them
+          continue; // Skip empty slots
         }
 
         // Skip if already rendered
@@ -677,39 +702,32 @@ export const withViewport =
           continue;
         }
 
-        // Create element for item
+        // Create element
         const element = renderItem(item, i);
         if (element) {
-          // Initially hide the element for measurement
-          element.style.visibility = "hidden";
-          element.style.position = "relative"; // Use relative for natural flow
-
-          renderedElements.set(i, element);
           itemsContainer.appendChild(element);
-
-          // Store for measurement
+          renderedElements.set(i, element);
           newElements.push({ element, index: i });
         }
       }
 
-      // Measure all new elements synchronously before positioning
+      // Measure new elements
       if (newElements.length > 0) {
-        // Force a reflow to ensure all elements are laid out
+        // Force reflow
         itemsContainer.offsetHeight;
 
         newElements.forEach(({ element, index }) => {
           itemSizeManager.measureItem(element, index);
-          // Make element visible after measurement
           element.style.visibility = "visible";
         });
       }
 
       currentVisibleRange = newVisibleRange;
 
-      // Position elements correctly with actual measured sizes
+      // Position all visible items with transforms
       updateItemPositions();
 
-      // Emit range rendered event
+      // Emit event
       component.emit?.("range:rendered", {
         range: newVisibleRange,
         renderedCount: newElements.length,
@@ -728,18 +746,38 @@ export const withViewport =
       }
 
       try {
-        const result = template(item, index);
+        let element: HTMLElement;
 
+        // Always create fresh element from template
+        const result = template(item, index);
         if (typeof result === "string") {
-          // Create element from string
           const wrapper = document.createElement("div");
           wrapper.innerHTML = result;
-          return wrapper.firstElementChild as HTMLElement;
+          element = wrapper.firstElementChild as HTMLElement;
         } else if (result instanceof HTMLElement) {
-          return result;
+          element = result;
+        } else {
+          return null;
         }
 
-        return null;
+        // Apply base styles for virtual positioning
+        element.style.position = "absolute";
+        element.style.left = "0";
+        element.style.right = "0"; // For vertical, full width
+        element.style.boxSizing = "border-box";
+        element.style.willChange = "transform";
+        element.style.visibility = "visible"; // Make visible immediately
+
+        if (orientation === "horizontal") {
+          element.style.top = "0";
+          element.style.bottom = "0"; // Full height for horizontal
+          element.style.width = `${itemSizeManager.getEstimatedItemSize()}px`; // Initial width
+        } else {
+          element.style.height = `${itemSizeManager.getEstimatedItemSize()}px`; // Initial height
+          element.style.width = "100%";
+        }
+
+        return element;
       } catch (error) {
         console.error(`Error rendering item at index ${index}:`, error);
         return null;
@@ -750,41 +788,71 @@ export const withViewport =
      * Update item positioning using traditional virtual scrolling approach
      */
     const updateItemPositions = (): void => {
-      if (!itemsContainer || currentVisibleRange.start < 0) return;
+      if (!itemsContainer) return;
 
-      // Update container position to show first visible item at viewport top
-      scrollingManager.updateContainerPosition();
+      const isHorizontal = orientation === "horizontal";
+      const axis = isHorizontal ? "X" : "Y";
 
-      // Use natural flow positioning for items (traditional virtual scrolling)
-      const positionLog: string[] = [];
+      // Get the current scroll position
+      const scrollPosition = scrollingManager.getScrollPosition();
 
-      for (
-        let i = currentVisibleRange.start;
-        i <= currentVisibleRange.end;
-        i++
-      ) {
-        const element = renderedElements.get(i);
-        if (element) {
-          const itemSize = itemSizeManager.getMeasuredSize(i);
-          const isMeasured = itemSizeManager.hasMeasuredSize(i);
+      // Get height cap info to handle virtual position mapping
+      const heightCapInfo = virtualManager.getHeightCapInfo();
+      const isVirtualSizeCapped = heightCapInfo.isVirtualSizeCapped;
+      const compressionRatio = heightCapInfo.compressionRatio;
 
-          // Use relative positioning for natural flow within positioned container
-          element.style.position = "relative";
-          element.style.top = "0";
-          element.style.left = "0";
-          element.style.width = orientation === "vertical" ? "100%" : "auto";
-          element.style.height = orientation === "horizontal" ? "100%" : "auto";
-
-          positionLog.push(`${i}:rel(${isMeasured ? "M" : "E"}${itemSize})`);
-        }
+      // If using virtual size capping, we need to map the scroll position
+      let effectiveScrollPosition = scrollPosition;
+      if (isVirtualSizeCapped) {
+        // Convert virtual scroll position back to actual position
+        effectiveScrollPosition = scrollPosition / compressionRatio;
       }
 
-      if (positionLog.length > 0) {
-        console.log(
-          `🚀 [VIEWPORT-TRANSFORM] Items positioned using natural flow: ${positionLog.join(
-            " "
-          )}`
-        );
+      // Position each rendered item based on its absolute position
+      renderedElements.forEach((element, index) => {
+        if (!element) return;
+
+        // Calculate the absolute position for this item
+        let absolutePosition = 0;
+        for (let i = 0; i < index; i++) {
+          absolutePosition +=
+            itemSizeManager.getMeasuredSize(i) ||
+            itemSizeManager.getEstimatedItemSize();
+        }
+
+        // Get measured size for this item
+        const size =
+          itemSizeManager.getMeasuredSize(index) ||
+          itemSizeManager.getEstimatedItemSize();
+
+        // Position item absolutely within container, offset by scroll position
+        // This creates the scrolling effect
+        const position = absolutePosition - effectiveScrollPosition;
+
+        element.style.position = "absolute";
+        element.style.transform = `translate${axis}(${position}px)`;
+        element.style.visibility = "visible"; // Ensure item is visible
+
+        // Update dimensions
+        if (isHorizontal) {
+          element.style.width = `${size}px`;
+          element.style.height = "100%";
+          element.style.top = "0";
+        } else {
+          element.style.height = `${size}px`;
+          element.style.width = "100%";
+          element.style.left = "0";
+        }
+      });
+
+      // Don't set container size to virtual size - keep it minimal
+      // The scrollbar will handle the virtual size representation
+      if (isHorizontal) {
+        itemsContainer.style.width = "100%";
+        itemsContainer.style.height = "100%";
+      } else {
+        itemsContainer.style.height = "100%";
+        itemsContainer.style.width = "100%";
       }
     };
 
@@ -917,8 +985,7 @@ export const withViewport =
       itemsContainer.style.cssText = `
         position: relative;
         width: 100%;
-        transform: translateY(0px);
-        will-change: transform;
+        will-change: contents;
       `;
 
       viewport.appendChild(itemsContainer);

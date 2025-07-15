@@ -153,7 +153,7 @@ export const QuickSetup = {
       virtual: {
         enabled: true,
         itemSize: "auto",
-        estimatedItemSize: 50,
+        estimatedItemSize: 84,
         overscan: 5,
       },
       orientation: {

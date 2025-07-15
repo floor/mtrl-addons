@@ -116,7 +116,7 @@ export const withCollection =
     // Calculate optimal range size based on component dimensions
     const containerElement = component.element;
     const containerSize = containerElement?.offsetHeight || 600; // Default to 600px
-    const estimatedItemSize = 50; // Default estimated item size
+    const estimatedItemSize = 84; // Default estimated item size
     const overscan = 5; // Default overscan
 
     // Use calculated optimal range size or fallback to config/default

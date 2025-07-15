@@ -142,6 +142,8 @@ export const createScrollingManager = (
   let scrollbarVisible = false;
   let scrollbarFadeTimeout: number | null = null;
 
+  // Direct scrolling - no animation for immediate response
+
   // Velocity tracking state
   let speedTracker: SpeedTracker = {
     velocity: 0,
@@ -322,6 +324,8 @@ export const createScrollingManager = (
     const sensitivity =
       LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.SCROLL_SENSITIVITY;
     const delta = orientation === "vertical" ? event.deltaY : event.deltaX;
+
+    // Direct scroll delta for immediate response
     const scrollDelta = delta * sensitivity;
 
     const previousPosition = virtualScrollPosition;
@@ -331,16 +335,16 @@ export const createScrollingManager = (
     const maxScroll = Math.max(0, totalVirtualSize - containerSize);
     newPosition = clamp(newPosition, 0, maxScroll);
 
+    // Update scroll position immediately for instant feedback
     virtualScrollPosition = newPosition;
 
-    // Update velocity tracking
+    // Update velocity tracking with the actual delta
     const deltaPosition = newPosition - previousPosition;
     const deltaTime = 16; // Assume 60fps for wheel events
     updateVelocityTracking(deltaPosition, deltaTime);
 
-    // Update UI
+    // Update container position immediately for instant feedback
     updateContainerPosition();
-    updateScrollbar();
     showScrollbar();
 
     // Trigger rendering for new visible range
@@ -349,7 +353,7 @@ export const createScrollingManager = (
     // Emit events
     const direction = newPosition > previousPosition ? "forward" : "backward";
     onScrollPositionChanged?.({
-      position: newPosition,
+      position: virtualScrollPosition,
       direction,
       previousPosition,
     });
@@ -377,7 +381,9 @@ export const createScrollingManager = (
 
     // Calculate position based on measured sizes
     for (let i = 0; i < index; i++) {
-      targetPosition += itemSizeManager.getMeasuredSize(i);
+      targetPosition +=
+        itemSizeManager.getMeasuredSize(i) ||
+        itemSizeManager.getEstimatedItemSize();
     }
 
     // Adjust position based on alignment
@@ -395,14 +401,13 @@ export const createScrollingManager = (
     const maxPosition = Math.max(0, totalVirtualSize - containerSize);
     targetPosition = Math.max(0, Math.min(targetPosition, maxPosition));
 
-    // Update scroll position
+    // Update scroll position immediately
     virtualScrollPosition = targetPosition;
 
-    // Update container position
+    // Update UI immediately
     updateContainerPosition();
-
-    // Update scrollbar
     updateScrollbar();
+    showScrollbar();
 
     // Calculate new visible range and notify
     const newVisibleRange = calculateVisibleRange();
@@ -430,14 +435,16 @@ export const createScrollingManager = (
     }
 
     const previousPosition = virtualScrollPosition;
+
+    // Update scroll position immediately
     virtualScrollPosition = clampedPosition;
 
     // Update velocity tracking
-    const deltaPosition = virtualScrollPosition - previousPosition;
-    const deltaTime = 16; // Assume 60fps for wheel events
+    const deltaPosition = clampedPosition - previousPosition;
+    const deltaTime = 16; // Assume 60fps
     updateVelocityTracking(deltaPosition, deltaTime);
 
-    // Update UI
+    // Update UI immediately
     updateContainerPosition();
     updateScrollbar();
     showScrollbar();
@@ -447,7 +454,7 @@ export const createScrollingManager = (
 
     // Emit events
     const direction =
-      virtualScrollPosition > previousPosition ? "forward" : "backward";
+      clampedPosition > previousPosition ? "forward" : "backward";
     onScrollPositionChanged?.({
       position: virtualScrollPosition,
       direction,
@@ -464,34 +471,16 @@ export const createScrollingManager = (
   const updateContainerPosition = (): void => {
     if (!itemsContainer) return;
 
-    // Use scroll position directly for smooth scrolling that reflects exact deltas
-    let offset = virtualScrollPosition;
-
-    // Apply height-capped adjustment if needed for massive datasets
-    const actualTotalItems = getTotalItems
-      ? getTotalItems()
-      : component.totalItems;
-    if (actualTotalItems > 0) {
-      const estimatedItemSize = itemSizeManager.getEstimatedItemSize();
-      const actualTotalSize = actualTotalItems * estimatedItemSize;
-      const maxVirtualSize = 16 * 1000 * 1000; // 16M pixels (match virtual.ts)
-
-      if (actualTotalSize > maxVirtualSize) {
-        // Height-capped: map virtual position to actual position for smooth scrolling
-        const scrollRatio =
-          totalVirtualSize > 0 ? virtualScrollPosition / totalVirtualSize : 0;
-        offset = scrollRatio * actualTotalSize;
-      }
+    // Don't apply transform to container - rely on absolute positioning of items
+    // Just trigger item position updates
+    if ((component as any).viewport?.updateItemPositions) {
+      (component as any).viewport.updateItemPositions();
     }
 
-    const transformProperty =
-      orientation === "vertical" ? "translateY" : "translateX";
-    itemsContainer.style.transform = `${transformProperty}(-${offset}px)`;
-
     console.log(
-      `📐 [SCROLLING] Container positioned: ${transformProperty}(-${offset.toFixed(
+      `📐 [SCROLLING] Triggered item positions update at scroll=${virtualScrollPosition.toFixed(
         2
-      )}px) from scroll=${virtualScrollPosition.toFixed(2)}px`
+      )}px`
     );
   };
 
