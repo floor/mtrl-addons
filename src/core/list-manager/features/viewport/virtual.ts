@@ -4,12 +4,11 @@
  */
 
 import type { ListManagerComponent, ItemRange } from "../../types";
-import { LIST_MANAGER_CONSTANTS } from "../../constants";
-import { calculateVisibleRange as calculateVisibleRangeUtil } from "../../utils/calculations";
 import type { ItemSizeManager } from "./item-size";
+import { calculateVisibleRange as calculateVisibleRangeUtil } from "../../utils/calculations";
 
 /**
- * Configuration for virtual scrolling calculations
+ * Configuration for virtual scrolling
  */
 export interface VirtualConfig {
   orientation: "vertical" | "horizontal";
@@ -23,7 +22,7 @@ export interface VirtualConfig {
 }
 
 /**
- * Virtual scrolling state interface
+ * Virtual scrolling state
  */
 export interface VirtualState {
   totalVirtualSize: number;
@@ -41,9 +40,10 @@ export interface VirtualManager {
   updateTotalVirtualSize(totalItems: number): void;
   getTotalVirtualSize(): number;
 
-  // Height capping utilities
+  // Index-based scrolling utilities
   calculateVirtualPositionForIndex(index: number): number;
-  getHeightCapInfo(): any;
+  calculateIndexFromVirtualPosition(position: number): number;
+  getMaxScrollPosition(): number;
 
   // State management
   updateState(updates: Partial<VirtualState>): void;
@@ -51,146 +51,90 @@ export interface VirtualManager {
 }
 
 /**
- * Creates a virtual scrolling manager for range and size calculations
+ * Creates a virtual scrolling manager using index-based approach
+ * This avoids browser height limitations by not creating massive DOM elements
  */
 export const createVirtualManager = (
   component: ListManagerComponent,
   itemSizeManager: ItemSizeManager,
   config: VirtualConfig,
-  getTotalItems?: () => number // Add getTotalItems callback
+  getTotalItems?: () => number
 ): VirtualManager => {
   const { orientation, overscan, onDimensionsChanged } = config;
 
-  // Browser height limits (safe maximum to avoid DOM limitations)
-  const MAX_SAFE_VIRTUAL_SIZE = 16 * 1000 * 1000; // 16M pixels (safe for all browsers)
-
   // Virtual scrolling state
   let totalVirtualSize = 0;
-  let actualTotalSize = 0; // The real total size if uncapped
   let containerSize = 0;
-  let isVirtualSizeCapped = false;
 
   /**
-   * Calculate visible range based on scroll position (with height capping support)
+   * Calculate visible range based on scroll position
+   * Uses index-based approach for large datasets
    */
   const calculateVisibleRange = (scrollPosition: number): ItemRange => {
-    // Use getTotalItems callback if available, otherwise fall back to component.totalItems
     const actualTotalItems = getTotalItems
       ? getTotalItems()
       : component.totalItems;
 
-    // Use the actual total items count - don't use items.length as it may be padded
-    const finalTotalItems = actualTotalItems;
+    if (actualTotalItems === 0) {
+      return { start: 0, end: 0 };
+    }
 
-    if (!isVirtualSizeCapped) {
-      // Standard calculation for smaller datasets
-      const range = calculateVisibleRangeUtil(
-        scrollPosition,
-        containerSize,
-        itemSizeManager.getEstimatedItemSize(),
-        finalTotalItems,
-        overscan,
-        itemSizeManager.getMeasuredSizes()
+    // For large datasets, use simplified index-based calculation
+    if (actualTotalItems > 100000) {
+      const itemSize = itemSizeManager.getEstimatedItemSize();
+      const viewportItemCount = Math.ceil(containerSize / itemSize);
+
+      // Calculate start index directly from scroll position
+      const startIndex = Math.floor(scrollPosition / itemSize);
+      const endIndex = Math.min(
+        startIndex + viewportItemCount - 1,
+        actualTotalItems - 1
       );
-      return range;
+
+      // Apply overscan
+      const start = Math.max(0, startIndex - overscan);
+      const end = Math.min(actualTotalItems - 1, endIndex + overscan);
+
+      return { start, end };
     }
 
-    // Height-capped calculation for massive datasets
-    // CRITICAL FIX: Ensure we're using the correct virtual size for massive datasets
-    // The totalVirtualSize should be 16M pixels for 1M items, not based on loaded items
-    const currentTotalVirtualSize = isVirtualSizeCapped
-      ? MAX_SAFE_VIRTUAL_SIZE
-      : totalVirtualSize;
-    const currentActualTotalSize = isVirtualSizeCapped
-      ? finalTotalItems * itemSizeManager.getEstimatedItemSize()
-      : actualTotalSize;
-
-    // Map scroll position from capped virtual space to actual data range
-    const scrollRatio =
-      currentTotalVirtualSize > 0
-        ? scrollPosition / currentTotalVirtualSize
-        : 0;
-    const actualScrollPosition = scrollRatio * currentActualTotalSize;
-
-    // Debug logging for height-capped calculations
-    if (scrollPosition > 0) {
-      console.log(`🔍 [VIRTUAL-CAPPED] Mapping scroll position:
-        Virtual scroll: ${scrollPosition}px
-        Virtual total: ${currentTotalVirtualSize}px
-        Scroll ratio: ${scrollRatio}
-        Actual total: ${currentActualTotalSize}px
-        Mapped position: ${actualScrollPosition}px
-        Expected index: ${Math.floor(
-          actualScrollPosition / itemSizeManager.getEstimatedItemSize()
-        )}`);
-    }
-
-    // Calculate visible range using actual scroll position
-    const range = calculateVisibleRangeUtil(
-      actualScrollPosition,
+    // For smaller datasets, use the standard calculation with measured sizes
+    return calculateVisibleRangeUtil(
+      scrollPosition,
       containerSize,
       itemSizeManager.getEstimatedItemSize(),
-      finalTotalItems,
+      actualTotalItems,
       overscan,
       itemSizeManager.getMeasuredSizes()
     );
-
-    return range;
   };
 
   /**
-   * Update total virtual size for massive lists (with height capping)
+   * Update total virtual size based on total items
+   * For index-based scrolling, we use a reasonable maximum
    */
   const updateTotalVirtualSize = (totalItems: number): void => {
-    // Calculate the actual total size (unlimited)
     const estimatedItemSize = itemSizeManager.getEstimatedItemSize();
-    const newActualTotalSize = estimatedItemSize * totalItems;
 
-    // Determine if we need to cap the virtual size
-    const needsCapping = newActualTotalSize > MAX_SAFE_VIRTUAL_SIZE;
-    const newTotalVirtualSize = needsCapping
-      ? MAX_SAFE_VIRTUAL_SIZE
-      : newActualTotalSize;
+    // For index-based scrolling, cap the virtual size at a reasonable maximum
+    // This prevents browser issues while maintaining smooth scrolling
+    const MAX_VIRTUAL_SIZE = 10 * 1000 * 1000; // 10M pixels - well within browser limits
 
-    // Only update if something changed
-    if (
-      newTotalVirtualSize !== totalVirtualSize ||
-      newActualTotalSize !== actualTotalSize
-    ) {
-      actualTotalSize = newActualTotalSize;
+    let newTotalVirtualSize: number;
+
+    if (totalItems * estimatedItemSize > MAX_VIRTUAL_SIZE) {
+      // Use index-based virtual size
+      newTotalVirtualSize = MAX_VIRTUAL_SIZE;
+      console.log(
+        `📐 [VIRTUAL] Using index-based scrolling for ${totalItems.toLocaleString()} items`
+      );
+    } else {
+      // Use actual size for smaller datasets
+      newTotalVirtualSize = totalItems * estimatedItemSize;
+    }
+
+    if (newTotalVirtualSize !== totalVirtualSize) {
       totalVirtualSize = newTotalVirtualSize;
-      isVirtualSizeCapped = needsCapping;
-
-      if (needsCapping) {
-        const compressionRatio = (
-          (newTotalVirtualSize / newActualTotalSize) *
-          100
-        ).toFixed(1);
-        console.log(
-          `📐 [VIRTUAL-CAPPED] Virtual size capped for browser safety:`
-        );
-        console.log(
-          `    Actual: ${(newActualTotalSize / 1000000).toFixed(
-            1
-          )}M px (${estimatedItemSize}px × ${totalItems.toLocaleString()} items)`
-        );
-        console.log(
-          `    Virtual: ${(newTotalVirtualSize / 1000000).toFixed(
-            1
-          )}M px (${compressionRatio}% of actual)`
-        );
-        console.log(
-          `    🚀 Height optimization: Active for ${totalItems.toLocaleString()} items`
-        );
-      } else {
-        console.log(
-          `📐 [VIRTUAL] Total virtual size updated: ${(
-            newTotalVirtualSize / 1000000
-          ).toFixed(
-            1
-          )}M px (${estimatedItemSize}px × ${totalItems.toLocaleString()} items)`
-        );
-      }
 
       // Notify about dimensions change
       onDimensionsChanged?.({
@@ -200,6 +144,58 @@ export const createVirtualManager = (
         totalItems,
       });
     }
+  };
+
+  /**
+   * Calculate virtual scroll position for a given item index
+   */
+  const calculateVirtualPositionForIndex = (index: number): number => {
+    const actualTotalItems = getTotalItems
+      ? getTotalItems()
+      : component.totalItems;
+
+    if (actualTotalItems === 0) return 0;
+
+    const itemSize = itemSizeManager.getEstimatedItemSize();
+    const actualPosition = index * itemSize;
+
+    // If using index-based scrolling, map to virtual space
+    const actualTotalSize = actualTotalItems * itemSize;
+    if (actualTotalSize > totalVirtualSize) {
+      const ratio = index / actualTotalItems;
+      return ratio * totalVirtualSize;
+    }
+
+    return actualPosition;
+  };
+
+  /**
+   * Calculate item index from virtual scroll position
+   */
+  const calculateIndexFromVirtualPosition = (position: number): number => {
+    const actualTotalItems = getTotalItems
+      ? getTotalItems()
+      : component.totalItems;
+
+    if (actualTotalItems === 0 || totalVirtualSize === 0) return 0;
+
+    const itemSize = itemSizeManager.getEstimatedItemSize();
+    const actualTotalSize = actualTotalItems * itemSize;
+
+    // If using index-based scrolling, map from virtual space
+    if (actualTotalSize > totalVirtualSize) {
+      const ratio = position / totalVirtualSize;
+      return Math.floor(ratio * actualTotalItems);
+    }
+
+    return Math.floor(position / itemSize);
+  };
+
+  /**
+   * Get maximum scroll position
+   */
+  const getMaxScrollPosition = (): number => {
+    return Math.max(0, totalVirtualSize - containerSize);
   };
 
   /**
@@ -227,45 +223,6 @@ export const createVirtualManager = (
     containerSize,
   });
 
-  /**
-   * Calculate virtual scroll position for a given item index (with height capping support)
-   */
-  const calculateVirtualPositionForIndex = (index: number): number => {
-    if (!isVirtualSizeCapped) {
-      // Standard calculation for smaller datasets
-      let position = 0;
-      for (let i = 0; i < index; i++) {
-        position += itemSizeManager.getMeasuredSize(i);
-      }
-      return position;
-    }
-
-    // Height-capped calculation for massive datasets
-    // Calculate actual position first
-    let actualPosition = 0;
-    for (let i = 0; i < index; i++) {
-      actualPosition += itemSizeManager.getMeasuredSize(i);
-    }
-
-    // Map actual position to capped virtual space
-    const positionRatio =
-      actualTotalSize > 0 ? actualPosition / actualTotalSize : 0;
-    return positionRatio * totalVirtualSize;
-  };
-
-  /**
-   * Get height capping information
-   */
-  const getHeightCapInfo = () => ({
-    isVirtualSizeCapped,
-    actualTotalSize,
-    virtualTotalSize: totalVirtualSize,
-    maxSafeVirtualSize: MAX_SAFE_VIRTUAL_SIZE,
-    compressionRatio: isVirtualSizeCapped
-      ? totalVirtualSize / actualTotalSize
-      : 1,
-  });
-
   return {
     // Range calculations
     calculateVisibleRange,
@@ -274,9 +231,10 @@ export const createVirtualManager = (
     updateTotalVirtualSize,
     getTotalVirtualSize,
 
-    // Height capping utilities
+    // Index-based scrolling utilities
     calculateVirtualPositionForIndex,
-    getHeightCapInfo,
+    calculateIndexFromVirtualPosition,
+    getMaxScrollPosition,
 
     // State management
     updateState,

@@ -287,7 +287,7 @@ export const withViewport =
       }, // Wrap in arrow function to avoid hoisting issues
       () => actualTotalItems, // Pass the callback to get actual total items
       loadDataForRange, // Pass the proactive data loading function
-      () => virtualManager.getHeightCapInfo(), // Pass height cap info getter
+      undefined, // Removed height cap info - using index-based scrolling
       (index: number) => virtualManager.calculateVirtualPositionForIndex(index) // Pass position calculator
     );
 
@@ -490,7 +490,7 @@ export const withViewport =
           // Simple event subscription using component events
           component.on?.("scroll:position:changed", (data: any) => {
             callback({
-              event: "VIEWPORT_CHANGED",
+              event: "viewport:changed",
               data: {
                 ...data,
                 source: "wheel-scroll-scrollbar-update",
@@ -505,13 +505,15 @@ export const withViewport =
 
           component.on?.("dimensions:changed", (data: any) => {
             callback({
-              event: "VIRTUAL_RANGE_CHANGED",
+              event: "virtual:range:changed",
               data: {
                 ...data,
                 action: "update-scrollbar",
                 source: "virtual-viewport",
                 totalItems: actualTotalItems,
                 itemHeight: itemSizeManager.getEstimatedItemSize(),
+                totalVirtualSize:
+                  data.totalVirtualSize || virtualManager.getTotalVirtualSize(),
               },
             });
           });
@@ -519,7 +521,7 @@ export const withViewport =
           return () => {}; // Unsubscribe function
         },
         emit: (event: string, data: any) => {
-          if (event === "VIEWPORT_CHANGED" && data.source === "scrollbar") {
+          if (event === "viewport:changed" && data.source === "scrollbar") {
             // Handle scrollbar events - scroll to position
             const targetPosition = data.scrollTop || 0;
             scrollingManager.scrollToPosition(targetPosition);
@@ -532,6 +534,7 @@ export const withViewport =
         enabled: true,
         itemHeight: itemSizeManager.getEstimatedItemSize(),
         totalItems: actualTotalItems,
+        totalVirtualSize: virtualManager.getTotalVirtualSize(),
       });
 
       scrollbarPlugin = scrollbarPluginInstance.install(listManagerAdapter, {});

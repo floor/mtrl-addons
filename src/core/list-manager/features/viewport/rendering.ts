@@ -372,7 +372,7 @@ export const createRenderingManager = (
   };
 
   /**
-   * Update item positioning using traditional virtual scrolling approach
+   * Update item positioning using index-based virtual scrolling
    */
   const updateItemPositions = (): void => {
     if (!itemsContainer) return;
@@ -380,45 +380,57 @@ export const createRenderingManager = (
     const isHorizontal = orientation === "horizontal";
     const axis = isHorizontal ? "X" : "Y";
 
-    // Get the current scroll position
+    // Get the current scroll position and visible range
     const scrollPosition = scrollingManager.getScrollPosition();
+    const visibleRange = virtualManager.calculateVisibleRange(scrollPosition);
 
-    // Get height cap info to handle virtual position mapping
-    const heightCapInfo = virtualManager.getHeightCapInfo();
-    const isVirtualSizeCapped = heightCapInfo.isVirtualSizeCapped;
-    const compressionRatio = heightCapInfo.compressionRatio;
+    // For index-based scrolling, calculate the actual scroll offset
+    const totalItems = getActualTotalItems();
+    const itemSize = itemSizeManager.getEstimatedItemSize();
+    const actualTotalSize = totalItems * itemSize;
+    const virtualTotalSize = virtualManager.getTotalVirtualSize();
 
-    // If using virtual size capping, we need to map the scroll position
-    let effectiveScrollPosition = scrollPosition;
-    if (isVirtualSizeCapped) {
-      // Convert virtual scroll position back to actual position
-      effectiveScrollPosition = scrollPosition / compressionRatio;
+    // Determine the first visible item's position offset
+    let firstVisibleItemOffset = 0;
+
+    if (
+      virtualTotalSize < actualTotalSize &&
+      virtualTotalSize > 0 &&
+      totalItems > 100000
+    ) {
+      // For index-based scrolling, calculate based on the visible range start
+      // This avoids huge position calculations
+      const scrollRatio = scrollPosition / virtualTotalSize;
+      const exactScrollIndex = scrollRatio * totalItems;
+      const scrollIndexFraction =
+        exactScrollIndex - Math.floor(exactScrollIndex);
+      firstVisibleItemOffset = scrollIndexFraction * itemSize;
+    } else {
+      // For standard scrolling, use the scroll position directly
+      firstVisibleItemOffset = scrollPosition % itemSize;
     }
 
-    // Position each rendered item based on its absolute position
-    renderedElements.forEach((element, index) => {
-      if (!element) return;
+    // Position each rendered item relative to the container
+    let currentPosition = -firstVisibleItemOffset;
 
-      // Calculate the absolute position for this item
-      let absolutePosition = 0;
-      for (let i = 0; i < index; i++) {
-        absolutePosition +=
-          itemSizeManager.getMeasuredSize(i) ||
-          itemSizeManager.getEstimatedItemSize();
-      }
+    // Get all indices in sorted order
+    const sortedIndices = Array.from(renderedElements.keys()).sort(
+      (a, b) => a - b
+    );
+
+    sortedIndices.forEach((index) => {
+      const element = renderedElements.get(index);
+      if (!element) return;
 
       // Get measured size for this item
       const size =
         itemSizeManager.getMeasuredSize(index) ||
         itemSizeManager.getEstimatedItemSize();
 
-      // Position item absolutely within container, offset by scroll position
-      // This creates the scrolling effect
-      const position = absolutePosition - effectiveScrollPosition;
-
+      // Position item relative to container
       element.style.position = "absolute";
-      element.style.transform = `translate${axis}(${position}px)`;
-      element.style.visibility = "visible"; // Ensure item is visible
+      element.style.transform = `translate${axis}(${currentPosition}px)`;
+      element.style.visibility = "visible";
 
       // Update dimensions
       if (isHorizontal) {
@@ -430,6 +442,9 @@ export const createRenderingManager = (
         element.style.width = "100%";
         element.style.left = "0";
       }
+
+      // Move to next position
+      currentPosition += size;
     });
 
     // Don't set container size to virtual size - keep it minimal

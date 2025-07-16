@@ -1,5 +1,4 @@
-import type { ListManagerPlugin, VirtualItem } from "../../types";
-import { ListManagerEvents } from "../../types";
+// Removed unused imports
 import { CLASSES, LOGGING } from "../../constants";
 import { addClass, removeClass } from "mtrl";
 
@@ -16,20 +15,19 @@ export interface ScrollbarConfig {
   fadeTimeout: number;
   itemHeight: number;
   totalItems: number;
+  totalVirtualSize?: number; // The capped virtual size used by viewport
 }
 
 /**
  * Scrollbar implementation that bypasses browser scroll height limitations
  * Provides accurate scrollbar representation for datasets with millions of items
  */
-export const scrollbar = (
-  config: Partial<ScrollbarConfig> = {}
-): ListManagerPlugin => ({
+export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
   name: "scrollbar",
   version: "1.0.0",
   dependencies: [],
 
-  install: (listManager, pluginConfig) => {
+  install: (listManager: any, pluginConfig: any) => {
     // Configuration with defaults
     const scrollbarConfig: ScrollbarConfig = {
       enabled: true,
@@ -110,8 +108,9 @@ export const scrollbar = (
     const updateScrollbarDimensions = (): void => {
       if (!scrollbarConfig.totalItems) return;
 
-      // Calculate virtual dimensions
+      // Use capped virtual size if available, otherwise calculate from items
       totalVirtualHeight =
+        scrollbarConfig.totalVirtualSize ||
         scrollbarConfig.totalItems * scrollbarConfig.itemHeight;
       viewportHeight = viewport.clientHeight;
       visibleRatio = Math.min(viewportHeight / totalVirtualHeight, 1);
@@ -171,8 +170,9 @@ export const scrollbar = (
      * Calculate virtual scroll position from scroll ratio
      */
     const getVirtualPositionFromScrollRatio = (ratio: number): number => {
-      // Ensure we have current total virtual height
+      // Use the capped virtual size if available, otherwise calculate from items
       const currentTotalVirtualHeight =
+        scrollbarConfig.totalVirtualSize ||
         scrollbarConfig.totalItems * scrollbarConfig.itemHeight;
       const currentViewportHeight = viewport.clientHeight;
       const maxScroll = Math.max(
@@ -291,7 +291,7 @@ export const scrollbar = (
       );
 
       // Emit final viewport change event when drag stops
-      listManager.emit(ListManagerEvents.VIEWPORT_CHANGED, {
+      listManager.emit("viewport:changed", {
         scrollTop: finalVirtualScrollTop,
         scrollRatio: scrollRatio,
         startIndex: finalStartIndex,
@@ -323,7 +323,7 @@ export const scrollbar = (
       const virtualScrollTop =
         getVirtualPositionFromScrollRatio(newScrollRatio);
 
-      listManager.emit(ListManagerEvents.VIEWPORT_CHANGED, {
+      listManager.emit("viewport:changed", {
         scrollTop: virtualScrollTop,
         scrollRatio: newScrollRatio,
         source: "scrollbar",
@@ -339,12 +339,12 @@ export const scrollbar = (
 
     // Listen for virtual viewport updates
     const unsubscribeScrollbar = listManager.subscribe((payload: any) => {
-      if (payload.event === ListManagerEvents.VIRTUAL_RANGE_CHANGED) {
+      if (payload.event === "virtual:range:changed") {
         if (
           payload.data?.action === "update-scrollbar" &&
           payload.data?.source === "virtual-viewport"
         ) {
-          const { totalItems, itemHeight } = payload.data;
+          const { totalItems, itemHeight, totalVirtualSize } = payload.data;
 
           if (totalItems !== undefined) {
             scrollbarConfig.totalItems = totalItems;
@@ -352,13 +352,16 @@ export const scrollbar = (
           if (itemHeight !== undefined) {
             scrollbarConfig.itemHeight = itemHeight;
           }
+          if (totalVirtualSize !== undefined) {
+            scrollbarConfig.totalVirtualSize = totalVirtualSize;
+          }
 
           updateScrollbarDimensions();
         }
       }
 
       // Listen for wheel scroll events to update scrollbar position
-      if (payload.event === ListManagerEvents.VIEWPORT_CHANGED) {
+      if (payload.event === "viewport:changed") {
         if (payload.data?.source === "wheel-scroll-scrollbar-update") {
           const newScrollRatio = payload.data?.scrollRatio;
           if (newScrollRatio !== undefined) {

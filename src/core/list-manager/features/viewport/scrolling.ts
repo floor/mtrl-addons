@@ -414,18 +414,16 @@ export const createScrollingManager = (
       // 'start' is default - no adjustment needed
     }
 
-    // CRITICAL: Use virtual manager's position calculator for height-capped lists
-    if (calculateVirtualPositionForIndex && getHeightCapInfo) {
-      const heightCapInfo = getHeightCapInfo();
-      if (heightCapInfo && heightCapInfo.isVirtualSizeCapped) {
-        // Use virtual manager's calculator which handles height capping correctly
-        const virtualPosition = calculateVirtualPositionForIndex(index);
+    // Use virtual manager's position calculator for index-based scrolling
+    if (calculateVirtualPositionForIndex) {
+      const virtualPosition = calculateVirtualPositionForIndex(index);
 
-        console.log(`🎯 [SCROLLING] Using virtual position for height-capped list:
+      // Only use virtual position if it differs from calculated position
+      if (Math.abs(virtualPosition - targetPosition) > 1) {
+        console.log(`🎯 [SCROLLING] Using index-based virtual position:
           Index: ${index}
-          Actual position: ${targetPosition}px
-          Virtual position: ${virtualPosition}px
-          Height capped: ${heightCapInfo.isVirtualSizeCapped}`);
+          Calculated position: ${targetPosition}px
+          Virtual position: ${virtualPosition}px`);
 
         targetPosition = virtualPosition;
 
