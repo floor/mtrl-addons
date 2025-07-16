@@ -210,10 +210,10 @@ export const withViewport =
             `📊 [VIEWPORT] component.items.length: ${component.items.length}, actualTotalItems: ${actualTotalItems}`
           );
 
-          // Use loading coordinator via loadDataForRange callback
+          // Use loading manager via loadDataForRange callback
           if (config.loadDataForRange) {
             console.log(
-              `📡 [VIEWPORT] Using loading coordinator for range ${targetRange.start}-${targetRange.end}`
+              `📡 [VIEWPORT] Using loading manager for range ${targetRange.start}-${targetRange.end}`
             );
             config.loadDataForRange(targetRange);
           } else {
@@ -230,80 +230,8 @@ export const withViewport =
             `✅ [VIEWPORT] All items in range ${targetRange.start}-${targetRange.end} are already loaded`
           );
         }
-      } else if (
-        LIST_MANAGER_CONSTANTS.VIEWPORT.ENABLE_DEFERRED_COLLECTION_DETECTION
-      ) {
-        console.log(
-          `⏰ [VIEWPORT] Collection not available, trying delayed detection...`
-        );
-        // Try again after component layering is complete
-        setTimeout(() => {
-          const delayedCollection = (component as any).collection;
-          const delayedHasLoadMissingRanges =
-            delayedCollection &&
-            typeof delayedCollection.loadMissingRanges === "function";
-
-          console.log(
-            `🔍 [VIEWPORT] Delayed collection check: hasCollection=${!!delayedCollection}, hasLoadMissingRanges=${delayedHasLoadMissingRanges}`
-          );
-
-          if (delayedHasLoadMissingRanges) {
-            // Use same improved logic for delayed detection
-            let missingCount = 0;
-            const missingIndices: number[] = [];
-
-            for (let i = targetRange.start; i <= targetRange.end; i++) {
-              // Skip if index is beyond actual total items
-              if (i >= actualTotalItems) {
-                break;
-              }
-
-              // Check if item is missing (null, undefined, or array doesn't extend to this index)
-              const itemExists =
-                i < component.items.length &&
-                component.items[i] !== null &&
-                component.items[i] !== undefined;
-
-              if (!itemExists) {
-                missingCount++;
-                missingIndices.push(i);
-              }
-            }
-
-            console.log(
-              `🔍 [VIEWPORT] Delayed missing data analysis: ${missingCount} missing items`
-            );
-
-            if (missingCount > 0) {
-              console.log(
-                `🔄 [VIEWPORT] Delayed triggering collection load for ${missingCount} missing items in range ${targetRange.start}-${targetRange.end}`
-              );
-              console.log(
-                `🔍 [VIEWPORT] Delayed missing indices: [${missingIndices
-                  .slice(0, 10)
-                  .join(", ")}${missingIndices.length > 10 ? "..." : ""}]`
-              );
-
-              // Use loading coordinator via loadDataForRange callback
-              if (config.loadDataForRange) {
-                console.log(
-                  `📡 [VIEWPORT] Using loading coordinator for delayed load ${targetRange.start}-${targetRange.end}`
-                );
-                config.loadDataForRange(targetRange);
-              } else {
-                // Fallback to direct collection call
-                delayedCollection
-                  .loadMissingRanges(targetRange)
-                  .catch((error: any) => {
-                    console.error(
-                      "❌ [VIEWPORT] Failed to load missing ranges:",
-                      error
-                    );
-                  });
-              }
-            }
-          }
-        }, LIST_MANAGER_CONSTANTS.VIEWPORT.DEFERRED_COLLECTION_DETECTION_DELAY); // Small delay to allow pipe composition to complete
+      } else {
+        console.log(`⚠️ [VIEWPORT] Collection not available for loading data`);
       }
     };
 
@@ -616,10 +544,10 @@ export const withViewport =
               .join(", ")}${extendedMissingIndices.length > 10 ? "..." : ""}]`
           );
 
-          // Use loading coordinator for proactive loads
+          // Use loading manager for proactive loads
           if (config.loadDataForRange) {
             console.log(
-              `📡 [VIEWPORT] Using loading coordinator for extended range ${extendedRange.start}-${extendedRange.end}`
+              `📡 [VIEWPORT] Using loading manager for extended range ${extendedRange.start}-${extendedRange.end}`
             );
             config.loadDataForRange(extendedRange);
           } else {
@@ -638,61 +566,6 @@ export const withViewport =
             `✅ [VIEWPORT] All items in visible range ${newVisibleRange.start}-${newVisibleRange.end} and extended range ${extendedRange.start}-${extendedRange.end} are loaded`
           );
         }
-      } else if (
-        LIST_MANAGER_CONSTANTS.VIEWPORT.ENABLE_DEFERRED_COLLECTION_DETECTION
-      ) {
-        // Try again after component layering is complete
-        setTimeout(() => {
-          const delayedCollection = (component as any).collection;
-          const delayedHasLoadMissingRanges =
-            delayedCollection &&
-            typeof delayedCollection.loadMissingRanges === "function";
-
-          if (delayedHasLoadMissingRanges) {
-            // Use same improved logic for delayed detection
-            let missingCount = 0;
-            const missingIndices: number[] = [];
-
-            for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
-              // Skip if index is beyond actual total items
-              if (i >= actualTotalItems) {
-                break;
-              }
-
-              // Check if item is missing (null, undefined, or array doesn't extend to this index)
-              const itemExists =
-                i < component.items.length &&
-                component.items[i] !== null &&
-                component.items[i] !== undefined;
-
-              if (!itemExists) {
-                missingCount++;
-                missingIndices.push(i);
-              }
-            }
-
-            if (missingCount > 0) {
-              console.log(
-                `🔄 [VIEWPORT] Delayed triggering collection load for ${missingCount} missing items in range ${newVisibleRange.start}-${newVisibleRange.end}`
-              );
-              console.log(
-                `🔍 [VIEWPORT] Delayed missing indices: [${missingIndices
-                  .slice(0, 10)
-                  .join(", ")}${missingIndices.length > 10 ? "..." : ""}]`
-              );
-
-              // Trigger collection to load missing ranges
-              delayedCollection
-                .loadMissingRanges(newVisibleRange)
-                .catch((error: any) => {
-                  console.error(
-                    "❌ [VIEWPORT] Failed to load missing ranges (delayed):",
-                    error
-                  );
-                });
-            }
-          }
-        }, LIST_MANAGER_CONSTANTS.VIEWPORT.DEFERRED_COLLECTION_DETECTION_DELAY); // Small delay to allow pipe composition to complete
       }
 
       // Recycle out-of-range items

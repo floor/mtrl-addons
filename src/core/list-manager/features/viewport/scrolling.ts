@@ -262,7 +262,7 @@ export const createScrollingManager = (
       acceleration: currentAcceleration,
     });
 
-    // Emit speed changed event for loading coordinator
+    // Emit speed changed event for loading manager
     component.emit?.("speed:changed", {
       speed: speedTracker.velocity, // Use raw velocity for loading decisions
       direction: speedTracker.direction,

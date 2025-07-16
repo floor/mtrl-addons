@@ -738,12 +738,6 @@ export const LIST_MANAGER_CONSTANTS = {
     RESIZE_DEBOUNCE: 100, // ms - viewport resize debouncing
     INITIAL_LOAD_CALCULATION: 1.5, // multiplier for initial viewport calculation
   },
-
-  // Viewport configuration
-  VIEWPORT: {
-    ENABLE_DEFERRED_COLLECTION_DETECTION: true, // Enable fallback for delayed collection availability
-    DEFERRED_COLLECTION_DETECTION_DELAY: 10, // ms - delay for retrying collection detection
-  },
 } as const;
 
 /**

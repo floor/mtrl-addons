@@ -1,21 +1,25 @@
 /**
- * Loading Coordinator - Manages intelligent data loading based on scroll velocity
+ * Loading - Velocity-based intelligent data loading for viewport
  *
- * This module coordinates between the viewport (UI layer) and collection (data layer)
- * to implement velocity-based loading strategies without coupling them together.
+ * This viewport module manages data loading strategies based on scroll velocity,
+ * coordinating between the viewport (UI layer) and collection (data layer).
  */
 
-import type { ListManagerComponent, ItemRange, SpeedTracker } from "../types";
-import { LIST_MANAGER_CONSTANTS } from "../constants";
+import type {
+  ListManagerComponent,
+  ItemRange,
+  SpeedTracker,
+} from "../../types";
+import { LIST_MANAGER_CONSTANTS } from "../../constants";
 
-export interface LoadingCoordinatorConfig {
+export interface LoadingConfig {
   fastThreshold?: number;
   slowThreshold?: number;
   maxConcurrentRequests?: number;
   debounceDelay?: number;
 }
 
-export interface LoadingCoordinator {
+export interface LoadingManager {
   requestLoad(range: ItemRange, priority: "high" | "normal" | "low"): void;
   updateVelocity(velocity: number, direction: "forward" | "backward"): void;
   cancelPendingLoads(): void;
@@ -38,12 +42,12 @@ interface DeferredLoad {
 }
 
 /**
- * Creates a loading coordinator that manages data loading based on scroll velocity
+ * Creates a loading manager that handles data loading based on scroll velocity
  */
-export const createLoadingCoordinator = (
+export const createLoadingManager = (
   component: ListManagerComponent,
-  config: LoadingCoordinatorConfig = {}
-): LoadingCoordinator => {
+  config: LoadingConfig = {}
+): LoadingManager => {
   const {
     fastThreshold = LIST_MANAGER_CONSTANTS.SPEED_TRACKING.FAST_SCROLL_THRESHOLD,
     slowThreshold = LIST_MANAGER_CONSTANTS.SPEED_TRACKING.SLOW_SCROLL_THRESHOLD,
@@ -84,7 +88,7 @@ export const createLoadingCoordinator = (
     if (Math.abs(currentVelocity - previousVelocity) > 2) {
       const strategy = getLoadingStrategy();
       console.log(
-        `🚀 [LOADING-COORDINATOR] Velocity: ${currentVelocity.toFixed(
+        `🚀 [LOADING] Velocity: ${currentVelocity.toFixed(
           1
         )} px/ms, Strategy: ${strategy}, Direction: ${direction}`
       );
@@ -140,7 +144,7 @@ export const createLoadingCoordinator = (
         } else {
           // Log when we're cancelling loads due to high velocity
           console.log(
-            `🚫 [LOADING-COORDINATOR] Cancelled ${priority} priority load for range ${
+            `🚫 [LOADING] Cancelled ${priority} priority load for range ${
               range.start
             }-${range.end} (velocity: ${currentVelocity.toFixed(1)} px/ms)`
           );
@@ -194,14 +198,14 @@ export const createLoadingCoordinator = (
   ): void => {
     const collection = (component as any).collection;
     if (!collection || !collection.loadMissingRanges) {
-      console.warn("⚠️ [LOADING-COORDINATOR] Collection not available");
+      console.warn("⚠️ [LOADING] Collection not available");
       return;
     }
 
     pendingRequests++;
 
     console.log(
-      `📥 [LOADING-COORDINATOR] Executing ${priority} priority load for range ${
+      `📥 [LOADING] Executing ${priority} priority load for range ${
         range.start
       }-${range.end} (velocity: ${currentVelocity.toFixed(
         1
@@ -218,7 +222,7 @@ export const createLoadingCoordinator = (
       .catch((error: any) => {
         pendingRequests--;
         failedRequests++;
-        console.error("❌ [LOADING-COORDINATOR] Load failed:", error);
+        console.error("❌ [LOADING] Load failed:", error);
       });
   };
 
@@ -239,7 +243,7 @@ export const createLoadingCoordinator = (
     }
 
     console.log(
-      `⏳ [LOADING-COORDINATOR] Deferring ${priority} priority load for range ${range.start}-${range.end} (${delay}ms)`
+      `⏳ [LOADING] Deferring ${priority} priority load for range ${range.start}-${range.end} (${delay}ms)`
     );
 
     const timeoutId = setTimeout(() => {
@@ -306,7 +310,7 @@ export const createLoadingCoordinator = (
       }
     }
     deferredLoads.clear();
-    console.log("🚫 [LOADING-COORDINATOR] Cancelled all pending loads");
+    console.log("🚫 [LOADING] Cancelled all pending loads");
   };
 
   /**

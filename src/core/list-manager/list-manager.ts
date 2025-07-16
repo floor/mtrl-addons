@@ -7,7 +7,7 @@ import { pipe } from "../compose";
 import { withCollection } from "./features/collection/collection";
 import { withViewport } from "./features/viewport/viewport";
 import { withPlaceholders } from "./features/viewport/placeholders";
-import { createLoadingCoordinator } from "./features/loading-coordinator";
+import { createLoadingManager } from "./features/viewport/loading";
 import { LIST_MANAGER_CONSTANTS } from "./constants";
 import type { ListManagerConfig, ListManagerComponent } from "./types";
 
@@ -118,9 +118,8 @@ export const createListManager = (
     };
   };
 
-  // Create loading coordinator
-  let loadingCoordinator: ReturnType<typeof createLoadingCoordinator> | null =
-    null;
+  // Create loading manager
+  let loadingManager: ReturnType<typeof createLoadingManager> | null = null;
 
   console.log("🔍 [LIST-MANAGER] createListManager config.collection:", {
     hasAdapter: !!config.collection?.adapter,
@@ -151,9 +150,9 @@ export const createListManager = (
           `📡 [LIST-MANAGER] Proactive data request for range ${range.start}-${range.end}`
         );
 
-        // Use loading coordinator if available
-        if (loadingCoordinator) {
-          loadingCoordinator.requestLoad(range, "normal");
+        // Use loading manager if available
+        if (loadingManager) {
+          loadingManager.requestLoad(range, "normal");
         } else {
           // Fallback to direct loading
           setTimeout(() => {
@@ -188,16 +187,16 @@ export const createListManager = (
   // Create and enhance component
   const component = enhance(createBaseComponent());
 
-  // Create loading coordinator after component is enhanced
-  loadingCoordinator = createLoadingCoordinator(component, {
+  // Create loading manager after component is enhanced
+  loadingManager = createLoadingManager(component, {
     maxConcurrentRequests: config.collection?.maxConcurrentRequests,
   });
 
-  // Wire up velocity updates from scrolling to loading coordinator
+  // Wire up velocity updates from scrolling to loading manager
   if (component.on) {
     component.on("speed:changed", (data: any) => {
-      if (loadingCoordinator) {
-        loadingCoordinator.updateVelocity(data.speed, data.direction);
+      if (loadingManager) {
+        loadingManager.updateVelocity(data.speed, data.direction);
       }
     });
   }
