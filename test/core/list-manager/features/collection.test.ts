@@ -19,6 +19,7 @@ describe("Collection Feature", () => {
   let mockContext: FeatureContext;
   let collectionFeature: CollectionFeature;
   let emitSpy: ReturnType<typeof mock>;
+  let mockAdapter: any;
 
   beforeEach(() => {
     // Reset all mocks
