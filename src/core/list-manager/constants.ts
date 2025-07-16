@@ -396,10 +396,10 @@ export const ORIENTATION = {
  * Speed-based loading constants for intelligent data fetching
  */
 export const SPEED_TRACKING = {
-  // Speed thresholds (configurable for testing)
-  FAST_SCROLL_THRESHOLD: 1000, // px/ms - defer loading above this speed
-  SLOW_SCROLL_THRESHOLD: 100, // px/ms - load immediately below this speed
-  MEDIUM_SCROLL_THRESHOLD: 500, // px/ms - moderate speed handling
+  // Speed thresholds (optimized for mouse wheel scrolling)
+  FAST_SCROLL_THRESHOLD: 3, // px/ms - lowered from 5 to catch more scrolling as "fast"
+  SLOW_SCROLL_THRESHOLD: 0.5, // px/ms - lowered from 1 for truly slow scrolling only
+  MEDIUM_SCROLL_THRESHOLD: 1.5, // px/ms - lowered from 2.5
 
   // Speed calculation
   DECELERATION_FACTOR: 0.95, // velocity decay per frame
@@ -655,13 +655,13 @@ export const VIEWPORT_CALCULATION = {
 export const LIST_MANAGER_CONSTANTS = {
   VIRTUAL_SCROLL: {
     DEFAULT_ITEM_SIZE: 84, // Updated to 84px per user request
-    OVERSCAN_BUFFER: 5,
+    OVERSCAN_BUFFER: 2, // Reduced from 5 to 2 for fewer visible items
     SCROLL_SENSITIVITY: 1.0,
   },
 
   SPEED_TRACKING: {
-    FAST_SCROLL_THRESHOLD: 1000, // px/ms - defer loading above this
-    SLOW_SCROLL_THRESHOLD: 100, // px/ms - load immediately below this
+    FAST_SCROLL_THRESHOLD: 10, // px/ms - reduced from 1000 to realistic wheel scroll speeds
+    SLOW_SCROLL_THRESHOLD: 2, // px/ms - reduced proportionally
     DECELERATION_FACTOR: 0.95, // velocity decay per frame
     MEASUREMENT_WINDOW: 100, // ms - window for speed calculation
   },
@@ -699,7 +699,7 @@ export const LIST_MANAGER_CONSTANTS = {
   PERFORMANCE: {
     FRAME_BUDGET: 16.67, // 60fps target
     THROTTLE_SCROLL: 16, // ms - scroll event throttling
-    DEBOUNCE_LOADING: 50, // ms - loading request debouncing
+    DEBOUNCE_LOADING: 150, // ms - increased from 50ms to prevent rapid deferred loads
   },
 
   // Initial load configuration
@@ -737,6 +737,12 @@ export const LIST_MANAGER_CONSTANTS = {
     MEASUREMENT_PRECISION: 1, // decimal places for measurements
     RESIZE_DEBOUNCE: 100, // ms - viewport resize debouncing
     INITIAL_LOAD_CALCULATION: 1.5, // multiplier for initial viewport calculation
+  },
+
+  // Viewport configuration
+  VIEWPORT: {
+    ENABLE_DEFERRED_COLLECTION_DETECTION: true, // Enable fallback for delayed collection availability
+    DEFERRED_COLLECTION_DETECTION_DELAY: 10, // ms - delay for retrying collection detection
   },
 } as const;
 

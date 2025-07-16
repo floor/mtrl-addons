@@ -328,8 +328,33 @@ class ListManagerAPIImpl implements ListManagerAPI {
   }
 
   scrollToPage(page: number, alignment?: "start" | "center" | "end"): void {
-    // Legacy method - redirect to loadRange for better architecture
-    this.loadRange(page, 20, "page", alignment);
+    // Get the configured page size from collection or use default
+    const collection = this.listManager.collection as any;
+    let pageSize = 20; // Default
+
+    if (collection) {
+      // Try to get range size from collection
+      if (collection.rangeSize) {
+        pageSize = collection.rangeSize;
+      } else if (collection.getLoadedRanges) {
+        // Fallback to checking loaded ranges
+        const loadedRanges = collection.getLoadedRanges();
+        if (loadedRanges.size > 0) {
+          // Infer from loaded ranges
+          pageSize = this.listManager.config?.collection?.pageSize || 20;
+        }
+      }
+    }
+
+    // Also check config
+    if (this.listManager.config?.collection?.pageSize) {
+      pageSize = this.listManager.config.collection.pageSize;
+    }
+
+    console.log(
+      `🎯 [LIST-MANAGER-API] scrollToPage called: page=${page}, pageSize=${pageSize}, alignment=${alignment}`
+    );
+    this.loadRange(page, pageSize, "page", alignment);
   }
 
   // State API

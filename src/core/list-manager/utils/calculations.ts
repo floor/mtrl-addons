@@ -47,17 +47,9 @@ export function calculateVisibleRange(
       const loadedItemsEndPosition = position; // This is where our loaded items end
 
       if (virtualScrollPosition >= loadedItemsEndPosition) {
-        // We're scrolling beyond loaded items, estimate the index
-        const remainingDistance =
-          virtualScrollPosition - loadedItemsEndPosition;
-        const estimatedAdditionalItems = Math.floor(
-          remainingDistance / estimatedItemSize
-        );
-        // FIX: Add additional items to the number of measured items, not totalItems
-        startIndex = Math.min(
-          totalItems - 1,
-          measuredSizes.size + estimatedAdditionalItems
-        );
+        // We're scrolling beyond loaded items, use simple estimation
+        // This ensures we calculate the correct index based on total scroll position
+        startIndex = Math.floor(virtualScrollPosition / estimatedItemSize);
       } else {
         // Fallback to estimated calculation
         startIndex = Math.floor(virtualScrollPosition / estimatedItemSize);
@@ -70,7 +62,7 @@ export function calculateVisibleRange(
 
   // Calculate how many items fit in the container
   // Add extra items to ensure smooth scrolling without gaps
-  const visibleItemsCount = Math.ceil(containerSize / estimatedItemSize) + 2; // Add 2 extra items for smoother scrolling
+  const visibleItemsCount = Math.ceil(containerSize / estimatedItemSize); // Removed + 2 extra items
 
   // Calculate end index with overscan buffer
   const endIndex = Math.min(
@@ -80,7 +72,7 @@ export function calculateVisibleRange(
 
   // Apply overscan to start (but don't go below 0)
   // Increase overscan for smoother scrolling
-  const bufferedStartIndex = Math.max(0, startIndex - overscan - 1); // Add 1 extra item before
+  const bufferedStartIndex = Math.max(0, startIndex - overscan); // Removed - 1 extra item
 
   const result = {
     start: bufferedStartIndex,
@@ -249,6 +241,39 @@ export function calculateViewportInfo(
     visibleRange,
     virtualScrollPosition,
   };
+}
+
+/**
+ * Calculate optimal overscan based on viewport capacity
+ * Uses a percentage-based approach that scales with viewport size
+ */
+export function calculateOptimalOverscan(
+  containerSize: number,
+  estimatedItemSize: number,
+  scrollSpeed?: number
+): number {
+  // Calculate how many items fit in the viewport
+  const viewportCapacity = Math.ceil(containerSize / estimatedItemSize);
+
+  // Base overscan is 15% of viewport capacity
+  let overscan = Math.ceil(viewportCapacity * 0.15);
+
+  // Adjust based on scroll speed if provided
+  if (scrollSpeed !== undefined) {
+    if (scrollSpeed > 1000) {
+      // Fast scrolling: increase overscan to 25% of viewport
+      overscan = Math.ceil(viewportCapacity * 0.25);
+    } else if (scrollSpeed < 100) {
+      // Slow scrolling: reduce overscan to 10% of viewport
+      overscan = Math.ceil(viewportCapacity * 0.1);
+    }
+  }
+
+  // Apply min/max constraints
+  const MIN_OVERSCAN = 1;
+  const MAX_OVERSCAN = Math.min(10, Math.ceil(viewportCapacity * 0.3)); // Max 30% of viewport
+
+  return Math.max(MIN_OVERSCAN, Math.min(MAX_OVERSCAN, overscan));
 }
 
 /**

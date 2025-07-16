@@ -210,19 +210,29 @@ export const withViewport =
             `📊 [VIEWPORT] component.items.length: ${component.items.length}, actualTotalItems: ${actualTotalItems}`
           );
 
-          // Trigger collection to load missing ranges
-          collection.loadMissingRanges(targetRange).catch((error: any) => {
-            console.error(
-              "❌ [VIEWPORT] Failed to load missing ranges:",
-              error
+          // Use loading coordinator via loadDataForRange callback
+          if (config.loadDataForRange) {
+            console.log(
+              `📡 [VIEWPORT] Using loading coordinator for range ${targetRange.start}-${targetRange.end}`
             );
-          });
+            config.loadDataForRange(targetRange);
+          } else {
+            // Fallback to direct collection call if no coordinator
+            collection.loadMissingRanges(targetRange).catch((error: any) => {
+              console.error(
+                "❌ [VIEWPORT] Failed to load missing ranges:",
+                error
+              );
+            });
+          }
         } else {
           console.log(
             `✅ [VIEWPORT] All items in range ${targetRange.start}-${targetRange.end} are already loaded`
           );
         }
-      } else {
+      } else if (
+        LIST_MANAGER_CONSTANTS.VIEWPORT.ENABLE_DEFERRED_COLLECTION_DETECTION
+      ) {
         console.log(
           `⏰ [VIEWPORT] Collection not available, trying delayed detection...`
         );
@@ -274,18 +284,26 @@ export const withViewport =
                   .join(", ")}${missingIndices.length > 10 ? "..." : ""}]`
               );
 
-              // Trigger collection to load missing ranges
-              delayedCollection
-                .loadMissingRanges(targetRange)
-                .catch((error: any) => {
-                  console.error(
-                    "❌ [VIEWPORT] Failed to load missing ranges (delayed):",
-                    error
-                  );
-                });
+              // Use loading coordinator via loadDataForRange callback
+              if (config.loadDataForRange) {
+                console.log(
+                  `📡 [VIEWPORT] Using loading coordinator for delayed load ${targetRange.start}-${targetRange.end}`
+                );
+                config.loadDataForRange(targetRange);
+              } else {
+                // Fallback to direct collection call
+                delayedCollection
+                  .loadMissingRanges(targetRange)
+                  .catch((error: any) => {
+                    console.error(
+                      "❌ [VIEWPORT] Failed to load missing ranges:",
+                      error
+                    );
+                  });
+              }
             }
           }
-        }, 10); // Small delay to allow pipe composition to complete
+        }, LIST_MANAGER_CONSTANTS.VIEWPORT.DEFERRED_COLLECTION_DETECTION_DELAY); // Small delay to allow pipe composition to complete
       }
     };
 
@@ -340,7 +358,9 @@ export const withViewport =
         ),
       renderItems,
       () => actualTotalItems, // Pass the callback to get actual total items
-      loadDataForRange // Pass the proactive data loading function
+      loadDataForRange, // Pass the proactive data loading function
+      () => virtualManager.getHeightCapInfo(), // Pass height cap info getter
+      (index: number) => virtualManager.calculateVirtualPositionForIndex(index) // Pass position calculator
     );
 
     /**
@@ -512,7 +532,10 @@ export const withViewport =
         virtualManager.getState().containerSize /
           itemSizeManager.getEstimatedItemSize()
       );
-      const prefetchBuffer = itemsPerViewport * 2; // Load 2 viewports ahead
+
+      // DISABLED PREFETCH: Set to 0 to avoid loading wrong ranges
+      // TODO: Fix the range calculation before re-enabling prefetch
+      const prefetchBuffer = 0; // Was: Math.ceil(itemsPerViewport * 2);
       const extendedRange = {
         start: Math.max(0, newVisibleRange.start - prefetchBuffer),
         end: Math.min(
@@ -582,7 +605,8 @@ export const withViewport =
         }
 
         // Load extended range with lower priority (proactive)
-        if (extendedMissingCount > 0) {
+        // Skip if prefetch is disabled (prefetchBuffer === 0)
+        if (extendedMissingCount > 0 && prefetchBuffer > 0) {
           console.log(
             `🚀 [VIEWPORT] Proactively loading ${extendedMissingCount} missing items in extended range ${extendedRange.start}-${extendedRange.end}`
           );
@@ -592,15 +616,21 @@ export const withViewport =
               .join(", ")}${extendedMissingIndices.length > 10 ? "..." : ""}]`
           );
 
-          // Load extended range with slight delay to prioritize visible range
-          setTimeout(() => {
+          // Use loading coordinator for proactive loads
+          if (config.loadDataForRange) {
+            console.log(
+              `📡 [VIEWPORT] Using loading coordinator for extended range ${extendedRange.start}-${extendedRange.end}`
+            );
+            config.loadDataForRange(extendedRange);
+          } else {
+            // Fallback to direct collection call
             collection.loadMissingRanges(extendedRange).catch((error: any) => {
               console.error(
-                "❌ [VIEWPORT] Failed to load extended ranges:",
+                "❌ [VIEWPORT] Failed to load extended range:",
                 error
               );
             });
-          }, 50);
+          }
         }
 
         if (visibleMissingCount === 0 && extendedMissingCount === 0) {
@@ -608,7 +638,9 @@ export const withViewport =
             `✅ [VIEWPORT] All items in visible range ${newVisibleRange.start}-${newVisibleRange.end} and extended range ${extendedRange.start}-${extendedRange.end} are loaded`
           );
         }
-      } else {
+      } else if (
+        LIST_MANAGER_CONSTANTS.VIEWPORT.ENABLE_DEFERRED_COLLECTION_DETECTION
+      ) {
         // Try again after component layering is complete
         setTimeout(() => {
           const delayedCollection = (component as any).collection;
@@ -660,11 +692,11 @@ export const withViewport =
                 });
             }
           }
-        }, 10); // Small delay to allow pipe composition to complete
+        }, LIST_MANAGER_CONSTANTS.VIEWPORT.DEFERRED_COLLECTION_DETECTION_DELAY); // Small delay to allow pipe composition to complete
       }
 
       // Recycle out-of-range items
-      const buffer = overscan * 2; // Extra buffer for smooth scrolling
+      const buffer = overscan; // Reduced from overscan * 2 for fewer DOM elements
       const recycleStart = newVisibleRange.start - buffer;
       const recycleEnd = newVisibleRange.end + buffer;
 
@@ -717,7 +749,10 @@ export const withViewport =
         itemsContainer.offsetHeight;
 
         newElements.forEach(({ element, index }) => {
-          itemSizeManager.measureItem(element, index);
+          // Only measure if we don't already have a measurement
+          if (!itemSizeManager.hasMeasuredSize(index)) {
+            itemSizeManager.measureItem(element, index);
+          }
           element.style.visibility = "visible";
         });
       }

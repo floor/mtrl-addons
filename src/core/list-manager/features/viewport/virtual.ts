@@ -79,8 +79,8 @@ export const createVirtualManager = (
       ? getTotalItems()
       : component.totalItems;
 
-    // Also ensure we use the larger of totalItems or items.length for safety
-    const finalTotalItems = Math.max(actualTotalItems, component.items.length);
+    // Use the actual total items count - don't use items.length as it may be padded
+    const finalTotalItems = actualTotalItems;
 
     if (!isVirtualSizeCapped) {
       // Standard calculation for smaller datasets
@@ -111,6 +111,19 @@ export const createVirtualManager = (
         ? scrollPosition / currentTotalVirtualSize
         : 0;
     const actualScrollPosition = scrollRatio * currentActualTotalSize;
+
+    // Debug logging for height-capped calculations
+    if (scrollPosition > 0) {
+      console.log(`🔍 [VIRTUAL-CAPPED] Mapping scroll position:
+        Virtual scroll: ${scrollPosition}px
+        Virtual total: ${currentTotalVirtualSize}px
+        Scroll ratio: ${scrollRatio}
+        Actual total: ${currentActualTotalSize}px
+        Mapped position: ${actualScrollPosition}px
+        Expected index: ${Math.floor(
+          actualScrollPosition / itemSizeManager.getEstimatedItemSize()
+        )}`);
+    }
 
     // Calculate visible range using actual scroll position
     const range = calculateVisibleRangeUtil(

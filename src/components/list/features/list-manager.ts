@@ -51,17 +51,29 @@ export const withListManager =
   <C extends BaseComponent & ElementComponent>(
     component: C
   ): C & Partial<ListComponent<T>> => {
+    console.log("🔍 [LIST-MANAGER] withListManager config:", {
+      hasPagination: !!config.pagination,
+      paginationLimit: config.pagination?.limit,
+      paginationStrategy: config.pagination?.strategy,
+    });
+
     // Get container dimensions for optimal limit calculation
     const containerElement = component.element;
     const containerSize = containerElement.offsetHeight || 600; // Default to 600px
     const estimatedItemSize = config.scroll?.estimatedItemSize || 50;
     const overscan = config.scroll?.overscan || 5;
 
-    // Calculate optimal limit based on viewport dimensions
-    const optimalLimit = calculateOptimalLimit(
-      containerSize,
-      estimatedItemSize,
-      overscan
+    // Use fixed limit from pagination config if provided, otherwise calculate optimal limit
+    const pageSize =
+      config.pagination?.limit ||
+      calculateOptimalLimit(containerSize, estimatedItemSize, overscan);
+
+    console.log(
+      `📄 [LIST-MANAGER] Using page size: ${pageSize} (${
+        config.pagination?.limit
+          ? "fixed from config"
+          : "calculated from viewport"
+      })`
     );
 
     // Convert List Config to Phase 1 List Manager Config
@@ -92,12 +104,12 @@ export const withListManager =
         crossAxisAlignment: config.orientation?.crossAxisAlignment || "stretch",
       },
 
-      // Collection configuration (if using API) - Now uses optimal limit
+      // Collection configuration (if using API) - Now uses pageSize from pagination config
       collection: config.adapter
         ? {
             adapter: config.adapter,
-            pageSize: optimalLimit, // Use calculated optimal limit instead of fixed 20
-            strategy: "page" as const,
+            pageSize: pageSize, // Use fixed limit or calculated optimal limit
+            strategy: config.pagination?.strategy || ("page" as const),
           }
         : undefined,
 

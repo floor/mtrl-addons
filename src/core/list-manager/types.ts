@@ -86,7 +86,6 @@ export interface CollectionFeature {
     | null;
 
   // Methods
-  handleSpeedChange(speed: number): void;
   loadMissingRanges(visibleRange: ItemRange): void;
   showPlaceholders(range: ItemRange): void;
   updateLoadedData(items: any[], offset: number): void;
@@ -397,4 +396,43 @@ export interface ListManagerComponent {
 
 export interface TemplateFunction {
   (item: any, index: number): string | HTMLElement;
+}
+
+export interface CollectionComponent extends ListManagerComponent {
+  collection: {
+    // Data management
+    setItems: (items: any[]) => void;
+    getItems: () => any[];
+    setTotalItems: (total: number) => void;
+    getTotalItems: () => number;
+
+    // Range management
+    loadRange: (offset: number, limit: number) => Promise<any[]>;
+    loadMissingRanges: (visibleRange: ItemRange) => Promise<void>;
+    getLoadedRanges: () => Set<number>;
+    getPendingRanges: () => Set<number>;
+    getFailedRanges: () => Map<
+      number,
+      { attempts: number; lastError: Error; timestamp: number }
+    >;
+    clearFailedRanges: () => void;
+    retryFailedRange: (rangeId: number) => Promise<any[]>;
+
+    // Pagination strategy
+    setPaginationStrategy: (strategy: "page" | "offset" | "cursor") => void;
+    getPaginationStrategy: () => string;
+
+    // Placeholder system
+    analyzeDataStructure: (items: any[]) => void;
+    generatePlaceholderItem: (index: number) => any;
+    showPlaceholders: (count: number) => void;
+    getPlaceholderStructure: () => Map<
+      string,
+      { min: number; max: number }
+    > | null;
+
+    // State
+    isInitialized: () => boolean;
+    updateLoadedData: (items: any[], offset: number) => void;
+  };
 }

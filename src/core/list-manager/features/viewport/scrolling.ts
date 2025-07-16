@@ -111,7 +111,9 @@ export const createScrollingManager = (
   calculateVisibleRange: () => ItemRange,
   renderItems: () => void,
   getTotalItems?: () => number,
-  loadDataForRange?: (range: { start: number; end: number }) => void // Change to loadDataForRange callback
+  loadDataForRange?: (range: { start: number; end: number }) => void, // Change to loadDataForRange callback
+  getHeightCapInfo?: () => any, // Get height cap info from virtual manager
+  calculateVirtualPositionForIndex?: (index: number) => number // Calculate virtual position for index
 ): ScrollingManager => {
   const {
     orientation,
@@ -159,6 +161,7 @@ export const createScrollingManager = (
   let lastTimestamp = Date.now();
   let currentAcceleration = 0;
   let animationFrameId: number | null = null;
+  let lastWheelEventTime = Date.now(); // Track last wheel event time
 
   // Scrollbar state (managed by external plugin)
   let scrollbarPlugin: any = null;
@@ -195,6 +198,15 @@ export const createScrollingManager = (
 
     // Calculate instantaneous velocity
     const instantVelocity = Math.abs(deltaPosition) / deltaTime;
+
+    // Debug logging for velocity
+    if (instantVelocity > 0.5) {
+      console.log(
+        `🎯 [SCROLLING] Raw velocity: ${instantVelocity.toFixed(
+          2
+        )}px/ms (delta: ${deltaPosition}px / ${deltaTime}ms)`
+      );
+    }
 
     // Update direction
     const newDirection = deltaPosition >= 0 ? "forward" : "backward";
@@ -250,10 +262,12 @@ export const createScrollingManager = (
       acceleration: currentAcceleration,
     });
 
-    // Notify collection if available
-    if ((component as any).collection?.handleSpeedChange) {
-      (component as any).collection.handleSpeedChange(smoothedSpeed);
-    }
+    // Emit speed changed event for loading coordinator
+    component.emit?.("speed:changed", {
+      speed: speedTracker.velocity, // Use raw velocity for loading decisions
+      direction: speedTracker.direction,
+      isAccelerating: speedTracker.isAccelerating,
+    });
   };
 
   /**
@@ -321,6 +335,10 @@ export const createScrollingManager = (
   const handleWheel = (event: WheelEvent): void => {
     event.preventDefault();
 
+    const now = Date.now();
+    const actualDeltaTime = Math.max(1, now - lastWheelEventTime); // Minimum 1ms to avoid division by zero
+    lastWheelEventTime = now;
+
     const sensitivity =
       LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.SCROLL_SENSITIVITY;
     const delta = orientation === "vertical" ? event.deltaY : event.deltaX;
@@ -338,10 +356,9 @@ export const createScrollingManager = (
     // Update scroll position immediately for instant feedback
     virtualScrollPosition = newPosition;
 
-    // Update velocity tracking with the actual delta
+    // Update velocity tracking with the actual delta and real time
     const deltaPosition = newPosition - previousPosition;
-    const deltaTime = 16; // Assume 60fps for wheel events
-    updateVelocityTracking(deltaPosition, deltaTime);
+    updateVelocityTracking(deltaPosition, actualDeltaTime);
 
     // Update container position immediately for instant feedback
     updateContainerPosition();
@@ -397,6 +414,33 @@ export const createScrollingManager = (
       // 'start' is default - no adjustment needed
     }
 
+    // CRITICAL: Use virtual manager's position calculator for height-capped lists
+    if (calculateVirtualPositionForIndex && getHeightCapInfo) {
+      const heightCapInfo = getHeightCapInfo();
+      if (heightCapInfo && heightCapInfo.isVirtualSizeCapped) {
+        // Use virtual manager's calculator which handles height capping correctly
+        const virtualPosition = calculateVirtualPositionForIndex(index);
+
+        console.log(`🎯 [SCROLLING] Using virtual position for height-capped list:
+          Index: ${index}
+          Actual position: ${targetPosition}px
+          Virtual position: ${virtualPosition}px
+          Height capped: ${heightCapInfo.isVirtualSizeCapped}`);
+
+        targetPosition = virtualPosition;
+
+        // Adjust for alignment after mapping to virtual space
+        switch (alignment) {
+          case "center":
+            targetPosition -= containerSize / 2;
+            break;
+          case "end":
+            targetPosition -= containerSize;
+            break;
+        }
+      }
+    }
+
     // Ensure position is within bounds
     const maxPosition = Math.max(0, totalVirtualSize - containerSize);
     targetPosition = Math.max(0, Math.min(targetPosition, maxPosition));
@@ -421,6 +465,17 @@ export const createScrollingManager = (
 
     // Notify about virtual range change
     onVirtualRangeChanged?.(newVisibleRange);
+
+    // Trigger rendering for the new range
+    renderItems();
+
+    // Load data for the new range if needed
+    if (loadDataForRange) {
+      loadDataForRange({
+        start: newVisibleRange.start,
+        end: newVisibleRange.end,
+      });
+    }
   };
 
   /**

@@ -4,30 +4,61 @@
  */
 
 import { pipe } from "../compose";
-import { withViewport } from "./features/viewport";
-import { withCollection } from "./features/collection";
-import { withPlaceholders } from "./features/viewport";
-import type { ListManagerComponent, ListManagerConfig } from "./types";
+import { withCollection } from "./features/collection/collection";
+import { withViewport } from "./features/viewport/viewport";
+import { withPlaceholders } from "./features/viewport/placeholders";
+import { createLoadingCoordinator } from "./features/loading-coordinator";
+import { LIST_MANAGER_CONSTANTS } from "./constants";
+import type { ListManagerConfig, ListManagerComponent } from "./types";
 
 /**
- * Configuration for list manager enhancers
+ * Default configuration for List Manager
  */
-export interface ListManagerEnhancerConfig {
-  viewport?: Parameters<typeof withViewport>[0];
-  collection?: Parameters<typeof withCollection>[0];
-  placeholders?: Parameters<typeof withPlaceholders>[0];
-}
+const DEFAULT_CONFIG: Partial<ListManagerConfig> = {
+  orientation: {
+    orientation: "vertical",
+    reverse: false,
+    crossAxisAlignment: "stretch",
+  },
+  virtual: {
+    estimatedItemSize: LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.DEFAULT_ITEM_SIZE,
+    itemSize: LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.DEFAULT_ITEM_SIZE,
+    overscan: LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER,
+    enabled: true,
+  },
+  collection: {
+    pageSize: LIST_MANAGER_CONSTANTS.RANGE_LOADING.DEFAULT_RANGE_SIZE,
+    strategy: "page",
+  },
+};
 
 /**
- * Creates a List Manager with all enhancers applied
- *
- * @param config - Configuration for the list manager
- * @returns Enhanced List Manager component
+ * Creates a new List Manager component
  */
 export const createListManager = (
   config: ListManagerConfig
 ): ListManagerComponent => {
-  // Base component factory
+  const container = config.container;
+
+  // Merge config with defaults - handle undefined properties
+  const mergedConfig: ListManagerConfig = {
+    ...DEFAULT_CONFIG,
+    ...config,
+    orientation: {
+      ...DEFAULT_CONFIG.orientation,
+      ...(config.orientation || {}),
+    },
+    virtual: {
+      ...DEFAULT_CONFIG.virtual,
+      ...(config.virtual || {}),
+    },
+    collection: {
+      ...DEFAULT_CONFIG.collection,
+      ...(config.collection || {}),
+    },
+  } as ListManagerConfig;
+
+  // Create base component
   const createBaseComponent = (): ListManagerComponent => {
     // Simple event system
     const eventListeners = new Map<string, Function[]>();
@@ -63,25 +94,39 @@ export const createListManager = (
     };
 
     return {
-      element: config.container,
-      config,
+      element: container,
+      config: mergedConfig,
       componentName: "list-manager",
-      items: config.items || [],
-      totalItems: config.items?.length || 0,
+      getClass: (name: string) => `mtrl-list-manager__${name}`,
+      items: [],
+      totalItems: config.collection?.totalItems || 0,
       template: config.template?.template || null,
       isInitialized: false,
       isDestroyed: false,
-      getClass: (suffix: string) => `${config.prefix || "mtrl"}-${suffix}`,
       emit,
       on,
-      initialize: () => {},
-      destroy: () => {},
-      updateConfig: (newConfig: Partial<ListManagerConfig>) => {
-        Object.assign(config, newConfig);
+      initialize: () => {
+        console.log("🚀 [LIST-MANAGER] Initializing...");
       },
-      getConfig: () => ({ ...config }),
+      destroy: () => {
+        console.log("👋 [LIST-MANAGER] Destroying...");
+      },
+      updateConfig: (update: Partial<ListManagerConfig>) => {
+        Object.assign(mergedConfig, update);
+      },
+      getConfig: () => mergedConfig,
     };
   };
+
+  // Create loading coordinator
+  let loadingCoordinator: ReturnType<typeof createLoadingCoordinator> | null =
+    null;
+
+  console.log("🔍 [LIST-MANAGER] createListManager config.collection:", {
+    hasAdapter: !!config.collection?.adapter,
+    pageSize: config.collection?.pageSize,
+    strategy: config.collection?.strategy,
+  });
 
   // Compose enhancers - CRITICAL: Collection must be applied before viewport
   // so that viewport can access collection.loadMissingRanges
@@ -96,9 +141,9 @@ export const createListManager = (
       enabled: true,
     }),
     withViewport({
-      orientation: config.orientation?.orientation,
-      estimatedItemSize: config.virtual?.estimatedItemSize,
-      overscan: config.virtual?.overscan,
+      orientation: mergedConfig.orientation?.orientation,
+      estimatedItemSize: mergedConfig.virtual?.estimatedItemSize,
+      overscan: mergedConfig.virtual?.overscan,
       enableScrollbar: true,
       // Pass callback to load data for a specific range
       loadDataForRange: (range: { start: number; end: number }) => {
@@ -106,32 +151,36 @@ export const createListManager = (
           `📡 [LIST-MANAGER] Proactive data request for range ${range.start}-${range.end}`
         );
 
-        // This callback will be called during enhancement, we need to defer the collection access
-        // until after the component is fully enhanced
-        setTimeout(() => {
-          const collectionComponent = component as any;
-          if (
-            collectionComponent.collection &&
-            typeof collectionComponent.collection.loadMissingRanges ===
-              "function"
-          ) {
-            console.log(
-              `🌐 [LIST-MANAGER] Requesting collection to load range ${range.start}-${range.end}`
-            );
-            collectionComponent.collection
-              .loadMissingRanges(range)
-              .catch((error: any) => {
-                console.error(
-                  "❌ [LIST-MANAGER] Failed to load missing ranges:",
-                  error
-                );
-              });
-          } else {
-            console.log(
-              `⚠️ [LIST-MANAGER] Collection not available for proactive loading`
-            );
-          }
-        }, 0);
+        // Use loading coordinator if available
+        if (loadingCoordinator) {
+          loadingCoordinator.requestLoad(range, "normal");
+        } else {
+          // Fallback to direct loading
+          setTimeout(() => {
+            const collectionComponent = component as any;
+            if (
+              collectionComponent.collection &&
+              typeof collectionComponent.collection.loadMissingRanges ===
+                "function"
+            ) {
+              console.log(
+                `🌐 [LIST-MANAGER] Requesting collection to load range ${range.start}-${range.end}`
+              );
+              collectionComponent.collection
+                .loadMissingRanges(range)
+                .catch((error: any) => {
+                  console.error(
+                    "❌ [LIST-MANAGER] Failed to load missing ranges:",
+                    error
+                  );
+                });
+            } else {
+              console.log(
+                `⚠️ [LIST-MANAGER] Collection not available for proactive loading`
+              );
+            }
+          }, 0);
+        }
       },
     })
   );
@@ -139,85 +188,34 @@ export const createListManager = (
   // Create and enhance component
   const component = enhance(createBaseComponent());
 
-  // Auto-initialize
-  component.initialize();
+  // Create loading coordinator after component is enhanced
+  loadingCoordinator = createLoadingCoordinator(component, {
+    maxConcurrentRequests: config.collection?.maxConcurrentRequests,
+  });
 
+  // Wire up velocity updates from scrolling to loading coordinator
+  if (component.on) {
+    component.on("speed:changed", (data: any) => {
+      if (loadingCoordinator) {
+        loadingCoordinator.updateVelocity(data.speed, data.direction);
+      }
+    });
+  }
+
+  // Initialize component
+  if ((component as any).viewport?.initialize) {
+    (component as any).viewport.initialize();
+  }
+
+  // Return the enhanced component
   return component;
 };
 
 /**
- * Creates a List Manager with custom enhancer configuration
+ * Configuration for list manager enhancers
  */
-export const createCustomListManager = (
-  config: ListManagerConfig,
-  enhancerConfig: ListManagerEnhancerConfig = {}
-): ListManagerComponent => {
-  const createBaseComponent = (): ListManagerComponent => {
-    // Simple event system
-    const eventListeners = new Map<string, Function[]>();
-
-    const emit = (event: string, data?: any) => {
-      console.log(`📡 ${event}:`, data);
-      const listeners = eventListeners.get(event) || [];
-      listeners.forEach((listener) => {
-        try {
-          listener(data);
-        } catch (error) {
-          console.error(`Error in event listener for ${event}:`, error);
-        }
-      });
-    };
-
-    const on = (event: string, listener: Function) => {
-      if (!eventListeners.has(event)) {
-        eventListeners.set(event, []);
-      }
-      eventListeners.get(event)!.push(listener);
-
-      // Return unsubscribe function
-      return () => {
-        const listeners = eventListeners.get(event);
-        if (listeners) {
-          const index = listeners.indexOf(listener);
-          if (index > -1) {
-            listeners.splice(index, 1);
-          }
-        }
-      };
-    };
-
-    return {
-      element: config.container,
-      config,
-      componentName: "list-manager",
-      items: config.items || [],
-      totalItems: config.items?.length || 0,
-      template: config.template?.template || null,
-      isInitialized: false,
-      isDestroyed: false,
-      getClass: (suffix: string) => `${config.prefix || "mtrl"}-${suffix}`,
-      emit,
-      on,
-      initialize: () => {},
-      destroy: () => {},
-      updateConfig: (newConfig: Partial<ListManagerConfig>) => {
-        Object.assign(config, newConfig);
-      },
-      getConfig: () => ({ ...config }),
-    };
-  };
-
-  const enhance = pipe(
-    withViewport(enhancerConfig.viewport || {}),
-    withCollection(enhancerConfig.collection || {}),
-    withPlaceholders(enhancerConfig.placeholders || {})
-  );
-
-  const component = enhance(createBaseComponent());
-  component.initialize();
-
-  return component;
-};
-
-// Export enhancers for individual use
-export { withViewport, withCollection, withPlaceholders };
+export interface ListManagerEnhancerConfig {
+  viewport?: Parameters<typeof withViewport>[0];
+  collection?: Parameters<typeof withCollection>[0];
+  placeholders?: Parameters<typeof withPlaceholders>[0];
+}

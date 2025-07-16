@@ -74,13 +74,12 @@ export interface CollectionComponent {
     loadMissingRanges: (range: ItemRange) => Promise<void>;
     getLoadedRanges: () => Set<number>;
     getPendingRanges: () => Set<number>;
-
-    // Speed tracking
-    handleSpeedChange: (
-      speed: number,
-      direction: "forward" | "backward"
-    ) => void;
-    getSpeedTracker: () => SpeedTracker;
+    getFailedRanges: () => Map<
+      number,
+      { attempts: number; lastError: Error; timestamp: number }
+    >;
+    clearFailedRanges: () => void;
+    retryFailedRange: (rangeId: number) => Promise<any[]>;
 
     // Pagination strategy
     setPaginationStrategy: (strategy: "page" | "offset" | "cursor") => void;
@@ -119,34 +118,24 @@ export const withCollection =
     const estimatedItemSize = 84; // Default estimated item size
     const overscan = 5; // Default overscan
 
-    // Use calculated optimal range size or fallback to config/default
+    // Use provided rangeSize from config, otherwise calculate optimal range size
     const rangeSize =
       config.rangeSize ||
       calculateOptimalRangeSize(containerSize, estimatedItemSize, overscan);
 
     let paginationStrategy: "page" | "offset" | "cursor" =
       config.strategy || "page";
-    const fastThreshold =
-      config.fastThreshold ||
-      LIST_MANAGER_CONSTANTS.SPEED_TRACKING.FAST_SCROLL_THRESHOLD;
-    const slowThreshold =
-      config.slowThreshold ||
-      LIST_MANAGER_CONSTANTS.SPEED_TRACKING.SLOW_SCROLL_THRESHOLD;
     const maskCharacter =
       config.maskCharacter || LIST_MANAGER_CONSTANTS.PLACEHOLDER.MASK_CHARACTER;
     const enablePlaceholders = config.enablePlaceholders !== false;
 
-    // Speed tracking state
-    let speedTracker: SpeedTracker = {
-      velocity: 0,
-      direction: "forward",
-      isAccelerating: false,
-      lastMeasurement: Date.now(),
-    };
-
     // Range management
     const loadedRanges = new Set<number>();
     const pendingRanges = new Set<number>();
+    const failedRanges = new Map<
+      number,
+      { attempts: number; lastError: Error; timestamp: number }
+    >();
 
     // Placeholder system
     let placeholderStructure: Map<string, { min: number; max: number }> | null =
@@ -157,8 +146,11 @@ export const withCollection =
 
     // State
     let isCollectionInitialized = false;
-    let lastSpeedMeasurement = Date.now();
-    let speedHistory: number[] = [];
+
+    // Initialize component items array if not already present
+    if (!component.items) {
+      component.items = [];
+    }
 
     /**
      * Initialize collection
@@ -192,60 +184,16 @@ export const withCollection =
     };
 
     /**
-     * Destroy collection
+     * Cleanup collection resources
      */
     const destroy = (): void => {
-      if (!isCollectionInitialized) return;
-
+      // Reset state
       loadedRanges.clear();
       pendingRanges.clear();
+      failedRanges.clear();
       placeholderStructure = null;
-      speedHistory = [];
-
-      isCollectionInitialized = false;
-      component.emit?.("collection:destroyed", {});
-    };
-
-    /**
-     * Handle speed changes for loading optimization
-     */
-    const handleSpeedChange = (speed: number): void => {
-      const now = Date.now();
-      const timeDelta = now - lastSpeedMeasurement;
-
-      // Update speed tracker
-      const previousVelocity = speedTracker.velocity;
-      speedTracker.velocity = Math.abs(speed);
-      speedTracker.direction = speed > 0 ? "forward" : "backward";
-      speedTracker.isAccelerating = speedTracker.velocity > previousVelocity;
-      speedTracker.lastMeasurement = now;
-
-      // Track speed history for smoothing
-      speedHistory.push(speedTracker.velocity);
-      if (speedHistory.length > 10) {
-        speedHistory.shift(); // Keep last 10 measurements
-      }
-
-      // Calculate smoothed speed
-      const smoothedSpeed =
-        speedHistory.reduce((sum, s) => sum + s, 0) / speedHistory.length;
-
-      lastSpeedMeasurement = now;
-
-      // Speed-based loading decisions
-      if (smoothedSpeed > fastThreshold) {
-        // Fast scrolling - show placeholders, defer loading
-        handleFastScrolling();
-      } else if (smoothedSpeed < slowThreshold) {
-        // Slow scrolling - load immediately
-        handleSlowScrolling();
-      }
-
-      component.emit?.("speed:changed", {
-        speed: smoothedSpeed,
-        direction: speedTracker.direction,
-        isAccelerating: speedTracker.isAccelerating,
-      });
+      component.items = []; // Clear items on destroy
+      component.totalItems = 0; // Reset total items
     };
 
     /**
@@ -260,6 +208,7 @@ export const withCollection =
 
       if (pendingRanges.has(rangeId)) {
         // Already loading this range
+        console.log(`⏳ [COLLECTION] Range ${rangeId} is already being loaded`);
         return [];
       }
 
@@ -278,6 +227,10 @@ export const withCollection =
               items = await collection.loadPage({ page, limit });
             } else if (collection.read) {
               const result = await collection.read({ page, limit });
+              // Check if the adapter returned an error
+              if (result.error) {
+                throw new Error(result.error.message || "Failed to load data");
+              }
               items = result.items || [];
               responseMeta = result.meta || {};
             } else {
@@ -292,6 +245,10 @@ export const withCollection =
               items = await collection.loadRange({ offset, limit });
             } else if (collection.read) {
               const result = await collection.read({ offset, limit });
+              // Check if the adapter returned an error
+              if (result.error) {
+                throw new Error(result.error.message || "Failed to load data");
+              }
               items = result.items || [];
               responseMeta = result.meta || {};
             } else {
@@ -313,6 +270,10 @@ export const withCollection =
                 cursor: getCursorForOffset(offset),
                 limit,
               });
+              // Check if the adapter returned an error
+              if (result.error) {
+                throw new Error(result.error.message || "Failed to load data");
+              }
               items = result.items || [];
               responseMeta = result.meta || {};
             } else {
@@ -360,13 +321,39 @@ export const withCollection =
 
         return items;
       } catch (error) {
-        component.emit?.("error:occurred", {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.warn(
+          `⚠️ [COLLECTION] Failed to load range ${rangeId} (offset: ${offset}):`,
+          errorMessage
+        );
+
+        // Remove from loaded ranges so it can be retried later
+        loadedRanges.delete(rangeId);
+
+        // Track failed range with retry information
+        const failedInfo = failedRanges.get(rangeId) || {
+          attempts: 0,
+          lastError: error as Error,
+          timestamp: Date.now(),
+        };
+        failedInfo.attempts++;
+        failedInfo.lastError = error as Error;
+        failedInfo.timestamp = Date.now();
+        failedRanges.set(rangeId, failedInfo);
+
+        component.emit?.("range:failed", {
+          rangeId,
+          offset,
+          limit,
           error: error as Error,
-          context: `loading-range-${offset}-${limit}`,
+          attempts: failedInfo.attempts,
           strategy: paginationStrategy,
         });
 
-        throw error;
+        // Return empty array instead of throwing
+        // This prevents error propagation but allows the system to continue
+        return [];
       } finally {
         pendingRanges.delete(rangeId);
       }
@@ -380,16 +367,61 @@ export const withCollection =
     ): Promise<void> => {
       if (!collection) return;
 
+      // Check if we already have too many pending requests
+      if (
+        pendingRanges.size >=
+        LIST_MANAGER_CONSTANTS.RANGE_LOADING.MAX_CONCURRENT_REQUESTS
+      ) {
+        console.log(
+          `⏸️ [COLLECTION] Deferring load - already ${pendingRanges.size} requests pending`
+        );
+        return;
+      }
+
       const startRange = Math.floor(visibleRange.start / rangeSize);
       const endRange = Math.floor(visibleRange.end / rangeSize);
 
       const loadPromises: Promise<any[]>[] = [];
+      const rangesToLoad: number[] = [];
 
-      for (let range = startRange; range <= endRange; range++) {
+      // During fast scrolling, only load the most critical ranges
+      const maxRangesToLoad = 3;
+      let rangesQueued = 0;
+
+      for (
+        let range = startRange;
+        range <= endRange && rangesQueued < maxRangesToLoad;
+        range++
+      ) {
         if (!loadedRanges.has(range) && !pendingRanges.has(range)) {
+          // Check if this is a failed range and if we should retry
+          const failedInfo = failedRanges.get(range);
+          if (failedInfo) {
+            const timeSinceLastAttempt = Date.now() - failedInfo.timestamp;
+            const backoffTime = Math.min(
+              1000 * Math.pow(2, failedInfo.attempts - 1),
+              30000
+            ); // Exponential backoff, max 30s
+
+            if (timeSinceLastAttempt < backoffTime) {
+              // Skip this range, too soon to retry
+              continue;
+            }
+          }
+
           const offset = range * rangeSize;
+          rangesToLoad.push(range);
           loadPromises.push(loadRange(offset, rangeSize));
+          rangesQueued++;
         }
+      }
+
+      if (rangesToLoad.length > 0) {
+        console.log(
+          `📥 [COLLECTION] Loading ${
+            rangesToLoad.length
+          } ranges: [${rangesToLoad.join(", ")}]`
+        );
       }
 
       // Load ranges concurrently but respect max concurrent requests
@@ -403,7 +435,7 @@ export const withCollection =
       component.emit?.("loading:triggered", {
         range: visibleRange,
         strategy: paginationStrategy,
-        rangesLoaded: endRange - startRange + 1,
+        rangesLoaded: rangesToLoad.length,
       });
     };
 
@@ -537,10 +569,10 @@ export const withCollection =
         const wasPlaceholder =
           existingItem && existingItem[PLACEHOLDER.PLACEHOLDER_FLAG];
 
-        console.log(
-          `📥 [COLLECTION] Setting item at index ${targetIndex}:`,
-          item ? "exists" : "null/undefined"
-        );
+        // console.log(
+        //   `📥 [COLLECTION] Setting item at index ${targetIndex}:`,
+        //   item ? "exists" : "null/undefined"
+        // );
         component.items[targetIndex] = item;
 
         if (wasPlaceholder) {
@@ -574,43 +606,6 @@ export const withCollection =
           `📊 [COLLECTION] Updated total items incrementally: ${loadedTotal}`
         );
       }
-    };
-
-    /**
-     * Handle fast scrolling behavior
-     */
-    const handleFastScrolling = (): void => {
-      // Get current visible range from viewport if available
-      const visibleRange = (component as any).viewport?.getVisibleRange?.() || {
-        start: 0,
-        end: 10,
-      };
-
-      // Show placeholders immediately (count = range size)
-      const placeholderCount = visibleRange.end - visibleRange.start + 1;
-      showPlaceholders(placeholderCount);
-
-      // Defer actual loading slightly to avoid spam
-      setTimeout(() => {
-        if (speedTracker.velocity < fastThreshold) {
-          // Speed has decreased, now load the data
-          loadMissingRanges(visibleRange);
-        }
-      }, LIST_MANAGER_CONSTANTS.PERFORMANCE.DEBOUNCE_LOADING);
-    };
-
-    /**
-     * Handle slow scrolling behavior
-     */
-    const handleSlowScrolling = (): void => {
-      // Get current visible range from viewport if available
-      const visibleRange = (component as any).viewport?.getVisibleRange?.() || {
-        start: 0,
-        end: 10,
-      };
-
-      // Load immediately for reading/browsing behavior
-      loadMissingRanges(visibleRange);
     };
 
     /**
@@ -679,10 +674,19 @@ export const withCollection =
       loadMissingRanges,
       getLoadedRanges: () => new Set(loadedRanges),
       getPendingRanges: () => new Set(pendingRanges),
-
-      // Speed tracking
-      handleSpeedChange,
-      getSpeedTracker: () => ({ ...speedTracker }),
+      getFailedRanges: () => new Map(failedRanges),
+      clearFailedRanges: () => {
+        failedRanges.clear();
+        console.log("🔄 [COLLECTION] Cleared all failed ranges");
+      },
+      retryFailedRange: (rangeId: number) => {
+        if (failedRanges.has(rangeId)) {
+          failedRanges.delete(rangeId);
+          const offset = rangeId * rangeSize;
+          return loadRange(offset, rangeSize);
+        }
+        return Promise.resolve([]);
+      },
 
       // Pagination strategy
       setPaginationStrategy: (strategy: "page" | "offset" | "cursor") => {

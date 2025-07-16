@@ -160,6 +160,16 @@ export interface ListOrientationConfig {
 }
 
 /**
+ * List pagination configuration
+ */
+export interface ListPaginationConfig {
+  /** Pagination strategy */
+  strategy?: "page" | "offset" | "cursor";
+  /** Fixed page size/limit (overrides viewport-based calculation) */
+  limit?: number;
+}
+
+/**
  * Complete List component configuration
  */
 export interface ListConfig<T = any> extends ListStyleConfig {
@@ -168,6 +178,9 @@ export interface ListConfig<T = any> extends ListStyleConfig {
 
   // Performance layer (List Manager) configuration
   listManager?: Partial<ListManagerConfig>;
+
+  // Pagination configuration
+  pagination?: ListPaginationConfig;
 
   // Presentation layer configuration
   /** Container element or selector */
