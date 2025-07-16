@@ -280,7 +280,11 @@ export const withViewport =
         virtualManager.calculateVisibleRange(
           scrollingManager.getScrollPosition()
         ),
-      () => renderItems(), // Wrap in arrow function to avoid hoisting issues
+      () => {
+        if (renderingManager) {
+          renderingManager.renderItems();
+        }
+      }, // Wrap in arrow function to avoid hoisting issues
       () => actualTotalItems, // Pass the callback to get actual total items
       loadDataForRange, // Pass the proactive data loading function
       () => virtualManager.getHeightCapInfo(), // Pass height cap info getter
@@ -341,15 +345,19 @@ export const withViewport =
           const currentTotal = data?.total || component.totalItems;
           virtualManager.updateTotalVirtualSize(currentTotal);
           // Force recalculation
-          renderItems();
+          if (renderingManager) {
+            renderingManager.renderItems();
+          }
         });
 
         component.on("range:loaded", (data: any) => {
           // Use actualTotalItems which maintains the correct total (1M) instead of
           // component.totalItems which may be temporarily reset during data loading
           virtualManager.updateTotalVirtualSize(actualTotalItems);
-          // Force recalculation
-          renderItems();
+          // Always render when data loads - the render function will handle what to show
+          if (renderingManager) {
+            renderingManager.renderItems();
+          }
         });
 
         component.on("total:changed", (data: any) => {
@@ -368,11 +376,15 @@ export const withViewport =
           }
 
           // Force recalculation
-          renderItems();
+          if (renderingManager) {
+            renderingManager.renderItems();
+          }
         });
 
         component.on("placeholders:replaced", () => {
-          renderItems();
+          if (renderingManager) {
+            renderingManager.renderItems();
+          }
         });
 
         component.on("estimated-size:changed", (data: any) => {

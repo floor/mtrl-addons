@@ -91,9 +91,25 @@ export const createRenderingManager = (
       newVisibleRange.end !== currentVisibleRange.end;
 
     // Update positions even if range hasn't changed
-    if (!rangeChanged) {
-      updateItemPositions();
-      return;
+    if (!rangeChanged && renderedElements.size > 0) {
+      // Check if we have all the items in the visible range rendered
+      let hasAllVisibleItems = true;
+      for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
+        if (
+          i < component.items.length &&
+          component.items[i] &&
+          !renderedElements.has(i)
+        ) {
+          hasAllVisibleItems = false;
+          break;
+        }
+      }
+
+      // Only skip rendering if we have all visible items already rendered
+      if (hasAllVisibleItems) {
+        updateItemPositions();
+        return;
+      }
     }
 
     // Proactively load data for visible range AND upcoming ranges
