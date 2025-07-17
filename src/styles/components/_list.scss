@@ -72,7 +72,7 @@ $scrollbar-fade-transition: opacity 0.2s ease;
         background: $scrollbar-thumb-color;
         border-radius: $scrollbar-border-radius;
         cursor: pointer;
-        transition: $scrollbar-transition;
+        transition: background-color 0.2s ease; // Only transition color, not position
 
         &:hover {
           background: $scrollbar-thumb-hover-color;

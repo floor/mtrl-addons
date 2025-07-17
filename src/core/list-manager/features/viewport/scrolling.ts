@@ -330,7 +330,7 @@ export const createScrollingManager = (
   };
 
   /**
-   * Handle wheel events for virtual scrolling with integrated velocity tracking
+   * Handle wheel events for scrolling
    */
   const handleWheel = (event: WheelEvent): void => {
     event.preventDefault();
@@ -397,6 +397,7 @@ export const createScrollingManager = (
 
     // Update container position immediately for instant feedback
     updateContainerPosition();
+    updateScrollbar();
     showScrollbar();
 
     // Trigger rendering for new visible range

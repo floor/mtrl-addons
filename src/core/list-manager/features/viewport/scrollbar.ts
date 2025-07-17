@@ -383,13 +383,8 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
       // Listen for wheel scroll events to update scrollbar position
       if (payload.event === "viewport:changed") {
         if (payload.data?.source === "wheel-scroll-scrollbar-update") {
-          const newScrollRatio = payload.data?.scrollRatio;
-          if (newScrollRatio !== undefined) {
-            // 🚫 PREVENT INFINITE LOOP: Don't update scrollbar position during drag
-            if (!isDragging) {
-              updateScrollbarPosition(newScrollRatio);
-            }
-          }
+          // Skip this update - scrollbar is already updated via updateScrollPosition
+          return;
         }
       }
     });
