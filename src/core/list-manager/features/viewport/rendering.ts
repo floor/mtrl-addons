@@ -413,11 +413,13 @@ export const createRenderingManager = (
         distanceFromBottom >= -1
       ) {
         // Near or at the bottom - use interpolation for smooth transition
-        const lastItemIndex = totalItems - 1;
-        const itemsInViewport = Math.ceil(containerSize / itemSize);
+        // When at the very bottom, we want to show the last N items that fit in the viewport
+        // For a viewport of 596px and items of 84px, we can fit 7.09 items
+        // We want to show the last 7 complete items
+        const itemsThatFitCompletely = Math.floor(containerSize / itemSize);
         const firstVisibleAtBottom = Math.max(
           0,
-          lastItemIndex - itemsInViewport + 1
+          totalItems - itemsThatFitCompletely
         );
 
         // Calculate normal scroll position
