@@ -106,6 +106,30 @@ $scrollbar-fade-transition: opacity 0.2s ease;
       }
     }
   }
+  // Placeholder styling
+  .#{base.$prefix}-list-item__placeholder {
+    opacity: 0.5;
+    // Use background color to create solid blocks instead of visible characters
+    * {
+      color: var(--mtrl-sys-color-on-surface);
+      background-color: var(--mtrl-sys-color-on-surface);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      transition: background-color 0.2s ease;
+      // Fallback for browsers that don't support background-clip: text
+      @supports not (
+        (background-clip: text) or (-webkit-background-clip: text)
+      ) {
+        color: inherit !important;
+        opacity: 0.2;
+        background-color: transparent;
+      }
+    }
+
+    // Smooth transition when replacing with real content
+    transition: opacity 0.2s ease;
+  }
 
   // Dark theme support for scrollbar
   @media (prefers-color-scheme: dark) {

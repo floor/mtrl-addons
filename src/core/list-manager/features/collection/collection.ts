@@ -574,10 +574,6 @@ export const withCollection =
      * Update loaded data in component
      */
     const updateLoadedData = (items: any[], offset: number): void => {
-      console.log(
-        `📥 [COLLECTION] updateLoadedData called with ${items.length} items at offset ${offset}`
-      );
-
       // Ensure items array is large enough
       while (component.items.length < offset + items.length) {
         component.items.push(null);
@@ -592,15 +588,9 @@ export const withCollection =
         const wasPlaceholder =
           existingItem && existingItem[PLACEHOLDER.PLACEHOLDER_FLAG];
 
-        console.log(
-          `📦 [COLLECTION] Setting item at index ${targetIndex}, wasPlaceholder=${wasPlaceholder}`
-        );
         component.items[targetIndex] = item;
 
         if (wasPlaceholder) {
-          console.log(
-            `✅ [COLLECTION] Replaced placeholder at index ${targetIndex}`
-          );
           component.emit?.("placeholders:replaced", {
             index: targetIndex,
             item,
@@ -619,10 +609,6 @@ export const withCollection =
         component.totalItems = loadedTotal;
         component.emit?.("total:changed", { total: loadedTotal });
       }
-
-      console.log(
-        `📊 [COLLECTION] Data update complete. Total items: ${component.totalItems}`
-      );
     };
 
     /**

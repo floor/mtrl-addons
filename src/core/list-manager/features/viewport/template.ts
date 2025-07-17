@@ -5,6 +5,7 @@
  */
 
 import { PLACEHOLDER } from "../../constants";
+import { VIEWPORT_CONSTANTS } from "./constants";
 
 /**
  * Gets default item template if none provided
@@ -19,7 +20,9 @@ export const getDefaultTemplate = <T = any>(): ((
       item &&
       typeof item === "object" &&
       (item as any)[PLACEHOLDER.PLACEHOLDER_FLAG];
-    const placeholderClass = isPlaceholder ? " mtrl-placeholder-item" : "";
+    const placeholderClass = isPlaceholder
+      ? ` ${VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS}`
+      : "";
 
     if (typeof item === "string") {
       return `<div class="mtrl-list-item__content${placeholderClass}">${item}</div>`;

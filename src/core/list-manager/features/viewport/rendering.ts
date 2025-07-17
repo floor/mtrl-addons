@@ -10,6 +10,8 @@ import type { ItemSizeManager } from "./item-size";
 import type { VirtualManager } from "./virtual";
 import type { ScrollingManager } from "./scrolling";
 import { getDefaultTemplate } from "./template";
+import { VIEWPORT_CONSTANTS } from "./constants";
+import { addClass, removeClass, hasClass } from "mtrl";
 
 export interface RenderingConfig {
   orientation: "vertical" | "horizontal";
@@ -81,10 +83,6 @@ export const createRenderingManager = (
       scrollingManager.getScrollPosition()
     );
 
-    console.log(
-      `🎨 [RENDERING] renderItems called for range ${newVisibleRange.start}-${newVisibleRange.end}`
-    );
-
     // Validate range
     const actualTotalItems = getActualTotalItems();
     if (
@@ -92,7 +90,6 @@ export const createRenderingManager = (
       newVisibleRange.start >= actualTotalItems ||
       newVisibleRange.end < newVisibleRange.start
     ) {
-      console.log(`⚠️ [RENDERING] Invalid range, skipping render`);
       return;
     }
 
@@ -100,10 +97,6 @@ export const createRenderingManager = (
     const rangeChanged =
       newVisibleRange.start !== currentVisibleRange.start ||
       newVisibleRange.end !== currentVisibleRange.end;
-
-    console.log(
-      `🔄 [RENDERING] Range changed: ${rangeChanged}, rendered elements: ${renderedElements.size}`
-    );
 
     // Check if component has placeholders API
     const hasPlaceholders = !!(component as any).placeholders;
@@ -122,15 +115,13 @@ export const createRenderingManager = (
 
         if (item && element) {
           const isCurrentItemPlaceholder = placeholdersAPI.isPlaceholder(item);
-          const elementIsPlaceholder = element.classList.contains(
-            "mtrl-placeholder-item"
+          const elementIsPlaceholder = hasClass(
+            element,
+            VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS
           );
 
           if (elementIsPlaceholder && !isCurrentItemPlaceholder) {
             needsPlaceholderReplacement = true;
-            console.log(
-              `🔄 [RENDERING] Found placeholder element at index ${i} that needs replacement`
-            );
             break;
           }
         }
@@ -143,9 +134,6 @@ export const createRenderingManager = (
       !needsPlaceholderReplacement
     ) {
       // Only skip rendering if we already have items rendered and no placeholders need replacement
-      console.log(
-        `⏭️ [RENDERING] Range unchanged, items already rendered, and no placeholders to replace - updating positions only`
-      );
       updateItemPositions();
       return;
     }
@@ -168,19 +156,12 @@ export const createRenderingManager = (
         }
       }
 
-      console.log(
-        `🔍 [RENDERING] Missing indices: ${missingIndices.length} items`
-      );
-
       // Show placeholders for missing items
       if (missingIndices.length > 0) {
         const placeholderRange = {
           start: Math.min(...missingIndices),
           end: Math.max(...missingIndices),
         };
-        console.log(
-          `🎭 [RENDERING] Showing placeholders for range ${placeholderRange.start}-${placeholderRange.end}`
-        );
         placeholdersAPI.showPlaceholders(placeholderRange);
       }
     }
@@ -310,22 +291,14 @@ export const createRenderingManager = (
     // Render new items
     const newElements: { element: HTMLElement; index: number }[] = [];
 
-    console.log(
-      `🏗️ [RENDERING] Starting to render items from ${newVisibleRange.start} to ${newVisibleRange.end}`
-    );
-
     for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
       if (i >= component.items.length) {
-        console.log(
-          `⚠️ [RENDERING] Index ${i} beyond items array length ${component.items.length}`
-        );
         break;
       }
 
       const item = component.items[i];
 
       if (!item) {
-        console.log(`⏭️ [RENDERING] Skipping empty slot at index ${i}`);
         continue; // Skip empty slots
       }
 
@@ -335,39 +308,24 @@ export const createRenderingManager = (
         // Check if the rendered element is a placeholder but we now have real data
         const isCurrentItemPlaceholder =
           hasPlaceholders && placeholdersAPI.isPlaceholder(item);
-        const elementIsPlaceholder = existingElement.classList.contains(
-          "mtrl-placeholder-item"
+        const elementIsPlaceholder = hasClass(
+          existingElement,
+          VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS
         );
 
         if (elementIsPlaceholder && !isCurrentItemPlaceholder) {
           // We have real data now, remove the placeholder element and re-render
-          console.log(
-            `🔄 [RENDERING] Replacing placeholder element with real data at index ${i}`
-          );
           existingElement.remove();
           renderedElements.delete(i);
           // Continue to render the real item below
         } else if (!elementIsPlaceholder && isCurrentItemPlaceholder) {
           // We have a real element but now need a placeholder (shouldn't happen often)
-          console.log(
-            `🔄 [RENDERING] Replacing real element with placeholder at index ${i}`
-          );
           existingElement.remove();
           renderedElements.delete(i);
           // Continue to render the placeholder below
         } else {
-          console.log(
-            `✅ [RENDERING] Item at index ${i} already rendered correctly`
-          );
           continue;
         }
-      }
-
-      // Log what we're rendering
-      if (hasPlaceholders && placeholdersAPI.isPlaceholder(item)) {
-        console.log(`🎭 [RENDERING] Rendering placeholder at index ${i}`);
-      } else {
-        console.log(`📦 [RENDERING] Rendering real item at index ${i}`);
       }
 
       // Create element
@@ -378,10 +336,6 @@ export const createRenderingManager = (
         newElements.push({ element, index: i });
       }
     }
-
-    console.log(
-      `✨ [RENDERING] Rendered ${newElements.length} new elements, total rendered: ${renderedElements.size}`
-    );
 
     // Update visible range
     currentVisibleRange = newVisibleRange;
@@ -442,7 +396,7 @@ export const createRenderingManager = (
       if (hasPlaceholders) {
         const placeholdersAPI = (component as any).placeholders;
         if (placeholdersAPI.isPlaceholder(item)) {
-          element.classList.add("mtrl-placeholder-item");
+          addClass(element, VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS);
         }
       }
 
