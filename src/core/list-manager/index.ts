@@ -58,13 +58,11 @@ export type { ListManagerConstants } from "./constants";
 
 // Export utility functions
 export {
-  calculateVisibleRange,
   calculateTotalVirtualSize,
   calculateContainerPosition,
   calculateScrollPositionForIndex,
   calculateScrollPositionForPage,
   calculateScrollbarMetrics,
-  calculateViewportInfo,
   calculateInitialRangeSize,
   calculateMissingRanges,
   calculateBufferRanges,

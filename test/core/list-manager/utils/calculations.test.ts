@@ -2,13 +2,11 @@
 
 import { describe, it, expect } from "bun:test";
 import {
-  calculateVisibleRange,
   calculateTotalVirtualSize,
   calculateContainerPosition,
   calculateScrollPositionForIndex,
   calculateScrollPositionForPage,
   calculateScrollbarMetrics,
-  calculateViewportInfo,
   calculateInitialRangeSize,
   calculateMissingRanges,
   calculateBufferRanges,
@@ -32,85 +30,7 @@ describe("Calculations Utility", () => {
     });
   });
 
-  describe("calculateVisibleRange", () => {
-    it("should calculate visible range for vertical scrolling", () => {
-      const result = calculateVisibleRange({
-        scrollPosition: 100,
-        containerSize: 300,
-        totalItems: 100,
-        estimatedItemSize: 50,
-        orientation: "vertical",
-        overscan: 2,
-      });
-
-      expect(result.start).toBeGreaterThanOrEqual(0);
-      expect(result.end).toBeLessThanOrEqual(100);
-      expect(result.end).toBeGreaterThan(result.start);
-    });
-
-    it("should calculate visible range for horizontal scrolling", () => {
-      const result = calculateVisibleRange({
-        scrollPosition: 200,
-        containerSize: 400,
-        totalItems: 50,
-        estimatedItemSize: 80,
-        orientation: "horizontal",
-        overscan: 1,
-      });
-
-      expect(result.start).toBeGreaterThanOrEqual(0);
-      expect(result.end).toBeLessThanOrEqual(50);
-      expect(result.end).toBeGreaterThan(result.start);
-    });
-
-    it("should handle edge cases", () => {
-      // At the beginning
-      const startResult = calculateVisibleRange({
-        scrollPosition: 0,
-        containerSize: 300,
-        totalItems: 100,
-        estimatedItemSize: 50,
-        orientation: "vertical",
-        overscan: 2,
-      });
-      expect(startResult.start).toBe(0);
-
-      // Empty list
-      const emptyResult = calculateVisibleRange({
-        scrollPosition: 0,
-        containerSize: 300,
-        totalItems: 0,
-        estimatedItemSize: 50,
-        orientation: "vertical",
-        overscan: 2,
-      });
-      expect(emptyResult).toEqual({ start: 0, end: 0 });
-    });
-
-    it("should include overscan buffer", () => {
-      const noOverscan = calculateVisibleRange({
-        scrollPosition: 100,
-        containerSize: 200,
-        totalItems: 100,
-        estimatedItemSize: 50,
-        orientation: "vertical",
-        overscan: 0,
-      });
-
-      const withOverscan = calculateVisibleRange({
-        scrollPosition: 100,
-        containerSize: 200,
-        totalItems: 100,
-        estimatedItemSize: 50,
-        orientation: "vertical",
-        overscan: 5,
-      });
-
-      expect(withOverscan.end - withOverscan.start).toBeGreaterThan(
-        noOverscan.end - noOverscan.start
-      );
-    });
-  });
+  // Removed calculateVisibleRange tests - using unified index-based approach
 
   describe("calculateTotalVirtualSize", () => {
     it("should calculate total size for uniform items", () => {
@@ -332,25 +252,7 @@ describe("Calculations Utility", () => {
     });
   });
 
-  describe("calculateViewportInfo", () => {
-    it("should calculate complete viewport info", () => {
-      const info = calculateViewportInfo({
-        containerSize: 300,
-        scrollPosition: 150,
-        totalItems: 100,
-        estimatedItemSize: 50,
-        orientation: "vertical",
-        overscan: 2,
-        measuredSizes: new Map(),
-      });
-
-      expect(info.containerSize).toBe(300);
-      expect(info.totalVirtualSize).toBe(5000);
-      expect(info.virtualScrollPosition).toBe(150);
-      expect(info.visibleRange.start).toBeGreaterThanOrEqual(0);
-      expect(info.visibleRange.end).toBeLessThanOrEqual(100);
-    });
-  });
+  // Removed calculateViewportInfo tests - viewport.ts now uses virtualManager directly
 
   describe("calculateInitialRangeSize", () => {
     it("should calculate initial range size", () => {

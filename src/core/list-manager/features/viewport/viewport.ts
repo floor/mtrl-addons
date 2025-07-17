@@ -9,7 +9,7 @@ import type {
   ViewportInfo,
 } from "../../types";
 import { LIST_MANAGER_CONSTANTS } from "../../constants";
-import { calculateViewportInfo as calculateViewportInfoUtil } from "../../utils/calculations";
+// Removed calculateViewportInfoUtil import - using virtualManager directly
 import { getDefaultTemplate } from "./template";
 import { createItemSizeManager, type ItemSizeManager } from "./item-size";
 import { createScrollingManager, type ScrollingManager } from "./scrolling";
@@ -457,14 +457,16 @@ export const withViewport =
      * Get current viewport information
      */
     const getViewportInfo = (): ViewportInfo => {
-      return calculateViewportInfoUtil(
-        scrollingManager.getScrollPosition(),
-        virtualManager.getState().containerSize,
-        component.totalItems,
-        itemSizeManager.getEstimatedItemSize(),
-        itemSizeManager.getMeasuredSizes(),
-        overscan
-      );
+      const scrollPosition = scrollingManager.getScrollPosition();
+      const state = virtualManager.getState();
+      const visibleRange = virtualManager.calculateVisibleRange(scrollPosition);
+
+      return {
+        containerSize: state.containerSize,
+        totalVirtualSize: state.totalVirtualSize,
+        visibleRange,
+        virtualScrollPosition: scrollPosition,
+      };
     };
 
     /**

@@ -5,7 +5,7 @@
 
 import type { ListManagerComponent, ItemRange } from "../../types";
 import type { ItemSizeManager } from "./item-size";
-import { calculateVisibleRange as calculateVisibleRangeUtil } from "../../utils/calculations";
+// Removed calculateVisibleRangeUtil import - using unified index-based approach
 
 /**
  * Configuration for virtual scrolling
@@ -164,7 +164,7 @@ export const createVirtualManager = (
         }
       }
 
-      // For positions not near the end, use standard calculation
+      // For positions not near the end, use normal index-based calculation
       let adjustedStartIndex = startIndex;
       if (startIndex > maxStartIndex) {
         adjustedStartIndex = maxStartIndex;
@@ -201,13 +201,13 @@ export const createVirtualManager = (
 
   /**
    * Update total virtual size based on total items
-   * For index-based scrolling, we use a reasonable maximum
+   * Uses actual size when possible, caps at 10M pixels to prevent browser issues
    */
   const updateTotalVirtualSize = (totalItems: number): void => {
     const estimatedItemSize = itemSizeManager.getEstimatedItemSize();
 
-    // For index-based scrolling, cap the virtual size at a reasonable maximum
-    // This prevents browser issues while maintaining smooth scrolling
+    // Cap the virtual size at a reasonable maximum to prevent browser issues
+    // This provides smooth scrolling for any dataset size
     const MAX_VIRTUAL_SIZE = 10 * 1000 * 1000; // 10M pixels - well within browser limits
 
     let newTotalVirtualSize: number;

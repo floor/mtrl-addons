@@ -6,81 +6,7 @@
 import type { ItemRange, ViewportInfo, ListManagerConfig } from "../types";
 import { LIST_MANAGER_CONSTANTS } from "../constants";
 
-/**
- * Calculate visible range based on scroll position and container size
- * Works for both vertical and horizontal orientations
- */
-export function calculateVisibleRange(
-  virtualScrollPosition: number,
-  containerSize: number,
-  estimatedItemSize: number,
-  totalItems: number,
-  overscan: number = LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER,
-  measuredSizes?: Map<number, number>
-): ItemRange {
-  let startIndex = 0;
-
-  // Calculate start index using measured sizes if available
-  if (measuredSizes && measuredSizes.size > 0) {
-    let position = 0;
-    let found = false;
-
-    for (let i = 0; i < totalItems; i++) {
-      const itemSize = measuredSizes.get(i) || estimatedItemSize;
-
-      // Check if the scroll position is within this item's range
-      if (
-        virtualScrollPosition >= position &&
-        virtualScrollPosition < position + itemSize
-      ) {
-        startIndex = i;
-        found = true;
-        break;
-      }
-
-      position += itemSize;
-    }
-
-    // If we didn't find the item within loaded items, estimate based on position
-    if (!found) {
-      // Calculate based on estimated size beyond what we have
-      const loadedItemsEndPosition = position; // This is where our loaded items end
-
-      if (virtualScrollPosition >= loadedItemsEndPosition) {
-        // We're scrolling beyond loaded items, use simple estimation
-        // This ensures we calculate the correct index based on total scroll position
-        startIndex = Math.floor(virtualScrollPosition / estimatedItemSize);
-      } else {
-        // Fallback to estimated calculation
-        startIndex = Math.floor(virtualScrollPosition / estimatedItemSize);
-      }
-    }
-  } else {
-    // Fallback to estimated size calculation
-    startIndex = Math.floor(virtualScrollPosition / estimatedItemSize);
-  }
-
-  // Calculate how many items fit in the container
-  // Add extra items to ensure smooth scrolling without gaps
-  const visibleItemsCount = Math.ceil(containerSize / estimatedItemSize); // Removed + 2 extra items
-
-  // Calculate end index with overscan buffer
-  const endIndex = Math.min(
-    startIndex + visibleItemsCount + overscan,
-    totalItems - 1
-  );
-
-  // Apply overscan to start (but don't go below 0)
-  // Increase overscan for smoother scrolling
-  const bufferedStartIndex = Math.max(0, startIndex - overscan); // Removed - 1 extra item
-
-  const result = {
-    start: bufferedStartIndex,
-    end: Math.max(bufferedStartIndex, endIndex),
-  };
-
-  return result;
-}
+// Removed calculateVisibleRange - using unified index-based approach in virtual.ts
 
 /**
  * Calculate total virtual size based on items and estimated size
@@ -209,39 +135,7 @@ export function calculateScrollbarMetrics(
   };
 }
 
-/**
- * Calculate viewport info for current state
- */
-export function calculateViewportInfo(
-  virtualScrollPosition: number,
-  containerSize: number,
-  totalItems: number,
-  estimatedItemSize: number,
-  measuredSizes?: Map<number, number>,
-  overscan: number = LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER
-): ViewportInfo {
-  const visibleRange = calculateVisibleRange(
-    virtualScrollPosition,
-    containerSize,
-    estimatedItemSize,
-    totalItems,
-    overscan,
-    measuredSizes
-  );
-
-  const totalVirtualSize = calculateTotalVirtualSize(
-    totalItems,
-    estimatedItemSize,
-    measuredSizes
-  );
-
-  return {
-    containerSize,
-    totalVirtualSize,
-    visibleRange,
-    virtualScrollPosition,
-  };
-}
+// Removed calculateViewportInfo - viewport.ts now uses virtualManager directly
 
 /**
  * Calculate optimal overscan based on viewport capacity
