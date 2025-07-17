@@ -90,41 +90,93 @@ export const createVirtualManager = (
       const viewportItemCount = Math.ceil(
         containerSize / itemSizeManager.getEstimatedItemSize()
       );
+      const itemsInViewport = Math.floor(
+        containerSize / itemSizeManager.getEstimatedItemSize()
+      );
 
-      // Special handling for when we're at the very end
+      // Special handling for when we're near the very end
       const maxScrollPosition = totalVirtualSize - containerSize;
-      if (scrollPosition >= maxScrollPosition - 1) {
-        // At the very bottom, show the last viewport of items
-        // Calculate how many complete items fit in the viewport
-        const itemsInViewport = Math.floor(
-          containerSize / itemSizeManager.getEstimatedItemSize()
-        );
-        const lastStartIndex = Math.max(0, actualTotalItems - itemsInViewport);
+      const distanceFromBottom = maxScrollPosition - scrollPosition;
 
-        // For the very last range, ensure we include all items
-        // Items are stored at indices 0 to actualTotalItems-1
-        const start = Math.max(0, lastStartIndex - overscan);
-        const end = actualTotalItems - 1;
+      // Calculate what the last possible start index should be
+      const maxStartIndex = Math.max(0, actualTotalItems - itemsInViewport);
 
-        console.log(`📊 [VIRTUAL] At maximum scroll - showing last items:
-          scrollPosition: ${scrollPosition}
-          maxScrollPosition: ${maxScrollPosition}
-          containerSize: ${containerSize}
-          itemsInViewport: ${itemsInViewport}
-          actualTotalItems: ${actualTotalItems}
-          lastStartIndex: ${lastStartIndex}
-          range: ${start}-${end}`);
+      // Use a larger threshold (500 pixels) to ensure smooth transitions
+      // This represents about 6 items worth of scrolling
+      const bottomThreshold = 500;
 
-        return { start, end };
+      if (distanceFromBottom <= bottomThreshold && distanceFromBottom >= -1) {
+        // When near the bottom, interpolate between the calculated position and the last position
+        // This ensures smooth scrolling without jumps
+
+        if (distanceFromBottom <= 1 && distanceFromBottom >= -1) {
+          // At the very bottom, show exactly the last items
+          const lastStartIndex = maxStartIndex;
+          const start = Math.max(0, lastStartIndex - overscan);
+          const end = actualTotalItems - 1;
+
+          console.log(`📊 [VIRTUAL] At maximum scroll - showing last items:
+            scrollPosition: ${scrollPosition}
+            maxScrollPosition: ${maxScrollPosition}
+            containerSize: ${containerSize}
+            itemsInViewport: ${itemsInViewport}
+            actualTotalItems: ${actualTotalItems}
+            lastStartIndex: ${lastStartIndex}
+            range: ${start}-${end}`);
+
+          return { start, end };
+        } else {
+          // Near the bottom but not at the very end
+          // Smoothly interpolate between normal calculation and bottom position
+          const interpolationFactor =
+            (bottomThreshold - distanceFromBottom) / bottomThreshold;
+
+          // Calculate where we would be with normal scrolling
+          let normalStartIndex = startIndex;
+          if (normalStartIndex > maxStartIndex) {
+            normalStartIndex = maxStartIndex;
+          }
+
+          // Interpolate between normal position and max position
+          const interpolatedStartIndex = Math.floor(
+            normalStartIndex +
+              (maxStartIndex - normalStartIndex) * interpolationFactor
+          );
+
+          const endIndex = Math.min(
+            interpolatedStartIndex + viewportItemCount - 1,
+            actualTotalItems - 1
+          );
+
+          // Apply overscan
+          const start = Math.max(0, interpolatedStartIndex - overscan);
+          const end = Math.min(actualTotalItems - 1, endIndex + overscan);
+
+          console.log(`📊 [VIRTUAL] Near bottom - interpolated position:
+            scrollPosition: ${scrollPosition}
+            distanceFromBottom: ${distanceFromBottom}
+            interpolationFactor: ${interpolationFactor}
+            normalStartIndex: ${normalStartIndex}
+            interpolatedStartIndex: ${interpolatedStartIndex}
+            range: ${start}-${end}`);
+
+          return { start, end };
+        }
+      }
+
+      // For positions not near the end, use standard calculation
+      let adjustedStartIndex = startIndex;
+      if (startIndex > maxStartIndex) {
+        adjustedStartIndex = maxStartIndex;
       }
 
       const endIndex = Math.min(
-        startIndex + viewportItemCount - 1,
+        adjustedStartIndex + viewportItemCount - 1,
         actualTotalItems - 1
       );
 
       // Apply overscan
-      const start = Math.max(0, startIndex - overscan);
+      const start = Math.max(0, adjustedStartIndex - overscan);
       const end = Math.min(actualTotalItems - 1, endIndex + overscan);
 
       console.log(`📊 [VIRTUAL] Index-based visible range calculation:
@@ -133,6 +185,7 @@ export const createVirtualManager = (
         scrollRatio: ${scrollRatio}
         exactScrollIndex: ${exactScrollIndex}
         startIndex: ${startIndex}
+        adjustedStartIndex: ${adjustedStartIndex}
         viewportItemCount: ${viewportItemCount}
         range: ${start}-${end}`);
 

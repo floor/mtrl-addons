@@ -344,13 +344,43 @@ export const createScrollingManager = (
     const delta = orientation === "vertical" ? event.deltaY : event.deltaX;
 
     // Direct scroll delta for immediate response
-    const scrollDelta = delta * sensitivity;
+    let scrollDelta = delta * sensitivity;
 
     const previousPosition = virtualScrollPosition;
+    const maxScroll = Math.max(0, totalVirtualSize - containerSize);
+
+    // Special handling when at or near the boundaries
+    const isNearBottom = virtualScrollPosition >= maxScroll - 100;
+    const isNearTop = virtualScrollPosition <= 100;
+
+    // When near boundaries and using index-based scrolling, reduce scroll delta
+    // to ensure smooth scrolling through all items
+    if (totalVirtualSize >= 10000000 && (isNearBottom || isNearTop)) {
+      // Calculate the compression ratio for index-based scrolling
+      const actualTotalItems = getTotalItems
+        ? getTotalItems()
+        : component.totalItems;
+      const itemSize = itemSizeManager.getEstimatedItemSize();
+      const actualTotalSize = actualTotalItems * itemSize;
+
+      if (actualTotalSize > totalVirtualSize) {
+        // We're using compressed virtual space
+        const compressionRatio = totalVirtualSize / actualTotalSize;
+
+        // Reduce scroll delta to account for compression
+        // This ensures we don't skip ranges when scrolling
+        scrollDelta = scrollDelta * compressionRatio;
+
+        // Further reduce delta when very close to boundaries
+        if ((isNearBottom && delta > 0) || (isNearTop && delta < 0)) {
+          scrollDelta = scrollDelta * 0.5; // Half speed at boundaries
+        }
+      }
+    }
+
     let newPosition = virtualScrollPosition + scrollDelta;
 
-    // Apply boundary resistance if enabled
-    const maxScroll = Math.max(0, totalVirtualSize - containerSize);
+    // Apply boundary clamping
     newPosition = clamp(newPosition, 0, maxScroll);
 
     // Ensure we can reach the very end with mouse wheel
