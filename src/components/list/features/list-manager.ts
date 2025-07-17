@@ -28,14 +28,6 @@ function calculateOptimalLimit(
   // Ensure minimum of 10 items and maximum of 100 items per request
   const optimalLimit = Math.max(10, Math.min(100, withPreload));
 
-  console.log(`📊 [LIST-MANAGER] Optimal limit calculation:
-    Container: ${containerSize}px
-    Item size: ${estimatedItemSize}px
-    Items in viewport: ${itemsInViewport}
-    With overscan: ${withOverscan}
-    With preload: ${withPreload}
-    Final limit: ${optimalLimit}`);
-
   return optimalLimit;
 }
 
@@ -67,14 +59,6 @@ export const withListManager =
     const pageSize =
       config.pagination?.limit ||
       calculateOptimalLimit(containerSize, estimatedItemSize, overscan);
-
-    console.log(
-      `📄 [LIST-MANAGER] Using page size: ${pageSize} (${
-        config.pagination?.limit
-          ? "fixed from config"
-          : "calculated from viewport"
-      })`
-    );
 
     // Convert List Config to Phase 1 List Manager Config
     const listManagerConfig: ListManagerConfig = {
@@ -357,10 +341,6 @@ export const withListManager =
         strategy: "page" | "offset" = "page",
         alignment: "start" | "center" | "end" = "start"
       ) => {
-        console.log(
-          `🎯 [LIST-COMPONENT] loadRange called: ${pageOrOffset}, size=${size}, strategy=${strategy}, alignment=${alignment}`
-        );
-
         // Delegate to the enhanced list manager's loadRange method
         if (enhancedManager.loadRange) {
           return enhancedManager.loadRange(
