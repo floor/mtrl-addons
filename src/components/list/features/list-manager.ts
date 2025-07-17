@@ -79,6 +79,7 @@ export const withListManager =
         itemSize: config.scroll?.itemSize || "auto",
         estimatedItemSize: config.scroll?.estimatedItemSize || 50,
         overscan: config.scroll?.overscan || 5,
+        measureItems: config.scroll?.measureItems, // Pass measureItems option
       },
 
       // Orientation configuration

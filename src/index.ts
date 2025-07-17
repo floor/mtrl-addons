@@ -12,6 +12,6 @@ export * from "./core";
 // === Components ===
 export * from "./components";
 
-// === Default Export ===
-// Export the main createLayout function for easy access
-export { createLayout as default } from "./core/layout";
+// // === Default Export ===
+// // Export the main createLayout function for easy access
+// export { createLayout as default } from "./core/layout";

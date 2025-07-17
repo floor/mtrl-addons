@@ -32,10 +32,11 @@ export const defaultOrientationConfig = {
  */
 export const defaultVirtualConfig = {
   enabled: true,
-  itemHeight: 84,
-  estimatedItemHeight: 84,
+  itemSize: 84,
+  estimatedItemSize: 84,
   overscan: VIRTUAL_SCROLLING.DEFAULT_OVERSCAN,
   windowSize: 20,
+  measureItems: false, // Disable item measurement by default
 } as const;
 
 /**
@@ -256,8 +257,8 @@ export function validateListManagerConfig(
   // Validate virtual scrolling configuration
   if (config.virtual.enabled) {
     if (
-      typeof config.virtual.estimatedItemHeight === "number" &&
-      config.virtual.estimatedItemHeight <= 0
+      typeof config.virtual.estimatedItemSize === "number" &&
+      config.virtual.estimatedItemSize <= 0
     ) {
       throw new Error("List Manager estimated item height must be positive");
     }
@@ -372,8 +373,8 @@ export const getFeatureConfigs = (config: Required<ListManagerConfig>) => ({
   viewport: () => ({
     heightStrategy: "dynamic" as const,
     heightBuffer: 2,
-    itemHeight: config.virtual.itemHeight,
-    estimatedItemHeight: config.virtual.estimatedItemHeight,
+    itemHeight: config.virtual.itemSize,
+    estimatedItemHeight: config.virtual.estimatedItemSize,
     overscan: config.virtual.overscan,
     windowSize: config.virtual.windowSize,
     enabled: config.virtual.enabled,
@@ -385,14 +386,14 @@ export const getFeatureConfigs = (config: Required<ListManagerConfig>) => ({
    * Gets item size management configuration
    */
   itemSize: () => ({
-    strategy: (config.virtual.itemHeight === "auto"
+    strategy: (config.virtual.itemSize === "auto"
       ? "dynamic"
       : "fixed") as const,
     defaultHeight:
-      typeof config.virtual.itemHeight === "number"
-        ? config.virtual.itemHeight
-        : config.virtual.estimatedItemHeight,
-    estimatedHeight: config.virtual.estimatedItemHeight,
+      typeof config.virtual.itemSize === "number"
+        ? config.virtual.itemSize
+        : config.virtual.estimatedItemSize,
+    estimatedHeight: config.virtual.estimatedItemSize,
     cacheSize: config.heightMeasurement.cacheSize,
     enabled: config.heightMeasurement.enabled,
     prefix: config.prefix,

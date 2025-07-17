@@ -100,8 +100,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
     // Hide native scrollbar using CSS classes instead of inline styles
     addClass(viewport, "list__scrollbar-enabled");
 
-    console.log(`✅ [SCROLLBAR] Scrollbar initialized with CSS styling`);
-
     /**
      * Calculate scrollbar dimensions and position
      */
@@ -144,15 +142,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
       const thumbTop = scrollRatio * maxThumbTop;
 
       scrollbarThumb.style.top = `${thumbTop}px`;
-
-      // Only log position updates when not dragging to keep console clean
-      if (!isDragging) {
-        console.log(`📍 [SCROLLBAR] Position updated:`, {
-          scrollRatio,
-          thumbTop,
-          maxThumbTop,
-        });
-      }
     };
 
     /**
@@ -222,10 +211,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
       addClass(scrollbarTrack, "list__scrollbar--dragging");
       addClass(scrollbarThumb, "list__scrollbar-thumb--dragging");
       showScrollbar();
-
-      console.log(
-        `🚨 [SCROLLBAR-DRAG] === DRAG SESSION STARTED === ratio: ${scrollRatio}`
-      );
     };
 
     /**
@@ -259,9 +244,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
      */
     const handleThumbMouseUp = (): void => {
       if (!isDragging) {
-        console.log(
-          `🚨 [SCROLLBAR-DRAG] === IGNORING MOUSE UP - NOT DRAGGING ===`
-        );
         return;
       }
 
@@ -274,10 +256,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
       removeClass(scrollbarTrack, "list__scrollbar--dragging");
       removeClass(scrollbarThumb, "list__scrollbar-thumb--dragging");
       hideScrollbar();
-
-      console.log(
-        `🚨 [SCROLLBAR-DRAG] === DRAG SESSION ENDED === ratio: ${scrollRatio}`
-      );
 
       // Calculate the start index and virtual position
       let finalStartIndex: number;
@@ -340,10 +318,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
         source: "scrollbar",
         action: "drag-end", // Indicate this is the final position
       });
-
-      console.log(
-        `🚨 [SCROLLBAR-DRAG] === EVENT EMITTED === scrollTop=${finalVirtualScrollTop}, startIndex=${finalStartIndex}`
-      );
     };
 
     /**
@@ -414,13 +388,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
             // 🚫 PREVENT INFINITE LOOP: Don't update scrollbar position during drag
             if (!isDragging) {
               updateScrollbarPosition(newScrollRatio);
-              console.log(
-                `📍 [SCROLLBAR] Position updated from wheel scroll: ratio=${newScrollRatio}`
-              );
-            } else {
-              console.log(
-                `🚫 [SCROLLBAR] Skipping position update during drag: ratio=${newScrollRatio}`
-              );
             }
           }
         }
@@ -445,25 +412,14 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
        */
       setTotalItems(count: number): void {
         // 🚫 PREVENT INFINITE LOOP: Only update if count actually changed
-        console.log(
-          `🔍 [SCROLLBAR-DEBUG] setTotalItems called: current=${
-            scrollbarConfig.totalItems
-          }, new=${count}, equal=${scrollbarConfig.totalItems === count}`
-        );
 
         if (scrollbarConfig.totalItems === count) {
-          console.log(
-            `🚫 [SCROLLBAR] Total items unchanged (${count}), skipping update to prevent loops`
-          );
           return;
         }
 
         const previousCount = scrollbarConfig.totalItems;
         scrollbarConfig.totalItems = count;
         updateScrollbarDimensions();
-        console.log(
-          `📊 [SCROLLBAR] Total items updated: ${previousCount} → ${count}`
-        );
       },
 
       /**
@@ -475,10 +431,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
           const newScrollRatio =
             getScrollRatioFromVirtualPosition(virtualScrollTop);
           updateScrollbarPosition(newScrollRatio);
-        } else {
-          console.log(
-            `🚫 [SCROLLBAR] Skipping external position update during drag: ${virtualScrollTop}px`
-          );
         }
       },
 
@@ -488,7 +440,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
       setItemHeight(height: number): void {
         scrollbarConfig.itemHeight = height;
         updateScrollbarDimensions();
-        console.log(`📏 [SCROLLBAR] Item height updated: ${height}px`);
       },
 
       /**

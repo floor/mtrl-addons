@@ -26,6 +26,7 @@ export interface ViewportConfig {
   overscan?: number;
   enableScrollbar?: boolean;
   loadDataForRange?: (range: { start: number; end: number }) => void;
+  measureItems?: boolean; // Add measureItems flag
 }
 
 /**
@@ -84,6 +85,7 @@ export const withViewport =
     const overscan =
       config.overscan || LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER;
     const enableScrollbar = config.enableScrollbar !== false;
+    const measureItems = config.measureItems === true; // Default to false
 
     // Items container for virtual positioning
     let itemsContainer: HTMLElement | null = null;
@@ -303,7 +305,8 @@ export const withViewport =
       {
         orientation,
         overscan,
-        loadDataForRange: config.loadDataForRange,
+        loadDataForRange,
+        measureItems, // Pass the flag
       },
       () => actualTotalItems
     );

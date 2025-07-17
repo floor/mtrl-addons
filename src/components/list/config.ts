@@ -74,13 +74,6 @@ export function createBaseConfig<T extends ListItem = ListItem>(
     );
   }
 
-  // If static items are provided but no template, we'll use the default template
-  if (Array.isArray(config.items) && !config.template) {
-    console.log(
-      "📝 [MTRL-ADDONS-LIST] Using default template for static items"
-    );
-  }
-
   // Use mtrl core config system for proper merging and validation
   const mergedConfig = createComponentConfig(defaultConfig, config, "list");
 
@@ -90,9 +83,6 @@ export function createBaseConfig<T extends ListItem = ListItem>(
     typeof (config as any).renderItem === "object" &&
     !mergedConfig.template
   ) {
-    console.log(
-      "🔄 [MTRL-ADDONS-LIST] Converting renderItem object to template function"
-    );
     mergedConfig.template = convertRenderItemToTemplate(
       (config as any).renderItem
     );
@@ -106,7 +96,6 @@ export function createBaseConfig<T extends ListItem = ListItem>(
     mergedConfig.selection.mode = "single";
   }
 
-  console.log("✅ [MTRL-ADDONS-LIST] Base configuration created");
   return mergedConfig as Required<ListConfig<T>>;
 }
 

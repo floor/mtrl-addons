@@ -115,6 +115,7 @@ export interface VirtualConfig {
   itemSize: number | "auto";
   estimatedItemSize: number;
   overscan: number;
+  measureItems?: boolean; // Optional flag to enable/disable item measurement (default: false)
 }
 
 export interface OrientationConfig {

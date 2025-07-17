@@ -15,6 +15,7 @@ export interface RenderingConfig {
   orientation: "vertical" | "horizontal";
   overscan: number;
   loadDataForRange?: (range: { start: number; end: number }) => void;
+  measureItems?: boolean; // Add measureItems flag
 }
 
 export interface RenderingManager {
@@ -36,7 +37,12 @@ export const createRenderingManager = (
   config: RenderingConfig,
   getActualTotalItems: () => number
 ): RenderingManager => {
-  const { orientation, overscan, loadDataForRange } = config;
+  const {
+    orientation,
+    overscan,
+    loadDataForRange,
+    measureItems = false,
+  } = config;
 
   // Items container reference
   let itemsContainer: HTMLElement | null = null;
@@ -74,9 +80,6 @@ export const createRenderingManager = (
     // This prevents unnecessary rendering before the collection loads initial data
     const totalItems = getActualTotalItems();
     if (component.items.length === 0 && totalItems > 0) {
-      console.log(
-        `⏳ [VIEWPORT] Skipping render - waiting for initial data (total: ${totalItems.toLocaleString()})`
-      );
       return;
     }
 
@@ -124,10 +127,6 @@ export const createRenderingManager = (
     const hasCollection = !!collection;
     const hasLoadMissingRanges =
       hasCollection && typeof collection.loadMissingRanges === "function";
-
-    console.log(
-      `🔍 [VIEWPORT] Collection check: hasCollection=${hasCollection}, hasLoadMissingRanges=${hasLoadMissingRanges}, items.length=${component.items.length}, actualTotalItems=${actualTotalItems}`
-    );
 
     // Calculate extended range for proactive loading
     const itemsPerViewport = Math.ceil(
@@ -196,15 +195,6 @@ export const createRenderingManager = (
 
       // Load visible range with high priority
       if (visibleMissingCount > 0) {
-        console.log(
-          `🔄 [VIEWPORT] Loading ${visibleMissingCount} missing visible items in range ${newVisibleRange.start}-${newVisibleRange.end}`
-        );
-        console.log(
-          `🔍 [VIEWPORT] Visible missing indices: [${visibleMissingIndices
-            .slice(0, 10)
-            .join(", ")}${visibleMissingIndices.length > 10 ? "..." : ""}]`
-        );
-
         // Trigger collection to load missing visible ranges (high priority)
         collection.loadMissingRanges(newVisibleRange).catch((error: any) => {
           console.error("❌ [VIEWPORT] Failed to load visible ranges:", error);
@@ -214,20 +204,8 @@ export const createRenderingManager = (
       // Load extended range with lower priority (proactive)
       // Skip if prefetch is disabled (prefetchBuffer === 0)
       if (extendedMissingCount > 0 && prefetchBuffer > 0) {
-        console.log(
-          `🚀 [VIEWPORT] Proactively loading ${extendedMissingCount} missing items in extended range ${extendedRange.start}-${extendedRange.end}`
-        );
-        console.log(
-          `🔍 [VIEWPORT] Extended missing indices: [${extendedMissingIndices
-            .slice(0, 10)
-            .join(", ")}${extendedMissingIndices.length > 10 ? "..." : ""}]`
-        );
-
         // Use loading manager for proactive loads
         if (loadDataForRange) {
-          console.log(
-            `📡 [VIEWPORT] Using loading manager for extended range ${extendedRange.start}-${extendedRange.end}`
-          );
           loadDataForRange(extendedRange);
         } else {
           // Fallback to direct collection call
@@ -238,12 +216,6 @@ export const createRenderingManager = (
             );
           });
         }
-      }
-
-      if (visibleMissingCount === 0 && extendedMissingCount === 0) {
-        console.log(
-          `✅ [VIEWPORT] All items in visible range ${newVisibleRange.start}-${newVisibleRange.end} and extended range ${extendedRange.start}-${extendedRange.end} are loaded`
-        );
       }
     }
 
@@ -260,18 +232,11 @@ export const createRenderingManager = (
       }
     }
 
-    console.log(
-      `♻️ [VIEWPORT] Removed out-of-range elements, renderedElements now: ${renderedElements.size}`
-    );
-
     // Render new items
     const newElements: { element: HTMLElement; index: number }[] = [];
 
     for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
       if (i >= component.items.length) {
-        console.log(
-          `⚠️ [VIEWPORT] Breaking at index ${i} - items.length: ${component.items.length}`
-        );
         break;
       }
 
@@ -309,7 +274,9 @@ export const createRenderingManager = (
       // Use requestAnimationFrame to measure after browser layout
       requestAnimationFrame(() => {
         newElements.forEach(({ element, index }) => {
-          itemSizeManager.measureItem(element, index, orientation);
+          if (measureItems) {
+            itemSizeManager.measureItem(element, index, orientation);
+          }
         });
 
         // Update positions after measuring

@@ -64,7 +64,6 @@ export const createListManager = (
     const eventListeners = new Map<string, Function[]>();
 
     const emit = (event: string, data?: any) => {
-      console.log(`📡 ${event}:`, data);
       const listeners = eventListeners.get(event) || [];
       listeners.forEach((listener) => {
         try {
@@ -121,12 +120,6 @@ export const createListManager = (
   // Create loading manager
   let loadingManager: ReturnType<typeof createLoadingManager> | null = null;
 
-  console.log("🔍 [LIST-MANAGER] createListManager config.collection:", {
-    hasAdapter: !!config.collection?.adapter,
-    pageSize: config.collection?.pageSize,
-    strategy: config.collection?.strategy,
-  });
-
   // Compose enhancers - CRITICAL: Collection must be applied before viewport
   // so that viewport can access collection.loadMissingRanges
   const enhance = pipe(
@@ -144,6 +137,7 @@ export const createListManager = (
       estimatedItemSize: mergedConfig.virtual?.estimatedItemSize,
       overscan: mergedConfig.virtual?.overscan,
       enableScrollbar: true,
+      measureItems: mergedConfig.virtual?.measureItems, // Pass measureItems flag
       // Pass callback to load data for a specific range
       loadDataForRange: (range: { start: number; end: number }) => {
         console.log(

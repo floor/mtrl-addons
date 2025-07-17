@@ -97,6 +97,8 @@ export interface ListScrollConfig {
   animation?: boolean;
   /** Restore scroll position on reload */
   restorePosition?: boolean;
+  /** Enable item measurement for dynamic sizing (default: false) */
+  measureItems?: boolean;
 }
 
 /**

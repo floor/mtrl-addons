@@ -151,7 +151,7 @@ export const createItemSizeManager = (
 
       // Log if this is a new measurement or size changed significantly
       if (!previousSize || Math.abs(size - previousSize) > 1) {
-        console.log(
+        console.trace(
           `📏 [ITEM-SIZE] Item ${index}: ${
             previousSize ? `${previousSize}px → ` : ""
           }${size}px (${actualOrientation})`

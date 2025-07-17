@@ -173,9 +173,6 @@ export const withCollection =
       if (collection) {
         // Load initial range on next tick to ensure all enhancers are ready
         setTimeout(() => {
-          console.log(
-            `🚀 [COLLECTION] Auto-loading initial data (strategy: ${paginationStrategy})`
-          );
           loadRange(0, rangeSize).catch((error) => {
             console.error("❌ [COLLECTION] Initial load failed:", error);
           });
@@ -549,27 +546,10 @@ export const withCollection =
      * Update loaded data in component
      */
     const updateLoadedData = (items: any[], offset: number): void => {
-      console.log(
-        `📥 [COLLECTION] updateLoadedData() called with ${items.length} items, offset: ${offset}`
-      );
-      console.log(
-        `📥 [COLLECTION] component.items.length before:`,
-        component.items.length
-      );
-      console.log(
-        `📥 [COLLECTION] component.totalItems before:`,
-        component.totalItems
-      );
-
       // Ensure items array is large enough
       while (component.items.length < offset + items.length) {
         component.items.push(null);
       }
-
-      console.log(
-        `📥 [COLLECTION] component.items.length after padding:`,
-        component.items.length
-      );
 
       // Replace placeholders with real data
       items.forEach((item, index) => {
@@ -580,10 +560,6 @@ export const withCollection =
         const wasPlaceholder =
           existingItem && existingItem[PLACEHOLDER.PLACEHOLDER_FLAG];
 
-        // console.log(
-        //   `📥 [COLLECTION] Setting item at index ${targetIndex}:`,
-        //   item ? "exists" : "null/undefined"
-        // );
         component.items[targetIndex] = item;
 
         if (wasPlaceholder) {
@@ -595,15 +571,6 @@ export const withCollection =
         }
       });
 
-      console.log(
-        `📥 [COLLECTION] component.items.length after update:`,
-        component.items.length
-      );
-      console.log(
-        `📥 [COLLECTION] First few items:`,
-        component.items.slice(0, 3)
-      );
-
       // Only update total items if we don't have a large total from API metadata
       // This prevents overriding the massive list total (1,000,000) with loaded items count (20)
       const currentTotal = component.totalItems;
@@ -613,9 +580,6 @@ export const withCollection =
         // Only update for small lists where we're building the total incrementally
         component.totalItems = loadedTotal;
         component.emit?.("total:changed", { total: loadedTotal });
-        console.log(
-          `📊 [COLLECTION] Updated total items incrementally: ${loadedTotal}`
-        );
       }
     };
 

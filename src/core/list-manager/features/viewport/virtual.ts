@@ -115,15 +115,6 @@ export const createVirtualManager = (
           const start = Math.max(0, lastStartIndex - overscan);
           const end = actualTotalItems - 1;
 
-          console.log(`📊 [VIRTUAL] At maximum scroll - showing last items:
-            scrollPosition: ${scrollPosition}
-            maxScrollPosition: ${maxScrollPosition}
-            containerSize: ${containerSize}
-            itemsInViewport: ${itemsInViewport}
-            actualTotalItems: ${actualTotalItems}
-            lastStartIndex: ${lastStartIndex}
-            range: ${start}-${end}`);
-
           return { start, end };
         } else {
           // Near the bottom but not at the very end
@@ -178,16 +169,6 @@ export const createVirtualManager = (
       // Apply overscan
       const start = Math.max(0, adjustedStartIndex - overscan);
       const end = Math.min(actualTotalItems - 1, endIndex + overscan);
-
-      console.log(`📊 [VIRTUAL] Index-based visible range calculation:
-        scrollPosition: ${scrollPosition}
-        totalVirtualSize: ${totalVirtualSize}
-        scrollRatio: ${scrollRatio}
-        exactScrollIndex: ${exactScrollIndex}
-        startIndex: ${startIndex}
-        adjustedStartIndex: ${adjustedStartIndex}
-        viewportItemCount: ${viewportItemCount}
-        range: ${start}-${end}`);
 
       return { start, end };
     }

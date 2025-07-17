@@ -87,11 +87,6 @@ export const createLoadingManager = (
     // Log significant velocity changes
     if (Math.abs(currentVelocity - previousVelocity) > 2) {
       const strategy = getLoadingStrategy();
-      console.log(
-        `🚀 [LOADING] Velocity: ${currentVelocity.toFixed(
-          1
-        )} px/ms, Strategy: ${strategy}, Direction: ${direction}`
-      );
     }
 
     // Check if we should process deferred loads
