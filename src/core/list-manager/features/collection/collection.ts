@@ -137,6 +137,12 @@ export const withCollection =
       { attempts: number; lastError: Error; timestamp: number }
     >();
 
+    // Track actual pending ranges (not just IDs) for better overlap detection
+    const pendingRangeDetails = new Map<
+      number,
+      { start: number; end: number }
+    >();
+
     // Placeholder system
     let placeholderStructure: Map<string, { min: number; max: number }> | null =
       null;
@@ -187,10 +193,26 @@ export const withCollection =
       // Reset state
       loadedRanges.clear();
       pendingRanges.clear();
+      pendingRangeDetails.clear();
       failedRanges.clear();
       placeholderStructure = null;
       component.items = []; // Clear items on destroy
       component.totalItems = 0; // Reset total items
+    };
+
+    /**
+     * Check if a range overlaps with any pending ranges
+     */
+    const hasOverlappingPendingRange = (
+      start: number,
+      end: number
+    ): boolean => {
+      for (const [_, range] of pendingRangeDetails) {
+        if (start <= range.end && end >= range.start) {
+          return true;
+        }
+      }
+      return false;
     };
 
     /**
@@ -202,14 +224,26 @@ export const withCollection =
       }
 
       const rangeId = Math.floor(offset / rangeSize);
+      const rangeEnd = offset + limit - 1;
 
-      if (pendingRanges.has(rangeId)) {
-        // Already loading this range
-        console.log(`⏳ [COLLECTION] Range ${rangeId} is already being loaded`);
+      // Check if we already have this data
+      if (loadedRanges.has(rangeId)) {
+        console.log(
+          `✅ [COLLECTION] Range ${rangeId} (${offset}-${rangeEnd}) already loaded`
+        );
+        return [];
+      }
+
+      // Check for overlapping pending ranges
+      if (hasOverlappingPendingRange(offset, rangeEnd)) {
+        console.log(
+          `⏳ [COLLECTION] Overlapping range ${offset}-${rangeEnd} is already being loaded`
+        );
         return [];
       }
 
       pendingRanges.add(rangeId);
+      pendingRangeDetails.set(rangeId, { start: offset, end: rangeEnd });
 
       try {
         let items: any[];
@@ -364,6 +398,7 @@ export const withCollection =
         return [];
       } finally {
         pendingRanges.delete(rangeId);
+        pendingRangeDetails.delete(rangeId);
       }
     };
 

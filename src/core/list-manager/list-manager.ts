@@ -139,14 +139,19 @@ export const createListManager = (
       enableScrollbar: true,
       measureItems: mergedConfig.virtual?.measureItems, // Pass measureItems flag
       // Pass callback to load data for a specific range
-      loadDataForRange: (range: { start: number; end: number }) => {
+      loadDataForRange: (
+        range: { start: number; end: number },
+        priority?: "high" | "normal" | "low"
+      ) => {
         console.log(
-          `📡 [LIST-MANAGER] Proactive data request for range ${range.start}-${range.end}`
+          `📡 [LIST-MANAGER] Data request for range ${range.start}-${
+            range.end
+          } (priority: ${priority || "normal"})`
         );
 
         // Use loading manager if available
         if (loadingManager) {
-          loadingManager.requestLoad(range, "normal");
+          loadingManager.requestLoad(range, priority || "normal");
         } else {
           // Fallback to direct loading
           setTimeout(() => {
@@ -189,10 +194,21 @@ export const createListManager = (
   // Wire up velocity updates from scrolling to loading manager
   if (component.on) {
     component.on("speed:changed", (data: any) => {
+      console.log(
+        `📨 [LIST-MANAGER] Received speed:changed event: speed=${data.speed.toFixed(
+          2
+        )} px/ms, direction=${data.direction}`
+      );
       if (loadingManager) {
         loadingManager.updateVelocity(data.speed, data.direction);
+      } else {
+        console.warn(
+          `⚠️ [LIST-MANAGER] No loading manager available to handle speed change`
+        );
       }
     });
+  } else {
+    console.warn(`⚠️ [LIST-MANAGER] Component doesn't support event listeners`);
   }
 
   // Initialize component

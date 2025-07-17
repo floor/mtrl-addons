@@ -22,6 +22,7 @@ export interface ScrollingConfig {
   trackingEnabled?: boolean;
   measurementWindow?: number;
   decelerationFactor?: number;
+  decayCheckInterval?: number;
   fastThreshold?: number;
   slowThreshold?: number;
   smoothingFactor?: number;
@@ -62,7 +63,7 @@ export interface ScrollingState {
 export interface ScrollingManager {
   // Core scrolling
   handleWheel(event: WheelEvent): void;
-  scrollToPosition(position: number): void;
+  scrollToPosition(position: number, source?: string): void;
   scrollToIndex(index: number, alignment?: "start" | "center" | "end"): void;
 
   // Container positioning
@@ -121,9 +122,9 @@ export const createScrollingManager = (
     trackingEnabled = true,
     measurementWindow = LIST_MANAGER_CONSTANTS.SPEED_TRACKING
       .MEASUREMENT_WINDOW,
-    decelerationFactor = LIST_MANAGER_CONSTANTS.SPEED_TRACKING
-      .DECELERATION_FACTOR,
+    decelerationFactor = 0.9,
     smoothingFactor = 0.8,
+    decayCheckInterval = 50, // Check decay every 50ms instead of every frame
     onScrollPositionChanged,
     onVirtualRangeChanged,
     onSpeedChanged,
@@ -160,14 +161,17 @@ export const createScrollingManager = (
   let lastPosition = 0;
   let lastTimestamp = Date.now();
   let currentAcceleration = 0;
-  let animationFrameId: number | null = null;
-  let lastWheelEventTime = Date.now(); // Track last wheel event time
+  let lastIdleCheckPosition = 0;
+  let idleCheckFrame: number | null = null;
 
   // Scrollbar state (managed by external plugin)
   let scrollbarPlugin: any = null;
 
   // Items container reference
   let itemsContainer: HTMLElement | null = null;
+
+  // Track last render time to avoid excessive rendering
+  let lastRenderTime = 0;
 
   /**
    * Initialize scrolling with container reference
@@ -181,7 +185,64 @@ export const createScrollingManager = (
    */
   const initializeTracking = (): void => {
     if (!trackingEnabled) return;
-    startVelocityDecay();
+    startIdleDetection();
+  };
+
+  /**
+   * Start idle detection
+   */
+  const startIdleDetection = (): void => {
+    const checkIdle = () => {
+      if (!trackingEnabled) {
+        idleCheckFrame = null;
+        return;
+      }
+
+      // Check if position hasn't changed
+      if (
+        virtualScrollPosition === lastIdleCheckPosition &&
+        speedTracker.velocity > 0
+      ) {
+        console.log(`🛑 [SCROLLING] Position unchanged, setting velocity to 0`);
+
+        // Set velocity to 0
+        speedTracker.velocity = 0;
+        speedTracker.isAccelerating = false;
+        smoothedSpeed = 0;
+
+        // Emit speed change
+        onSpeedChanged?.({
+          speed: 0,
+          smoothedSpeed: 0,
+          direction: speedTracker.direction,
+          isAccelerating: false,
+          acceleration: 0,
+        });
+
+        component.emit?.("speed:changed", {
+          speed: 0,
+          direction: speedTracker.direction,
+          isAccelerating: false,
+        });
+
+        // Trigger immediate rendering
+        renderItems();
+
+        // Load data for current visible range
+        const visibleRange = calculateVisibleRange();
+        if (loadDataForRange) {
+          loadDataForRange({
+            start: visibleRange.start,
+            end: visibleRange.end,
+          });
+        }
+      }
+
+      lastIdleCheckPosition = virtualScrollPosition;
+      idleCheckFrame = requestAnimationFrame(checkIdle);
+    };
+
+    idleCheckFrame = requestAnimationFrame(checkIdle);
   };
 
   /**
@@ -189,18 +250,48 @@ export const createScrollingManager = (
    */
   const updateVelocityTracking = (
     deltaPosition: number,
-    deltaTime: number
+    deltaTime: number,
+    lastPosition: number
   ): void => {
-    if (!trackingEnabled || deltaTime <= 0) return;
+    if (!trackingEnabled) return;
 
     const now = Date.now();
     const position = lastPosition + deltaPosition;
 
+    // If delta is 0 or very small, set velocity to 0
+    if (Math.abs(deltaPosition) < 0.1) {
+      if (speedTracker.velocity > 0) {
+        console.log(
+          `🛑 [SCROLLING] No movement detected, setting velocity to 0`
+        );
+        speedTracker.velocity = 0;
+        speedTracker.isAccelerating = false;
+        smoothedSpeed = 0;
+        currentAcceleration = 0;
+
+        // Emit speed change
+        onSpeedChanged?.({
+          speed: 0,
+          smoothedSpeed: 0,
+          direction: speedTracker.direction,
+          isAccelerating: false,
+          acceleration: 0,
+        });
+
+        component.emit?.("speed:changed", {
+          speed: 0,
+          direction: speedTracker.direction,
+          isAccelerating: false,
+        });
+      }
+      return;
+    }
+
     // Calculate instantaneous velocity
     const instantVelocity = Math.abs(deltaPosition) / deltaTime;
 
-    // Debug logging for velocity
-    if (instantVelocity > 0.5) {
+    // Debug logging for velocity - log all non-zero velocities
+    if (instantVelocity > 0.01) {
       console.log(
         `🎯 [SCROLLING] Raw velocity: ${instantVelocity.toFixed(
           2
@@ -253,7 +344,7 @@ export const createScrollingManager = (
     lastPosition = position;
     lastTimestamp = now;
 
-    // Emit speed change event
+    // Emit speed changed event
     onSpeedChanged?.({
       speed: speedTracker.velocity,
       smoothedSpeed,
@@ -262,7 +353,6 @@ export const createScrollingManager = (
       acceleration: currentAcceleration,
     });
 
-    // Emit speed changed event for loading manager
     component.emit?.("speed:changed", {
       speed: speedTracker.velocity, // Use raw velocity for loading decisions
       direction: speedTracker.direction,
@@ -286,58 +376,14 @@ export const createScrollingManager = (
   };
 
   /**
-   * Start velocity decay animation
-   */
-  const startVelocityDecay = (): void => {
-    const decay = () => {
-      if (!trackingEnabled) return;
-
-      const now = Date.now();
-      const timeSinceUpdate = now - speedTracker.lastMeasurement;
-
-      // Apply decay if no recent updates
-      if (timeSinceUpdate > 50) {
-        speedTracker.velocity *= decelerationFactor;
-        smoothedSpeed *= decelerationFactor;
-
-        // Stop very low velocities
-        if (speedTracker.velocity < 0.1) {
-          speedTracker.velocity = 0;
-          speedTracker.isAccelerating = false;
-        }
-
-        if (smoothedSpeed < 0.1) {
-          smoothedSpeed = 0;
-        }
-
-        speedTracker.lastMeasurement = now;
-      }
-
-      animationFrameId = requestAnimationFrame(decay);
-    };
-
-    animationFrameId = requestAnimationFrame(decay);
-  };
-
-  /**
-   * Stop velocity decay animation
-   */
-  const stopVelocityDecay = (): void => {
-    if (animationFrameId) {
-      cancelAnimationFrame(animationFrameId);
-      animationFrameId = null;
-    }
-  };
-
-  /**
    * Handle wheel events for scrolling
    */
   const handleWheel = (event: WheelEvent): void => {
     event.preventDefault();
 
     const now = Date.now();
-    const actualDeltaTime = Math.max(1, now - lastWheelEventTime); // Minimum 1ms to avoid division by zero
-    lastWheelEventTime = now;
+    const actualDeltaTime = Math.max(1, now - lastTimestamp); // Minimum 1ms to avoid division by zero
+    lastTimestamp = now;
 
     const sensitivity =
       LIST_MANAGER_CONSTANTS.VIRTUAL_SCROLL.SCROLL_SENSITIVITY;
@@ -393,7 +439,7 @@ export const createScrollingManager = (
 
     // Update velocity tracking with the actual delta and real time
     const deltaPosition = newPosition - previousPosition;
-    updateVelocityTracking(deltaPosition, actualDeltaTime);
+    updateVelocityTracking(deltaPosition, actualDeltaTime, previousPosition);
 
     // Update container position immediately for instant feedback
     updateContainerPosition();
@@ -510,7 +556,7 @@ export const createScrollingManager = (
   /**
    * Scroll to a specific position
    */
-  const scrollToPosition = (position: number): void => {
+  const scrollToPosition = (position: number, source?: string): void => {
     const maxScroll = Math.max(0, totalVirtualSize - containerSize);
     const clampedPosition = clamp(position, 0, maxScroll);
 
@@ -523,18 +569,39 @@ export const createScrollingManager = (
     // Update scroll position immediately
     virtualScrollPosition = clampedPosition;
 
-    // Update velocity tracking
+    // Update velocity tracking with actual time delta
+    const now = Date.now();
+    const actualDeltaTime = Math.max(1, now - lastTimestamp);
     const deltaPosition = clampedPosition - previousPosition;
-    const deltaTime = 16; // Assume 60fps
-    updateVelocityTracking(deltaPosition, deltaTime);
+
+    // For scrollbar dragging, use actual time between updates
+    if (source === "scrollbar-drag") {
+      updateVelocityTracking(deltaPosition, actualDeltaTime, previousPosition);
+    } else {
+      // For other sources, use default frame time
+      updateVelocityTracking(deltaPosition, 16, previousPosition);
+    }
+
+    lastTimestamp = now;
 
     // Update UI immediately
     updateContainerPosition();
     updateScrollbar();
     showScrollbar();
 
-    // Trigger rendering for new visible range
+    // Trigger rendering immediately for all sources
     renderItems();
+
+    // For scrollbar drag, also ensure we load data
+    if (source === "scrollbar-drag") {
+      const visibleRange = calculateVisibleRange();
+      if (loadDataForRange) {
+        loadDataForRange({
+          start: visibleRange.start,
+          end: visibleRange.end,
+        });
+      }
+    }
 
     // Emit events
     const direction =
@@ -609,11 +676,14 @@ export const createScrollingManager = (
   };
 
   /**
-   * Destroy scrollbar and stop tracking
+   * Cleanup
    */
   const destroy = (): void => {
     destroyScrollbar();
-    stopVelocityDecay();
+    if (idleCheckFrame) {
+      cancelAnimationFrame(idleCheckFrame);
+      idleCheckFrame = null;
+    }
   };
 
   /**

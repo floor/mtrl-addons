@@ -1,22 +1,18 @@
 /**
  * Loading - Velocity-based intelligent data loading for viewport
  *
- * This viewport module manages data loading strategies based on scroll velocity,
- * coordinating between the viewport (UI layer) and collection (data layer).
+ * This viewport module manages data loading based on scroll velocity.
+ * When scrolling fast, it cancels loads to prevent server overload.
  */
 
-import type {
-  ListManagerComponent,
-  ItemRange,
-  SpeedTracker,
-} from "../../types";
+import type { ListManagerComponent, ItemRange } from "../../types";
 import { LIST_MANAGER_CONSTANTS } from "../../constants";
+import { VIEWPORT_CONSTANTS } from "./constants";
 
 export interface LoadingConfig {
-  fastThreshold?: number;
-  slowThreshold?: number;
+  cancelLoadThreshold?: number; // Velocity (px/ms) above which all loads are cancelled
   maxConcurrentRequests?: number;
-  debounceDelay?: number;
+  enableRequestQueue?: boolean;
 }
 
 export interface LoadingManager {
@@ -28,17 +24,18 @@ export interface LoadingManager {
 
 interface LoadingStats {
   pendingRequests: number;
-  deferredRequests: number;
   completedRequests: number;
   failedRequests: number;
-  currentStrategy: "immediate" | "deferred" | "cancelled";
+  cancelledRequests: number;
+  currentVelocity: number;
+  canLoad: boolean;
+  queuedRequests: number;
 }
 
-interface DeferredLoad {
+interface QueuedRequest {
   range: ItemRange;
   priority: "high" | "normal" | "low";
   timestamp: number;
-  timeoutId?: NodeJS.Timeout;
 }
 
 /**
@@ -49,28 +46,40 @@ export const createLoadingManager = (
   config: LoadingConfig = {}
 ): LoadingManager => {
   const {
-    fastThreshold = LIST_MANAGER_CONSTANTS.SPEED_TRACKING.FAST_SCROLL_THRESHOLD,
-    slowThreshold = LIST_MANAGER_CONSTANTS.SPEED_TRACKING.SLOW_SCROLL_THRESHOLD,
-    maxConcurrentRequests = LIST_MANAGER_CONSTANTS.RANGE_LOADING
-      .MAX_CONCURRENT_REQUESTS,
-    debounceDelay = LIST_MANAGER_CONSTANTS.PERFORMANCE.DEBOUNCE_LOADING,
+    cancelLoadThreshold = VIEWPORT_CONSTANTS.LOADING.CANCEL_THRESHOLD,
+    maxConcurrentRequests = VIEWPORT_CONSTANTS.REQUEST_QUEUE
+      .MAX_ACTIVE_REQUESTS,
+    enableRequestQueue = VIEWPORT_CONSTANTS.REQUEST_QUEUE.ENABLED,
   } = config;
 
   // State
   let currentVelocity = 0;
   let scrollDirection: "forward" | "backward" = "forward";
-  let pendingRequests = 0;
-  const deferredLoads = new Map<string, DeferredLoad>();
+  let activeRequests = 0;
+
+  // Request queue
+  let requestQueue: QueuedRequest[] = [];
+
+  // Track active requests to prevent duplicates
+  const activeRanges = new Set<string>();
 
   // Stats
   let completedRequests = 0;
   let failedRequests = 0;
+  let cancelledRequests = 0;
 
   /**
-   * Get a unique key for a range
+   * Get range key for deduplication
    */
   const getRangeKey = (range: ItemRange): string => {
     return `${range.start}-${range.end}`;
+  };
+
+  /**
+   * Check if we should load data at current velocity
+   */
+  const canLoad = (): boolean => {
+    return currentVelocity <= cancelLoadThreshold;
   };
 
   /**
@@ -84,14 +93,70 @@ export const createLoadingManager = (
     currentVelocity = Math.abs(velocity);
     scrollDirection = direction;
 
-    // Log significant velocity changes
-    if (Math.abs(currentVelocity - previousVelocity) > 2) {
-      const strategy = getLoadingStrategy();
+    // Only log significant velocity changes
+    if (Math.abs(previousVelocity - currentVelocity) > 0.5) {
+      console.log(
+        `🔄 [LOADING] Velocity updated: ${previousVelocity.toFixed(
+          2
+        )} → ${currentVelocity.toFixed(
+          2
+        )} px/ms (threshold: ${cancelLoadThreshold})`
+      );
     }
 
-    // Check if we should process deferred loads
-    if (currentVelocity < slowThreshold) {
-      processDeferredLoads();
+    // When velocity drops below threshold (including reaching zero), process queued requests
+    if (
+      previousVelocity > cancelLoadThreshold &&
+      currentVelocity <= cancelLoadThreshold
+    ) {
+      console.log(
+        `📊 [LOADING] Velocity dropped to loadable level (${currentVelocity.toFixed(
+          2
+        )} px/ms), processing ${requestQueue.length} queued requests`
+      );
+      processQueue();
+    } else if (
+      currentVelocity <= cancelLoadThreshold &&
+      requestQueue.length > 0
+    ) {
+      // Only log if there are items in queue
+      console.log(
+        `✅ [LOADING] Velocity still at loadable level: ${currentVelocity.toFixed(
+          2
+        )} px/ms (queue: ${requestQueue.length} items)`
+      );
+    }
+  };
+
+  /**
+   * Process the request queue
+   */
+  const processQueue = (): void => {
+    console.log(
+      `🔄 [LOADING] processQueue called - queue length: ${requestQueue.length}, activeRequests: ${activeRequests}/${maxConcurrentRequests}`
+    );
+
+    if (!enableRequestQueue) {
+      console.log(`❌ [LOADING] Request queue is disabled`);
+      return;
+    }
+
+    let processed = 0;
+    while (requestQueue.length > 0 && activeRequests < maxConcurrentRequests) {
+      const request = requestQueue.shift();
+      if (request) {
+        console.log(
+          `✅ [LOADING] Processing queued request for range ${request.range.start}-${request.range.end}`
+        );
+        executeLoad(request.range, request.priority);
+        processed++;
+      }
+    }
+
+    if (processed === 0 && requestQueue.length > 0) {
+      console.log(
+        `⏸️ [LOADING] Queue processing paused - max concurrent requests (${maxConcurrentRequests}) reached`
+      );
     }
   };
 
@@ -104,83 +169,59 @@ export const createLoadingManager = (
   ): void => {
     const rangeKey = getRangeKey(range);
 
-    // Check if already deferred
-    if (deferredLoads.has(rangeKey)) {
-      const existing = deferredLoads.get(rangeKey)!;
-      // Update priority if higher
-      if (priority === "high" && existing.priority !== "high") {
-        existing.priority = priority;
-      }
+    // Check if already loading this range
+    if (activeRanges.has(rangeKey)) {
+      console.log(
+        `⏳ [LOADING] Range ${range.start}-${range.end} is already being loaded`
+      );
       return;
     }
 
-    // Determine loading strategy based on velocity
-    const strategy = getLoadingStrategy();
-
-    switch (strategy) {
-      case "immediate":
-        if (pendingRequests < maxConcurrentRequests) {
-          executeLoad(range, priority);
-        } else {
-          deferLoad(range, priority, debounceDelay);
-        }
-        break;
-
-      case "deferred":
-        // Calculate adaptive delay based on velocity
-        const delay = calculateDeferralDelay();
-        deferLoad(range, priority, delay);
-        break;
-
-      case "cancelled":
-        // Very fast scrolling - only load high priority if velocity is moderate
-        if (priority === "high" && currentVelocity < fastThreshold * 2) {
-          deferLoad(range, priority, calculateDeferralDelay());
-        } else {
-          // Log when we're cancelling loads due to high velocity
-          console.log(
-            `🚫 [LOADING] Cancelled ${priority} priority load for range ${
-              range.start
-            }-${range.end} (velocity: ${currentVelocity.toFixed(1)} px/ms)`
-          );
-        }
-        // All loads are dropped during very fast scrolling
-        break;
+    // Check velocity for all requests
+    if (!canLoad()) {
+      console.log(
+        `🚫 [LOADING] Cancelled ${priority} priority load for range ${
+          range.start
+        }-${range.end} due to high velocity (${currentVelocity.toFixed(
+          2
+        )} px/ms > ${cancelLoadThreshold} px/ms)`
+      );
+      cancelledRequests++;
+      return;
     }
-  };
 
-  /**
-   * Get loading strategy based on current velocity
-   */
-  const getLoadingStrategy = (): "immediate" | "deferred" | "cancelled" => {
-    // More aggressive thresholds for mouse wheel scrolling
-    if (currentVelocity > fastThreshold * 3) {
-      return "cancelled"; // Very fast (>15 px/ms) - cancel all loads
-    } else if (currentVelocity > fastThreshold * 1.5) {
-      return "cancelled"; // Fast (>7.5 px/ms) - cancel most loads
-    } else if (currentVelocity > fastThreshold) {
-      return "deferred"; // Moderate (>5 px/ms) - defer loading
-    } else if (currentVelocity > slowThreshold) {
-      return "deferred"; // Slow (>1 px/ms) - still defer with short delay
-    } else {
-      return "immediate"; // Very slow (<1 px/ms) - load immediately
-    }
-  };
+    // If velocity is low, execute immediately
+    if (activeRequests < maxConcurrentRequests) {
+      console.log(
+        `✅ [LOADING] Processing ${priority} priority load for range ${
+          range.start
+        }-${range.end} immediately (velocity: ${currentVelocity.toFixed(
+          2
+        )} px/ms)`
+      );
+      executeLoad(range, priority);
+    } else if (enableRequestQueue) {
+      // Add to queue if we're at capacity
+      requestQueue.push({
+        range,
+        priority,
+        timestamp: Date.now(),
+      });
 
-  /**
-   * Calculate deferral delay based on velocity
-   */
-  const calculateDeferralDelay = (): number => {
-    if (currentVelocity > fastThreshold * 3) {
-      return debounceDelay * 8; // 400ms for very fast
-    } else if (currentVelocity > fastThreshold * 2) {
-      return debounceDelay * 6; // 300ms for fast
-    } else if (currentVelocity > fastThreshold) {
-      return debounceDelay * 4; // 200ms for moderate
-    } else if (currentVelocity > slowThreshold) {
-      return debounceDelay * 2; // 100ms for slow
-    } else {
-      return debounceDelay; // 50ms for very slow
+      // Enforce max queue size
+      if (
+        requestQueue.length > VIEWPORT_CONSTANTS.REQUEST_QUEUE.MAX_QUEUE_SIZE
+      ) {
+        const removed = requestQueue.splice(
+          0,
+          requestQueue.length - VIEWPORT_CONSTANTS.REQUEST_QUEUE.MAX_QUEUE_SIZE
+        );
+        cancelledRequests += removed.length;
+      }
+
+      console.log(
+        `📋 [LOADING] Queued ${priority} priority request for range ${range.start}-${range.end} (queue size: ${requestQueue.length})`
+      );
     }
   };
 
@@ -191,133 +232,80 @@ export const createLoadingManager = (
     range: ItemRange,
     priority: "high" | "normal" | "low"
   ): void => {
-    const collection = (component as any).collection;
-    if (!collection || !collection.loadMissingRanges) {
-      console.warn("⚠️ [LOADING] Collection not available");
-      return;
-    }
-
-    pendingRequests++;
-
-    console.log(
-      `📥 [LOADING] Executing ${priority} priority load for range ${
-        range.start
-      }-${range.end} (velocity: ${currentVelocity.toFixed(
-        1
-      )} px/ms, pending: ${pendingRequests})`
-    );
-
-    collection
-      .loadMissingRanges(range)
-      .then(() => {
-        pendingRequests--;
-        completedRequests++;
-        processDeferredLoads(); // Check if we can load more
-      })
-      .catch((error: any) => {
-        pendingRequests--;
-        failedRequests++;
-        console.error("❌ [LOADING] Load failed:", error);
-      });
-  };
-
-  /**
-   * Defer load for later
-   */
-  const deferLoad = (
-    range: ItemRange,
-    priority: "high" | "normal" | "low",
-    delay: number
-  ): void => {
     const rangeKey = getRangeKey(range);
 
-    // Clear existing timeout if any
-    const existing = deferredLoads.get(rangeKey);
-    if (existing?.timeoutId) {
-      clearTimeout(existing.timeoutId);
-    }
-
-    console.log(
-      `⏳ [LOADING] Deferring ${priority} priority load for range ${range.start}-${range.end} (${delay}ms)`
-    );
-
-    const timeoutId = setTimeout(() => {
-      deferredLoads.delete(rangeKey);
-
-      // Re-check velocity before loading
-      if (currentVelocity < fastThreshold) {
-        executeLoad(range, priority);
-      } else {
-        // Still scrolling fast, defer again
-        deferLoad(range, priority, calculateDeferralDelay());
-      }
-    }, delay);
-
-    deferredLoads.set(rangeKey, {
-      range,
-      priority,
-      timestamp: Date.now(),
-      timeoutId,
-    });
-  };
-
-  /**
-   * Process deferred loads when velocity decreases
-   */
-  const processDeferredLoads = (): void => {
-    if (pendingRequests >= maxConcurrentRequests) {
+    // Double-check for duplicates
+    if (activeRanges.has(rangeKey)) {
       return;
     }
 
-    // Sort by priority and timestamp
-    const sortedLoads = Array.from(deferredLoads.values()).sort((a, b) => {
-      if (a.priority !== b.priority) {
-        const priorityOrder = { high: 0, normal: 1, low: 2 };
-        return priorityOrder[a.priority] - priorityOrder[b.priority];
-      }
-      return a.timestamp - b.timestamp;
-    });
+    console.log(
+      `📡 [LOADING] Executing ${priority} priority load for range ${range.start}-${range.end}`
+    );
 
-    // Process highest priority loads first
-    for (const load of sortedLoads) {
-      if (pendingRequests >= maxConcurrentRequests) {
-        break;
-      }
+    activeRequests++;
+    activeRanges.add(rangeKey);
 
-      const rangeKey = getRangeKey(load.range);
-      deferredLoads.delete(rangeKey);
-
-      if (load.timeoutId) {
-        clearTimeout(load.timeoutId);
-      }
-
-      executeLoad(load.range, load.priority);
+    // Request data from collection
+    const collection = (component as any).collection;
+    if (collection && typeof collection.loadMissingRanges === "function") {
+      collection
+        .loadMissingRanges(range)
+        .then(() => {
+          activeRequests--;
+          activeRanges.delete(rangeKey);
+          completedRequests++;
+          console.log(
+            `✅ [LOADING] Completed load for range ${range.start}-${range.end}`
+          );
+          // Process more requests from queue
+          processQueue();
+        })
+        .catch((error: any) => {
+          activeRequests--;
+          activeRanges.delete(rangeKey);
+          failedRequests++;
+          console.error(
+            `❌ [LOADING] Failed to load range ${range.start}-${range.end}:`,
+            error
+          );
+          // Process more requests from queue even on failure
+          processQueue();
+        });
+    } else {
+      activeRequests--;
+      activeRanges.delete(rangeKey);
+      console.warn(
+        `⚠️ [LOADING] No collection available for range ${range.start}-${range.end}`
+      );
+      processQueue();
     }
   };
 
   /**
-   * Cancel all pending deferred loads
+   * Cancel all pending loads
    */
   const cancelPendingLoads = (): void => {
-    for (const [key, load] of deferredLoads) {
-      if (load.timeoutId) {
-        clearTimeout(load.timeoutId);
-      }
+    const count = requestQueue.length;
+    if (count > 0) {
+      cancelledRequests += count;
+      requestQueue = [];
+      console.log(`🚫 [LOADING] Cancelled ${count} pending loads`);
     }
-    deferredLoads.clear();
-    console.log("🚫 [LOADING] Cancelled all pending loads");
   };
 
   /**
-   * Get current statistics
+   * Get loading statistics
    */
   const getStats = (): LoadingStats => {
     return {
-      pendingRequests,
-      deferredRequests: deferredLoads.size,
+      pendingRequests: activeRequests,
       completedRequests,
       failedRequests,
-      currentStrategy: getLoadingStrategy(),
+      cancelledRequests,
+      currentVelocity,
+      canLoad: canLoad(),
+      queuedRequests: requestQueue.length,
     };
   };
 

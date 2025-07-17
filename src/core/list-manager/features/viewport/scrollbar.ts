@@ -235,8 +235,15 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
       // Update position immediately (visual only)
       updateScrollbarPosition(newScrollRatio);
 
-      // 🎯 NO EVENTS DURING DRAG: Don't emit anything until drag stops
-      // (removed verbose dragging logs to keep console clean)
+      // Calculate and emit the new scroll position
+      const virtualScrollTop =
+        getVirtualPositionFromScrollRatio(newScrollRatio);
+
+      listManager.emit("viewport:changed", {
+        scrollTop: virtualScrollTop,
+        scrollRatio: newScrollRatio,
+        source: "scrollbar-drag",
+      });
     };
 
     /**

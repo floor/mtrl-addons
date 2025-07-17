@@ -196,12 +196,12 @@ export const createVirtualManager = (
     if (totalItems * estimatedItemSize > MAX_VIRTUAL_SIZE) {
       // Cap virtual size to prevent browser issues
       newTotalVirtualSize = MAX_VIRTUAL_SIZE;
-      console.log(
-        `📐 [VIRTUAL] Capping virtual size at 10M pixels for ${totalItems.toLocaleString()} items (would be ${(
-          (totalItems * estimatedItemSize) /
-          1_000_000
-        ).toFixed(1)}M pixels)`
-      );
+      // console.log(
+      //   `📐 [VIRTUAL] Capping virtual size at 10M pixels for ${totalItems.toLocaleString()} items (would be ${(
+      //     (totalItems * estimatedItemSize) /
+      //     1_000_000
+      //   ).toFixed(1)}M pixels)`
+      // );
     } else {
       // Use actual size when within limits
       newTotalVirtualSize = totalItems * estimatedItemSize;

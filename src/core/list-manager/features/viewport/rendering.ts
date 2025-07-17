@@ -14,7 +14,10 @@ import { getDefaultTemplate } from "./template";
 export interface RenderingConfig {
   orientation: "vertical" | "horizontal";
   overscan: number;
-  loadDataForRange?: (range: { start: number; end: number }) => void;
+  loadDataForRange?: (
+    range: { start: number; end: number },
+    priority?: "high" | "normal" | "low"
+  ) => void;
   measureItems?: boolean; // Add measureItems flag
 }
 
@@ -116,9 +119,9 @@ export const createRenderingManager = (
     }
 
     // Proactively load data for visible range AND upcoming ranges
-    console.log(
-      `🔍 [VIEWPORT] Checking range ${newVisibleRange.start}-${newVisibleRange.end} for missing data`
-    );
+    // console.log(
+    //   `🔍 [VIEWPORT] Checking range ${newVisibleRange.start}-${newVisibleRange.end} for missing data`
+    // );
 
     const actualTotalItems = getActualTotalItems();
 
@@ -195,10 +198,21 @@ export const createRenderingManager = (
 
       // Load visible range with high priority
       if (visibleMissingCount > 0) {
-        // Trigger collection to load missing visible ranges (high priority)
-        collection.loadMissingRanges(newVisibleRange).catch((error: any) => {
-          console.error("❌ [VIEWPORT] Failed to load visible ranges:", error);
-        });
+        // Use loading manager for all loads to benefit from request queue
+        if (loadDataForRange) {
+          console.log(
+            `📡 [RENDERING] Using loading manager for visible range ${newVisibleRange.start}-${newVisibleRange.end}`
+          );
+          loadDataForRange(newVisibleRange, "high");
+        } else {
+          // Fallback to direct collection call only if no loading manager
+          collection.loadMissingRanges(newVisibleRange).catch((error: any) => {
+            console.error(
+              "❌ [VIEWPORT] Failed to load visible ranges:",
+              error
+            );
+          });
+        }
       }
 
       // Load extended range with lower priority (proactive)
@@ -206,7 +220,7 @@ export const createRenderingManager = (
       if (extendedMissingCount > 0 && prefetchBuffer > 0) {
         // Use loading manager for proactive loads
         if (loadDataForRange) {
-          loadDataForRange(extendedRange);
+          loadDataForRange(extendedRange, "low");
         } else {
           // Fallback to direct collection call
           collection.loadMissingRanges(extendedRange).catch((error: any) => {

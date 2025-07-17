@@ -25,7 +25,10 @@ export interface ViewportConfig {
   estimatedItemSize?: number;
   overscan?: number;
   enableScrollbar?: boolean;
-  loadDataForRange?: (range: { start: number; end: number }) => void;
+  loadDataForRange?: (
+    range: { start: number; end: number },
+    priority?: "high" | "normal" | "low"
+  ) => void;
   measureItems?: boolean; // Add measureItems flag
 }
 
@@ -212,14 +215,14 @@ export const withViewport =
             `📊 [VIEWPORT] component.items.length: ${component.items.length}, actualTotalItems: ${actualTotalItems}`
           );
 
-          // Use loading manager via loadDataForRange callback
+          // Always use loading manager via loadDataForRange callback
           if (config.loadDataForRange) {
             console.log(
               `📡 [VIEWPORT] Using loading manager for range ${targetRange.start}-${targetRange.end}`
             );
-            config.loadDataForRange(targetRange);
+            config.loadDataForRange(targetRange, "high");
           } else {
-            // Fallback to direct collection call if no coordinator
+            // Fallback to direct collection call if no loading manager
             collection.loadMissingRanges(targetRange).catch((error: any) => {
               console.error(
                 "❌ [VIEWPORT] Failed to load missing ranges:",
@@ -532,14 +535,13 @@ export const withViewport =
           return () => {}; // Unsubscribe function
         },
         emit: (event: string, data: any) => {
-          if (event === "viewport:changed" && data.source === "scrollbar") {
-            console.log(`🎯 [VIEWPORT] Received scrollbar event:`, data);
+          if (
+            event === "viewport:changed" &&
+            (data.source === "scrollbar" || data.source === "scrollbar-drag")
+          ) {
             // Handle scrollbar events - scroll to position
             const targetPosition = data.scrollTop || 0;
-            console.log(
-              `🎯 [VIEWPORT] Scrolling to position: ${targetPosition}`
-            );
-            scrollingManager.scrollToPosition(targetPosition);
+            scrollingManager.scrollToPosition(targetPosition, data.source);
           }
         },
       };

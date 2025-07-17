@@ -396,10 +396,12 @@ export const ORIENTATION = {
  * Speed-based loading constants for intelligent data fetching
  */
 export const SPEED_TRACKING = {
-  // Speed thresholds (optimized for mouse wheel scrolling)
-  FAST_SCROLL_THRESHOLD: 3, // px/ms - lowered from 5 to catch more scrolling as "fast"
-  SLOW_SCROLL_THRESHOLD: 0.5, // px/ms - lowered from 1 for truly slow scrolling only
-  MEDIUM_SCROLL_THRESHOLD: 1.5, // px/ms - lowered from 2.5
+  // Speed thresholds for scroll classification
+  FAST_SCROLL_THRESHOLD: 3, // px/ms - used for speed classification (fast vs normal)
+  SLOW_SCROLL_THRESHOLD: 0.5, // px/ms - used for speed classification (slow vs normal)
+
+  // Loading control
+  CANCEL_LOAD_THRESHOLD: 6, // px/ms - above this, cancel all loading to prevent server overload
 
   // Speed calculation
   DECELERATION_FACTOR: 0.95, // velocity decay per frame
@@ -431,7 +433,7 @@ export const RANGE_LOADING = {
   MAX_BUFFER_SIZE: 50,
 
   // Preloading strategy
-  PREFETCH_RANGES: 1, // ranges to load ahead of visible area
+  PREFETCH_RANGES: 0, // ranges to load ahead of visible area
   PREFETCH_THRESHOLD: 0.8, // load more when 80% through current range
   PRELOAD_DIRECTION_BIAS: 0.3, // bias preloading in scroll direction
 
@@ -662,7 +664,7 @@ export const LIST_MANAGER_CONSTANTS = {
   SPEED_TRACKING: {
     FAST_SCROLL_THRESHOLD: 10, // px/ms - reduced from 1000 to realistic wheel scroll speeds
     SLOW_SCROLL_THRESHOLD: 2, // px/ms - reduced proportionally
-    DECELERATION_FACTOR: 0.95, // velocity decay per frame
+    DECELERATION_FACTOR: 0.85, // velocity decay per frame (more aggressive decay)
     MEASUREMENT_WINDOW: 100, // ms - window for speed calculation
   },
 
