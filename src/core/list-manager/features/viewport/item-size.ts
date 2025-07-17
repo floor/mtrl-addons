@@ -73,11 +73,6 @@ export const createItemSizeManager = (
       entries.slice(0, Math.floor(cacheSize * 0.1)).forEach(([key]) => {
         measuredSizes.delete(key);
       });
-      console.log(
-        `🧹 [ITEM-SIZE] Cache cleanup: removed ${Math.floor(
-          cacheSize * 0.1
-        )} oldest entries`
-      );
     }
     measuredSizes.set(index, size);
   };
@@ -111,9 +106,6 @@ export const createItemSizeManager = (
     // Short timeout to batch rapid measurements
     batchUpdateTimeout = window.setTimeout(() => {
       const batchDuration = Date.now() - batchStartTime;
-      console.log(
-        `🔄 [ITEM-SIZE-BATCH] Triggering batched updates for ${pendingMeasurements} measurements (${batchDuration}ms)`
-      );
       triggerBatchedUpdates();
     }, 16); // ~1 frame delay to batch measurements
   };
@@ -127,9 +119,6 @@ export const createItemSizeManager = (
     measureOrientation?: "vertical" | "horizontal"
   ): number => {
     if (!element || index < 0) {
-      console.warn(
-        `⚠️ [ITEM-SIZE] Invalid measurement parameters: element=${!!element}, index=${index}`
-      );
       return currentEstimatedItemSize;
     }
 
@@ -149,24 +138,12 @@ export const createItemSizeManager = (
       }
       pendingMeasurements++;
 
-      // Log if this is a new measurement or size changed significantly
-      if (!previousSize || Math.abs(size - previousSize) > 1) {
-        console.trace(
-          `📏 [ITEM-SIZE] Item ${index}: ${
-            previousSize ? `${previousSize}px → ` : ""
-          }${size}px (${actualOrientation})`
-        );
-      }
-
       // Schedule batched updates instead of immediate callbacks
       scheduleBatchedUpdates();
 
       return size;
     }
 
-    console.warn(
-      `⚠️ [ITEM-SIZE] Could not measure item ${index}: size=${size}px`
-    );
     return currentEstimatedItemSize;
   };
 
@@ -190,10 +167,6 @@ export const createItemSizeManager = (
     if (absoluteChange >= changeThreshold) {
       const previousEstimate = currentEstimatedItemSize;
       currentEstimatedItemSize = newEstimate;
-
-      console.log(
-        `📊 [ITEM-SIZE] Updated estimate: ${previousEstimate}px → ${newEstimate}px (from ${sizes.length} measurements, change: ${absoluteChange}px)`
-      );
 
       if (onEstimatedSizeChanged) {
         onEstimatedSizeChanged(newEstimate);
@@ -243,7 +216,6 @@ export const createItemSizeManager = (
   const clearCache = (): void => {
     const cacheSize = measuredSizes.size;
     measuredSizes.clear();
-    console.log(`🧹 [ITEM-SIZE] Cleared ${cacheSize} cached measurements`);
   };
 
   /**

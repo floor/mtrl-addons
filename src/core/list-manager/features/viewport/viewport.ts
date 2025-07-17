@@ -156,19 +156,11 @@ export const withViewport =
       start: number;
       end: number;
     }): void => {
-      console.log(
-        `🔍 [VIEWPORT] Checking range ${targetRange.start}-${targetRange.end} for missing data`
-      );
-
       // Try immediate detection first
       const collection = (component as any).collection;
       const hasCollection = !!collection;
       const hasLoadMissingRanges =
         hasCollection && typeof collection.loadMissingRanges === "function";
-
-      console.log(
-        `🔍 [VIEWPORT] Collection check: hasCollection=${hasCollection}, hasLoadMissingRanges=${hasLoadMissingRanges}, items.length=${component.items.length}, actualTotalItems=${actualTotalItems}`
-      );
 
       if (hasLoadMissingRanges) {
         // Improved missing data detection - check for null/undefined items in range
@@ -193,50 +185,17 @@ export const withViewport =
           }
         }
 
-        console.log(
-          `🔍 [VIEWPORT] Missing data analysis: ${missingCount} missing items out of ${
-            targetRange.end - targetRange.start + 1
-          } requested`
-        );
-        console.log(
-          `🔍 [VIEWPORT] Range breakdown: start=${targetRange.start}, end=${targetRange.end}, items.length=${component.items.length}`
-        );
-
         if (missingCount > 0) {
-          console.log(
-            `🔄 [VIEWPORT] Triggering collection load for ${missingCount} missing items in range ${targetRange.start}-${targetRange.end}`
-          );
-          console.log(
-            `🔍 [VIEWPORT] Missing indices: [${missingIndices
-              .slice(0, 10)
-              .join(", ")}${missingIndices.length > 10 ? "..." : ""}]`
-          );
-          console.log(
-            `📊 [VIEWPORT] component.items.length: ${component.items.length}, actualTotalItems: ${actualTotalItems}`
-          );
-
           // Always use loading manager via loadDataForRange callback
           if (config.loadDataForRange) {
-            console.log(
-              `📡 [VIEWPORT] Using loading manager for range ${targetRange.start}-${targetRange.end}`
-            );
             config.loadDataForRange(targetRange, "high");
           } else {
             // Fallback to direct collection call if no loading manager
             collection.loadMissingRanges(targetRange).catch((error: any) => {
-              console.error(
-                "❌ [VIEWPORT] Failed to load missing ranges:",
-                error
-              );
+              console.error("❌ Failed to load missing ranges:", error);
             });
           }
-        } else {
-          console.log(
-            `✅ [VIEWPORT] All items in range ${targetRange.start}-${targetRange.end} are already loaded`
-          );
         }
-      } else {
-        console.log(`⚠️ [VIEWPORT] Collection not available for loading data`);
       }
     };
 
@@ -244,21 +203,11 @@ export const withViewport =
      * Proactively load data for a specific range (called by scrolling manager)
      */
     const loadDataForRange = (range: { start: number; end: number }): void => {
-      console.log(
-        `🎯 [VIEWPORT] Proactive load request for range ${range.start}-${range.end}`
-      );
-
       // Use the callback from config if provided (proactive approach)
       if (config.loadDataForRange) {
-        console.log(
-          `📡 [VIEWPORT] Using proactive data loading callback for range ${range.start}-${range.end}`
-        );
         config.loadDataForRange(range);
       } else {
         // Fallback to reactive approach (force re-render)
-        console.log(
-          `🔄 [VIEWPORT] No proactive callback, triggering renderItems for range ${range.start}-${range.end}`
-        );
 
         // Force a re-render
         setTimeout(() => {
@@ -373,9 +322,6 @@ export const withViewport =
           // Use the total from the event data instead of component.totalItems
           const newTotal = data?.total || component.totalItems;
           actualTotalItems = newTotal; // Store the correct value
-          console.log(
-            `📊 [VIEWPORT] Total changed event received: ${newTotal.toLocaleString()}`
-          );
 
           virtualManager.updateTotalVirtualSize(newTotal);
 
@@ -398,9 +344,6 @@ export const withViewport =
 
         component.on("estimated-size:changed", (data: any) => {
           // Recalculate virtual size with updated estimated size
-          console.log(
-            `📊 [VIEWPORT] Estimated size changed, recalculating virtual size for ${actualTotalItems.toLocaleString()} items`
-          );
           virtualManager.updateTotalVirtualSize(actualTotalItems);
           scrollingManager.updateScrollbar();
 
@@ -558,8 +501,6 @@ export const withViewport =
 
       // Connect scrollbar to scrolling manager
       (scrollingManager as any).setScrollbarPlugin(scrollbarPlugin);
-
-      console.log("📜 [VIEWPORT] Scrollbar plugin initialized and connected");
     };
 
     /**
@@ -599,10 +540,6 @@ export const withViewport =
 
       viewport.appendChild(itemsContainer);
       component.element.appendChild(viewport);
-
-      console.log(
-        "🏗️ [VIEWPORT] Container structure created with transform-based positioning"
-      );
 
       // Set items container reference in scrolling manager and rendering manager
       (scrollingManager as any).setItemsContainer(itemsContainer);

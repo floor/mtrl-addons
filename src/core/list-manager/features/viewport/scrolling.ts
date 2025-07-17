@@ -198,44 +198,12 @@ export const createScrollingManager = (
         return;
       }
 
-      // Check if position hasn't changed
+      // Check if position hasn't changed and velocity is not already 0
       if (
         virtualScrollPosition === lastIdleCheckPosition &&
         speedTracker.velocity > 0
       ) {
-        console.log(`🛑 [SCROLLING] Position unchanged, setting velocity to 0`);
-
-        // Set velocity to 0
-        speedTracker.velocity = 0;
-        speedTracker.isAccelerating = false;
-        smoothedSpeed = 0;
-
-        // Emit speed change
-        onSpeedChanged?.({
-          speed: 0,
-          smoothedSpeed: 0,
-          direction: speedTracker.direction,
-          isAccelerating: false,
-          acceleration: 0,
-        });
-
-        component.emit?.("speed:changed", {
-          speed: 0,
-          direction: speedTracker.direction,
-          isAccelerating: false,
-        });
-
-        // Trigger immediate rendering
-        renderItems();
-
-        // Load data for current visible range
-        const visibleRange = calculateVisibleRange();
-        if (loadDataForRange) {
-          loadDataForRange({
-            start: visibleRange.start,
-            end: visibleRange.end,
-          });
-        }
+        setVelocityToZero();
       }
 
       lastIdleCheckPosition = virtualScrollPosition;
@@ -243,6 +211,42 @@ export const createScrollingManager = (
     };
 
     idleCheckFrame = requestAnimationFrame(checkIdle);
+  };
+
+  /**
+   * Set velocity to zero and trigger necessary updates
+   */
+  const setVelocityToZero = (): void => {
+    // Reset velocity state
+    speedTracker.velocity = 0;
+    speedTracker.isAccelerating = false;
+    smoothedSpeed = 0;
+    currentAcceleration = 0;
+
+    // Emit speed change
+    onSpeedChanged?.({
+      speed: 0,
+      smoothedSpeed: 0,
+      direction: speedTracker.direction,
+      isAccelerating: false,
+      acceleration: 0,
+    });
+
+    component.emit?.("speed:changed", {
+      speed: 0,
+      direction: speedTracker.direction,
+      isAccelerating: false,
+    });
+
+    // Trigger rendering and data loading
+    renderItems();
+    const visibleRange = calculateVisibleRange();
+    if (loadDataForRange) {
+      loadDataForRange({
+        start: visibleRange.start,
+        end: visibleRange.end,
+      });
+    }
   };
 
   /**
@@ -261,43 +265,13 @@ export const createScrollingManager = (
     // If delta is 0 or very small, set velocity to 0
     if (Math.abs(deltaPosition) < 0.1) {
       if (speedTracker.velocity > 0) {
-        console.log(
-          `🛑 [SCROLLING] No movement detected, setting velocity to 0`
-        );
-        speedTracker.velocity = 0;
-        speedTracker.isAccelerating = false;
-        smoothedSpeed = 0;
-        currentAcceleration = 0;
-
-        // Emit speed change
-        onSpeedChanged?.({
-          speed: 0,
-          smoothedSpeed: 0,
-          direction: speedTracker.direction,
-          isAccelerating: false,
-          acceleration: 0,
-        });
-
-        component.emit?.("speed:changed", {
-          speed: 0,
-          direction: speedTracker.direction,
-          isAccelerating: false,
-        });
+        setVelocityToZero();
       }
       return;
     }
 
     // Calculate instantaneous velocity
     const instantVelocity = Math.abs(deltaPosition) / deltaTime;
-
-    // Debug logging for velocity - log all non-zero velocities
-    if (instantVelocity > 0.01) {
-      console.log(
-        `🎯 [SCROLLING] Raw velocity: ${instantVelocity.toFixed(
-          2
-        )}px/ms (delta: ${deltaPosition}px / ${deltaTime}ms)`
-      );
-    }
 
     // Update direction
     const newDirection = deltaPosition >= 0 ? "forward" : "backward";

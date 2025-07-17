@@ -143,14 +143,6 @@ export const createVirtualManager = (
           const start = Math.max(0, interpolatedStartIndex - overscan);
           const end = Math.min(actualTotalItems - 1, endIndex + overscan);
 
-          console.log(`📊 [VIRTUAL] Near bottom - interpolated position:
-            scrollPosition: ${scrollPosition}
-            distanceFromBottom: ${distanceFromBottom}
-            interpolationFactor: ${interpolationFactor}
-            normalStartIndex: ${normalStartIndex}
-            interpolatedStartIndex: ${interpolatedStartIndex}
-            range: ${start}-${end}`);
-
           return { start, end };
         }
       }

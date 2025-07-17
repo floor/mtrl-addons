@@ -75,11 +75,9 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
 
     let elements = getElements();
     if (!elements?.viewport) {
-      console.warn("Scrollbar: viewport not found");
       return {};
     }
     if (!elements?.listElement) {
-      console.warn("Scrollbar: mtrl-list element not found");
       return {};
     }
 
@@ -121,13 +119,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
 
       // Update thumb dimensions
       scrollbarThumb.style.height = `${thumbHeight}px`;
-
-      console.log(`📏 [SCROLLBAR] Updated dimensions:`, {
-        totalVirtualHeight,
-        viewportHeight,
-        visibleRatio,
-        thumbHeight,
-      });
     };
 
     /**
@@ -313,11 +304,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
         );
       }
 
-      console.log(
-        `🚨 [SCROLLBAR-DRAG] === FINAL API REQUEST TRIGGER === virtualScrollTop=${finalVirtualScrollTop}px, startIndex=${finalStartIndex}, totalItems=${scrollbarConfig.totalItems}, scrollRatio=${scrollRatio}`
-      );
-
-      // Emit final viewport change event when drag stops
       listManager.emit("viewport:changed", {
         scrollTop: finalVirtualScrollTop,
         scrollRatio: scrollRatio,
@@ -358,10 +344,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
 
       showScrollbar();
       hideScrollbar();
-
-      console.log(
-        `🖱️ [SCROLLBAR] Track clicked at ratio: ${newScrollRatio}, virtual: ${virtualScrollTop}px, totalItems: ${scrollbarConfig.totalItems}`
-      );
     };
 
     // Listen for virtual viewport updates
@@ -507,8 +489,6 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
         if (fadeTimeoutId) {
           clearTimeout(fadeTimeoutId);
         }
-
-        console.log(`${LOGGING.PREFIX} Scrollbar destroyed`);
       },
     };
   },

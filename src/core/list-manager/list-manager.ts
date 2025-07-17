@@ -105,10 +105,10 @@ export const createListManager = (
       emit,
       on,
       initialize: () => {
-        console.log("🚀 [LIST-MANAGER] Initializing...");
+        // console.log("🚀 [LIST-MANAGER] Initializing...");
       },
       destroy: () => {
-        console.log("👋 [LIST-MANAGER] Destroying...");
+        // console.log("👋 [LIST-MANAGER] Destroying...");
       },
       updateConfig: (update: Partial<ListManagerConfig>) => {
         Object.assign(mergedConfig, update);
@@ -143,17 +143,11 @@ export const createListManager = (
         range: { start: number; end: number },
         priority?: "high" | "normal" | "low"
       ) => {
-        console.log(
-          `📡 [LIST-MANAGER] Data request for range ${range.start}-${
-            range.end
-          } (priority: ${priority || "normal"})`
-        );
-
         // Use loading manager if available
         if (loadingManager) {
           loadingManager.requestLoad(range, priority || "normal");
         } else {
-          // Fallback to direct loading
+          // Fallback to direct collection loading
           setTimeout(() => {
             const collectionComponent = component as any;
             if (
@@ -161,21 +155,11 @@ export const createListManager = (
               typeof collectionComponent.collection.loadMissingRanges ===
                 "function"
             ) {
-              console.log(
-                `🌐 [LIST-MANAGER] Requesting collection to load range ${range.start}-${range.end}`
-              );
               collectionComponent.collection
                 .loadMissingRanges(range)
                 .catch((error: any) => {
-                  console.error(
-                    "❌ [LIST-MANAGER] Failed to load missing ranges:",
-                    error
-                  );
+                  console.error("Failed to load range:", error);
                 });
-            } else {
-              console.log(
-                `⚠️ [LIST-MANAGER] Collection not available for proactive loading`
-              );
             }
           }, 0);
         }
@@ -194,21 +178,10 @@ export const createListManager = (
   // Wire up velocity updates from scrolling to loading manager
   if (component.on) {
     component.on("speed:changed", (data: any) => {
-      console.log(
-        `📨 [LIST-MANAGER] Received speed:changed event: speed=${data.speed.toFixed(
-          2
-        )} px/ms, direction=${data.direction}`
-      );
       if (loadingManager) {
         loadingManager.updateVelocity(data.speed, data.direction);
-      } else {
-        console.warn(
-          `⚠️ [LIST-MANAGER] No loading manager available to handle speed change`
-        );
       }
     });
-  } else {
-    console.warn(`⚠️ [LIST-MANAGER] Component doesn't support event listeners`);
   }
 
   // Initialize component

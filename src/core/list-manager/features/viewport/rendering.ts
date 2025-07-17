@@ -200,9 +200,6 @@ export const createRenderingManager = (
       if (visibleMissingCount > 0) {
         // Use loading manager for all loads to benefit from request queue
         if (loadDataForRange) {
-          console.log(
-            `📡 [RENDERING] Using loading manager for visible range ${newVisibleRange.start}-${newVisibleRange.end}`
-          );
           loadDataForRange(newVisibleRange, "high");
         } else {
           // Fallback to direct collection call only if no loading manager

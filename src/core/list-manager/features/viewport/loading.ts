@@ -93,38 +93,12 @@ export const createLoadingManager = (
     currentVelocity = Math.abs(velocity);
     scrollDirection = direction;
 
-    // Only log significant velocity changes
-    if (Math.abs(previousVelocity - currentVelocity) > 0.5) {
-      console.log(
-        `🔄 [LOADING] Velocity updated: ${previousVelocity.toFixed(
-          2
-        )} → ${currentVelocity.toFixed(
-          2
-        )} px/ms (threshold: ${cancelLoadThreshold})`
-      );
-    }
-
     // When velocity drops below threshold (including reaching zero), process queued requests
     if (
       previousVelocity > cancelLoadThreshold &&
       currentVelocity <= cancelLoadThreshold
     ) {
-      console.log(
-        `📊 [LOADING] Velocity dropped to loadable level (${currentVelocity.toFixed(
-          2
-        )} px/ms), processing ${requestQueue.length} queued requests`
-      );
       processQueue();
-    } else if (
-      currentVelocity <= cancelLoadThreshold &&
-      requestQueue.length > 0
-    ) {
-      // Only log if there are items in queue
-      console.log(
-        `✅ [LOADING] Velocity still at loadable level: ${currentVelocity.toFixed(
-          2
-        )} px/ms (queue: ${requestQueue.length} items)`
-      );
     }
   };
 
@@ -132,12 +106,7 @@ export const createLoadingManager = (
    * Process the request queue
    */
   const processQueue = (): void => {
-    console.log(
-      `🔄 [LOADING] processQueue called - queue length: ${requestQueue.length}, activeRequests: ${activeRequests}/${maxConcurrentRequests}`
-    );
-
     if (!enableRequestQueue) {
-      console.log(`❌ [LOADING] Request queue is disabled`);
       return;
     }
 
@@ -145,18 +114,9 @@ export const createLoadingManager = (
     while (requestQueue.length > 0 && activeRequests < maxConcurrentRequests) {
       const request = requestQueue.shift();
       if (request) {
-        console.log(
-          `✅ [LOADING] Processing queued request for range ${request.range.start}-${request.range.end}`
-        );
         executeLoad(request.range, request.priority);
         processed++;
       }
-    }
-
-    if (processed === 0 && requestQueue.length > 0) {
-      console.log(
-        `⏸️ [LOADING] Queue processing paused - max concurrent requests (${maxConcurrentRequests}) reached`
-      );
     }
   };
 
@@ -171,34 +131,17 @@ export const createLoadingManager = (
 
     // Check if already loading this range
     if (activeRanges.has(rangeKey)) {
-      console.log(
-        `⏳ [LOADING] Range ${range.start}-${range.end} is already being loaded`
-      );
       return;
     }
 
     // Check velocity for all requests
     if (!canLoad()) {
-      console.log(
-        `🚫 [LOADING] Cancelled ${priority} priority load for range ${
-          range.start
-        }-${range.end} due to high velocity (${currentVelocity.toFixed(
-          2
-        )} px/ms > ${cancelLoadThreshold} px/ms)`
-      );
       cancelledRequests++;
       return;
     }
 
     // If velocity is low, execute immediately
     if (activeRequests < maxConcurrentRequests) {
-      console.log(
-        `✅ [LOADING] Processing ${priority} priority load for range ${
-          range.start
-        }-${range.end} immediately (velocity: ${currentVelocity.toFixed(
-          2
-        )} px/ms)`
-      );
       executeLoad(range, priority);
     } else if (enableRequestQueue) {
       // Add to queue if we're at capacity
@@ -218,10 +161,6 @@ export const createLoadingManager = (
         );
         cancelledRequests += removed.length;
       }
-
-      console.log(
-        `📋 [LOADING] Queued ${priority} priority request for range ${range.start}-${range.end} (queue size: ${requestQueue.length})`
-      );
     }
   };
 
@@ -239,10 +178,6 @@ export const createLoadingManager = (
       return;
     }
 
-    console.log(
-      `📡 [LOADING] Executing ${priority} priority load for range ${range.start}-${range.end}`
-    );
-
     activeRequests++;
     activeRanges.add(rangeKey);
 
@@ -255,9 +190,6 @@ export const createLoadingManager = (
           activeRequests--;
           activeRanges.delete(rangeKey);
           completedRequests++;
-          console.log(
-            `✅ [LOADING] Completed load for range ${range.start}-${range.end}`
-          );
           // Process more requests from queue
           processQueue();
         })
@@ -265,20 +197,12 @@ export const createLoadingManager = (
           activeRequests--;
           activeRanges.delete(rangeKey);
           failedRequests++;
-          console.error(
-            `❌ [LOADING] Failed to load range ${range.start}-${range.end}:`,
-            error
-          );
           // Process more requests from queue even on failure
           processQueue();
         });
     } else {
       activeRequests--;
       activeRanges.delete(rangeKey);
-      console.warn(
-        `⚠️ [LOADING] No collection available for range ${range.start}-${range.end}`
-      );
-      processQueue();
     }
   };
 
@@ -290,7 +214,6 @@ export const createLoadingManager = (
     if (count > 0) {
       cancelledRequests += count;
       requestQueue = [];
-      console.log(`🚫 [LOADING] Cancelled ${count} pending loads`);
     }
   };
 

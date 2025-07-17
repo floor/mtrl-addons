@@ -47,14 +47,6 @@ function calculateOptimalRangeSize(
   // Ensure minimum of 10 items and maximum of 100 items per range
   const optimalRangeSize = Math.max(10, Math.min(100, withPreload));
 
-  console.log(`📊 [COLLECTION] Optimal range size calculation:
-    Container: ${containerSize}px
-    Item size: ${estimatedItemSize}px
-    Items in viewport: ${itemsInViewport}
-    With overscan: ${withOverscan}
-    With preload: ${withPreload}
-    Final range size: ${optimalRangeSize}`);
-
   return optimalRangeSize;
 }
 
@@ -228,17 +220,11 @@ export const withCollection =
 
       // Check if we already have this data
       if (loadedRanges.has(rangeId)) {
-        console.log(
-          `✅ [COLLECTION] Range ${rangeId} (${offset}-${rangeEnd}) already loaded`
-        );
         return [];
       }
 
       // Check for overlapping pending ranges
       if (hasOverlappingPendingRange(offset, rangeEnd)) {
-        console.log(
-          `⏳ [COLLECTION] Overlapping range ${offset}-${rangeEnd} is already being loaded`
-        );
         return [];
       }
 
@@ -415,9 +401,6 @@ export const withCollection =
         pendingRanges.size >=
         LIST_MANAGER_CONSTANTS.RANGE_LOADING.MAX_CONCURRENT_REQUESTS
       ) {
-        console.log(
-          `⏸️ [COLLECTION] Deferring load - already ${pendingRanges.size} requests pending`
-        );
         return;
       }
 
@@ -687,7 +670,6 @@ export const withCollection =
       getFailedRanges: () => new Map(failedRanges),
       clearFailedRanges: () => {
         failedRanges.clear();
-        console.log("🔄 [COLLECTION] Cleared all failed ranges");
       },
       retryFailedRange: (rangeId: number) => {
         if (failedRanges.has(rangeId)) {
