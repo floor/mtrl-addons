@@ -337,6 +337,9 @@ export const withViewport =
         });
 
         component.on("placeholders:replaced", () => {
+          console.log(
+            `🔄 [VIEWPORT] Received placeholders:replaced event, triggering re-render`
+          );
           if (renderingManager) {
             renderingManager.renderItems();
           }

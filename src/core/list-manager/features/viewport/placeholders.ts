@@ -209,8 +209,8 @@ export const withPlaceholders =
 
       component.emit?.("structure:analyzed", {
         structure: Array.from(structure.entries()).map(([field, data]) => ({
-          field,
           ...data,
+          field, // Override field from data if it exists
         })),
         sampleSize,
         totalFields: structure.size,
@@ -446,16 +446,29 @@ export const withPlaceholders =
     const showPlaceholders = (range: ItemRange): void => {
       if (!placeholdersConfig.enabled) return;
 
+      console.log(
+        `🎭 [PLACEHOLDERS] showPlaceholders called for range ${range.start}-${range.end}`
+      );
+
       const placeholderItems = generatePlaceholderItems(range);
 
       // Add placeholders to component items
       placeholderItems.forEach((item, index) => {
         const targetIndex = range.start + index;
-        if (
-          !component.items[targetIndex] ||
-          isPlaceholder(component.items[targetIndex])
-        ) {
+        const existingItem = component.items[targetIndex];
+        const shouldReplace = !existingItem || isPlaceholder(existingItem);
+
+        console.log(
+          `🎭 [PLACEHOLDERS] Index ${targetIndex}: existing=${!!existingItem}, isPlaceholder=${
+            existingItem ? isPlaceholder(existingItem) : "N/A"
+          }, shouldReplace=${shouldReplace}`
+        );
+
+        if (shouldReplace) {
           component.items[targetIndex] = item;
+          console.log(
+            `✅ [PLACEHOLDERS] Set placeholder at index ${targetIndex}`
+          );
         }
       });
 
@@ -476,9 +489,16 @@ export const withPlaceholders =
       const currentItem = component.items[index];
       const wasPlaceholder = isPlaceholder(currentItem);
 
+      console.log(
+        `🔄 [PLACEHOLDERS] replacePlaceholder called for index ${index}, wasPlaceholder=${wasPlaceholder}`
+      );
+
       component.items[index] = realItem;
 
       if (wasPlaceholder) {
+        console.log(
+          `✅ [PLACEHOLDERS] Replaced placeholder at index ${index} with real data`
+        );
         component.emit?.("placeholders:replaced", {
           index,
           item: realItem,
@@ -492,6 +512,10 @@ export const withPlaceholders =
      */
     const replacePlaceholders = (items: any[], startIndex: number): void => {
       if (!placeholdersConfig.enabled) return;
+
+      console.log(
+        `🔄 [PLACEHOLDERS] replacePlaceholders called for ${items.length} items starting at index ${startIndex}`
+      );
 
       const replacedIndices: number[] = [];
 

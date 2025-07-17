@@ -4,6 +4,8 @@
  * Part of the viewport feature as rendering is a display concern
  */
 
+import { PLACEHOLDER } from "../../constants";
+
 /**
  * Gets default item template if none provided
  */
@@ -12,8 +14,15 @@ export const getDefaultTemplate = <T = any>(): ((
   index: number
 ) => string) => {
   return (item: T, index: number) => {
+    // Check if this is a placeholder item
+    const isPlaceholder =
+      item &&
+      typeof item === "object" &&
+      (item as any)[PLACEHOLDER.PLACEHOLDER_FLAG];
+    const placeholderClass = isPlaceholder ? " mtrl-placeholder-item" : "";
+
     if (typeof item === "string") {
-      return `<div class="mtrl-list-item__content">${item}</div>`;
+      return `<div class="mtrl-list-item__content${placeholderClass}">${item}</div>`;
     }
 
     if (typeof item === "object" && item !== null) {
@@ -24,7 +33,7 @@ export const getDefaultTemplate = <T = any>(): ((
       const subtitle = obj.subtitle || obj.description || obj.secondary;
 
       return `
-        <div class="mtrl-list-item__content">
+        <div class="mtrl-list-item__content${placeholderClass}">
           <div class="mtrl-list-item__primary">${text}</div>
           ${
             subtitle
@@ -35,7 +44,9 @@ export const getDefaultTemplate = <T = any>(): ((
       `;
     }
 
-    return `<div class="mtrl-list-item__content">${String(item)}</div>`;
+    return `<div class="mtrl-list-item__content${placeholderClass}">${String(
+      item
+    )}</div>`;
   };
 };
 

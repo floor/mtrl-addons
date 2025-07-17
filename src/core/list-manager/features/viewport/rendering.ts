@@ -72,49 +72,116 @@ export const createRenderingManager = (
   };
 
   /**
-   * Render items in the visible range
+   * Render items in the viewport
    */
   const renderItems = (): void => {
-    if (!itemsContainer) {
-      return;
-    }
-
-    // Skip initial render if no data is loaded yet and we have a large total
-    // This prevents unnecessary rendering before the collection loads initial data
-    const totalItems = getActualTotalItems();
-    if (component.items.length === 0 && totalItems > 0) {
-      return;
-    }
+    if (!itemsContainer) return;
 
     const newVisibleRange = virtualManager.calculateVisibleRange(
       scrollingManager.getScrollPosition()
     );
 
-    // Always update item positions when scrolling, even if range hasn't changed
-    // This ensures smooth scrolling without snapping
+    console.log(
+      `🎨 [RENDERING] renderItems called for range ${newVisibleRange.start}-${newVisibleRange.end}`
+    );
+
+    // Validate range
+    const actualTotalItems = getActualTotalItems();
+    if (
+      newVisibleRange.start < 0 ||
+      newVisibleRange.start >= actualTotalItems ||
+      newVisibleRange.end < newVisibleRange.start
+    ) {
+      console.log(`⚠️ [RENDERING] Invalid range, skipping render`);
+      return;
+    }
+
+    // Check if range changed
     const rangeChanged =
       newVisibleRange.start !== currentVisibleRange.start ||
       newVisibleRange.end !== currentVisibleRange.end;
 
-    // Update positions even if range hasn't changed
-    if (!rangeChanged && renderedElements.size > 0) {
-      // Check if we have all the items in the visible range rendered
-      let hasAllVisibleItems = true;
+    console.log(
+      `🔄 [RENDERING] Range changed: ${rangeChanged}, rendered elements: ${renderedElements.size}`
+    );
+
+    // Check if component has placeholders API
+    const hasPlaceholders = !!(component as any).placeholders;
+    const placeholdersAPI = hasPlaceholders
+      ? (component as any).placeholders
+      : null;
+
+    // Check if we need to replace any placeholders with real data
+    let needsPlaceholderReplacement = false;
+
+    if (!rangeChanged && renderedElements.size > 0 && hasPlaceholders) {
+      // Check if any rendered elements are placeholders but we now have real data
       for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
-        if (
+        const item = i < component.items.length ? component.items[i] : null;
+        const element = renderedElements.get(i);
+
+        if (item && element) {
+          const isCurrentItemPlaceholder = placeholdersAPI.isPlaceholder(item);
+          const elementIsPlaceholder = element.classList.contains(
+            "mtrl-placeholder-item"
+          );
+
+          if (elementIsPlaceholder && !isCurrentItemPlaceholder) {
+            needsPlaceholderReplacement = true;
+            console.log(
+              `🔄 [RENDERING] Found placeholder element at index ${i} that needs replacement`
+            );
+            break;
+          }
+        }
+      }
+    }
+
+    if (
+      !rangeChanged &&
+      renderedElements.size > 0 &&
+      !needsPlaceholderReplacement
+    ) {
+      // Only skip rendering if we already have items rendered and no placeholders need replacement
+      console.log(
+        `⏭️ [RENDERING] Range unchanged, items already rendered, and no placeholders to replace - updating positions only`
+      );
+      updateItemPositions();
+      return;
+    }
+
+    // Check for missing data and show placeholders if needed
+    if (hasPlaceholders && placeholdersAPI.isEnabled()) {
+      const missingIndices: number[] = [];
+
+      for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
+        if (i >= actualTotalItems) break;
+
+        const itemExists =
           i < component.items.length &&
-          component.items[i] &&
-          !renderedElements.has(i)
-        ) {
-          hasAllVisibleItems = false;
-          break;
+          component.items[i] !== null &&
+          component.items[i] !== undefined &&
+          !placeholdersAPI.isPlaceholder(component.items[i]);
+
+        if (!itemExists) {
+          missingIndices.push(i);
         }
       }
 
-      // Only skip rendering if we have all visible items already rendered
-      if (hasAllVisibleItems) {
-        updateItemPositions();
-        return;
+      console.log(
+        `🔍 [RENDERING] Missing indices: ${missingIndices.length} items`
+      );
+
+      // Show placeholders for missing items
+      if (missingIndices.length > 0) {
+        const placeholderRange = {
+          start: Math.min(...missingIndices),
+          end: Math.max(...missingIndices),
+        };
+        console.log(
+          `🎭 [RENDERING] Showing placeholders for range ${placeholderRange.start}-${placeholderRange.end}`
+        );
+        placeholdersAPI.showPlaceholders(placeholderRange);
       }
     }
 
@@ -123,9 +190,6 @@ export const createRenderingManager = (
     //   `🔍 [VIEWPORT] Checking range ${newVisibleRange.start}-${newVisibleRange.end} for missing data`
     // );
 
-    const actualTotalItems = getActualTotalItems();
-
-    // Try immediate detection first
     const collection = (component as any).collection;
     const hasCollection = !!collection;
     const hasLoadMissingRanges =
@@ -246,20 +310,64 @@ export const createRenderingManager = (
     // Render new items
     const newElements: { element: HTMLElement; index: number }[] = [];
 
+    console.log(
+      `🏗️ [RENDERING] Starting to render items from ${newVisibleRange.start} to ${newVisibleRange.end}`
+    );
+
     for (let i = newVisibleRange.start; i <= newVisibleRange.end; i++) {
       if (i >= component.items.length) {
+        console.log(
+          `⚠️ [RENDERING] Index ${i} beyond items array length ${component.items.length}`
+        );
         break;
       }
 
       const item = component.items[i];
 
       if (!item) {
+        console.log(`⏭️ [RENDERING] Skipping empty slot at index ${i}`);
         continue; // Skip empty slots
       }
 
-      // Skip if already rendered
-      if (renderedElements.has(i)) {
-        continue;
+      // Check if already rendered
+      const existingElement = renderedElements.get(i);
+      if (existingElement) {
+        // Check if the rendered element is a placeholder but we now have real data
+        const isCurrentItemPlaceholder =
+          hasPlaceholders && placeholdersAPI.isPlaceholder(item);
+        const elementIsPlaceholder = existingElement.classList.contains(
+          "mtrl-placeholder-item"
+        );
+
+        if (elementIsPlaceholder && !isCurrentItemPlaceholder) {
+          // We have real data now, remove the placeholder element and re-render
+          console.log(
+            `🔄 [RENDERING] Replacing placeholder element with real data at index ${i}`
+          );
+          existingElement.remove();
+          renderedElements.delete(i);
+          // Continue to render the real item below
+        } else if (!elementIsPlaceholder && isCurrentItemPlaceholder) {
+          // We have a real element but now need a placeholder (shouldn't happen often)
+          console.log(
+            `🔄 [RENDERING] Replacing real element with placeholder at index ${i}`
+          );
+          existingElement.remove();
+          renderedElements.delete(i);
+          // Continue to render the placeholder below
+        } else {
+          console.log(
+            `✅ [RENDERING] Item at index ${i} already rendered correctly`
+          );
+          continue;
+        }
+      }
+
+      // Log what we're rendering
+      if (hasPlaceholders && placeholdersAPI.isPlaceholder(item)) {
+        console.log(`🎭 [RENDERING] Rendering placeholder at index ${i}`);
+      } else {
+        console.log(`📦 [RENDERING] Rendering real item at index ${i}`);
       }
 
       // Create element
@@ -270,6 +378,10 @@ export const createRenderingManager = (
         newElements.push({ element, index: i });
       }
     }
+
+    console.log(
+      `✨ [RENDERING] Rendered ${newElements.length} new elements, total rendered: ${renderedElements.size}`
+    );
 
     // Update visible range
     currentVisibleRange = newVisibleRange;
@@ -323,6 +435,15 @@ export const createRenderingManager = (
         element = result;
       } else {
         return null;
+      }
+
+      // Check if this is a placeholder and add the CSS class
+      const hasPlaceholders = !!(component as any).placeholders;
+      if (hasPlaceholders) {
+        const placeholdersAPI = (component as any).placeholders;
+        if (placeholdersAPI.isPlaceholder(item)) {
+          element.classList.add("mtrl-placeholder-item");
+        }
       }
 
       // Apply base styles for virtual positioning
