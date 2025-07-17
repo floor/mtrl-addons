@@ -504,8 +504,11 @@ export const withViewport =
                 source: "wheel-scroll-scrollbar-update",
                 scrollRatio:
                   data.position &&
-                  virtualManager.getState().totalVirtualSize > 0
-                    ? data.position / virtualManager.getState().totalVirtualSize
+                  virtualManager.getState().totalVirtualSize >
+                    virtualManager.getState().containerSize
+                    ? data.position /
+                      (virtualManager.getState().totalVirtualSize -
+                        virtualManager.getState().containerSize)
                     : 0,
               },
             });
