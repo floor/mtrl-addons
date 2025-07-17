@@ -91,6 +91,33 @@ export const createVirtualManager = (
         containerSize / itemSizeManager.getEstimatedItemSize()
       );
 
+      // Special handling for when we're at the very end
+      const maxScrollPosition = totalVirtualSize - containerSize;
+      if (scrollPosition >= maxScrollPosition - 1) {
+        // At the very bottom, show the last viewport of items
+        // Calculate how many complete items fit in the viewport
+        const itemsInViewport = Math.floor(
+          containerSize / itemSizeManager.getEstimatedItemSize()
+        );
+        const lastStartIndex = Math.max(0, actualTotalItems - itemsInViewport);
+
+        // For the very last range, ensure we include all items
+        // Items are stored at indices 0 to actualTotalItems-1
+        const start = Math.max(0, lastStartIndex - overscan);
+        const end = actualTotalItems - 1;
+
+        console.log(`📊 [VIRTUAL] At maximum scroll - showing last items:
+          scrollPosition: ${scrollPosition}
+          maxScrollPosition: ${maxScrollPosition}
+          containerSize: ${containerSize}
+          itemsInViewport: ${itemsInViewport}
+          actualTotalItems: ${actualTotalItems}
+          lastStartIndex: ${lastStartIndex}
+          range: ${start}-${end}`);
+
+        return { start, end };
+      }
+
       const endIndex = Math.min(
         startIndex + viewportItemCount - 1,
         actualTotalItems - 1

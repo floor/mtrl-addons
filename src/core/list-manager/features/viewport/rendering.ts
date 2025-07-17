@@ -389,35 +389,66 @@ export const createRenderingManager = (
     const itemSize = itemSizeManager.getEstimatedItemSize();
     const actualTotalSize = totalItems * itemSize;
     const virtualTotalSize = virtualManager.getTotalVirtualSize();
-
-    // Determine the first visible item's position offset
-    let firstVisibleItemOffset = 0;
-
-    if (
-      virtualTotalSize < actualTotalSize &&
-      virtualTotalSize > 0 &&
-      totalItems > 100000
-    ) {
-      // For index-based scrolling, calculate based on the visible range start
-      // This avoids huge position calculations
-      const scrollRatio = scrollPosition / virtualTotalSize;
-      const exactScrollIndex = scrollRatio * totalItems;
-      const scrollIndexFraction =
-        exactScrollIndex - Math.floor(exactScrollIndex);
-      firstVisibleItemOffset = scrollIndexFraction * itemSize;
-    } else {
-      // For standard scrolling, use the scroll position directly
-      firstVisibleItemOffset = scrollPosition % itemSize;
-    }
-
-    // Position each rendered item relative to the container
-    let currentPosition = -firstVisibleItemOffset;
+    const containerSize = virtualManager.getState().containerSize;
 
     // Get all indices in sorted order
     const sortedIndices = Array.from(renderedElements.keys()).sort(
       (a, b) => a - b
     );
 
+    if (sortedIndices.length === 0) return;
+
+    // Special handling when at the very bottom
+    const maxScrollPosition = virtualTotalSize - containerSize;
+    const isAtBottom = scrollPosition >= maxScrollPosition - 1;
+
+    let currentPosition = 0;
+
+    if (isAtBottom && totalItems > 100000) {
+      // When at the bottom, calculate positions to show last items properly
+      const firstRenderedIndex = sortedIndices[0];
+      const lastRenderedIndex = sortedIndices[sortedIndices.length - 1];
+
+      // Calculate how many items fit in viewport
+      const itemsInViewport = Math.floor(containerSize / itemSize);
+
+      // Find the first item that should be visible at the bottom
+      const firstVisibleAtBottom = Math.max(totalItems - itemsInViewport, 0);
+
+      // If our first rendered item is before the first visible at bottom,
+      // we need to position it above the viewport
+      if (firstRenderedIndex < firstVisibleAtBottom) {
+        currentPosition =
+          -(firstVisibleAtBottom - firstRenderedIndex) * itemSize;
+      } else {
+        // Otherwise start from top
+        currentPosition = 0;
+      }
+    } else {
+      // Standard positioning for non-bottom scroll positions
+      // Determine the first visible item's position offset
+      let firstVisibleItemOffset = 0;
+
+      if (
+        virtualTotalSize < actualTotalSize &&
+        virtualTotalSize > 0 &&
+        totalItems > 100000
+      ) {
+        // For index-based scrolling, calculate based on the visible range start
+        const scrollRatio = scrollPosition / virtualTotalSize;
+        const exactScrollIndex = scrollRatio * totalItems;
+        const scrollIndexFraction =
+          exactScrollIndex - Math.floor(exactScrollIndex);
+        firstVisibleItemOffset = scrollIndexFraction * itemSize;
+      } else {
+        // For standard scrolling, use the scroll position directly
+        firstVisibleItemOffset = scrollPosition % itemSize;
+      }
+
+      currentPosition = -firstVisibleItemOffset;
+    }
+
+    // Position each rendered item
     sortedIndices.forEach((index) => {
       const element = renderedElements.get(index);
       if (!element) return;

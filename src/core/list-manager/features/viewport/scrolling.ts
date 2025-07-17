@@ -353,6 +353,12 @@ export const createScrollingManager = (
     const maxScroll = Math.max(0, totalVirtualSize - containerSize);
     newPosition = clamp(newPosition, 0, maxScroll);
 
+    // Ensure we can reach the very end with mouse wheel
+    if (newPosition > maxScroll - 10 && delta > 0) {
+      // Close to the end and scrolling down, snap to max
+      newPosition = maxScroll;
+    }
+
     // Update scroll position immediately for instant feedback
     virtualScrollPosition = newPosition;
 

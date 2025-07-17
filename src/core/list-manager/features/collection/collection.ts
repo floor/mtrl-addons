@@ -221,12 +221,23 @@ export const withCollection =
         // Adapt to different pagination strategies
         switch (paginationStrategy) {
           case "page":
+            // Calculate page number (1-based)
             const page = Math.floor(offset / limit) + 1;
+
+            // For the last page, ensure we get all remaining items
+            const isLastPage = offset + limit >= component.totalItems;
+            const adjustedLimit = isLastPage
+              ? Math.min(limit, component.totalItems - offset)
+              : limit;
+
             // Adapt generic read method to page-based strategy
             if (collection.loadPage) {
-              items = await collection.loadPage({ page, limit });
+              items = await collection.loadPage({ page, limit: adjustedLimit });
             } else if (collection.read) {
-              const result = await collection.read({ page, limit });
+              const result = await collection.read({
+                page,
+                limit: adjustedLimit,
+              });
               // Check if the adapter returned an error
               if (result.error) {
                 throw new Error(result.error.message || "Failed to load data");

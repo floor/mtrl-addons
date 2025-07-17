@@ -290,22 +290,30 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
       ) {
         // Index-based scrolling: map ratio directly to item index
         // When ratio = 1, we want to show the last viewport of items
-        const viewportItemCount = Math.ceil(
+        const viewportItemCount = Math.floor(
           viewportHeight / scrollbarConfig.itemHeight
         );
         const maxStartIndex = Math.max(
           0,
           scrollbarConfig.totalItems - viewportItemCount
         );
-        finalStartIndex = Math.floor(scrollRatio * maxStartIndex);
 
-        // For index-based scrolling, map the index back to virtual space
-        // using the same ratio to maintain consistency
-        const maxVirtualScroll = Math.max(
-          0,
-          scrollbarConfig.totalVirtualSize - viewportHeight
-        );
-        finalVirtualScrollTop = scrollRatio * maxVirtualScroll;
+        // Ensure we reach the last items when scrollbar is at the bottom
+        if (scrollRatio >= 0.999) {
+          // Close enough to bottom, snap to last items
+          finalStartIndex = maxStartIndex;
+          finalVirtualScrollTop =
+            scrollbarConfig.totalVirtualSize - viewportHeight;
+        } else {
+          finalStartIndex = Math.floor(scrollRatio * maxStartIndex);
+          // For index-based scrolling, map the index back to virtual space
+          // using the same ratio to maintain consistency
+          const maxVirtualScroll = Math.max(
+            0,
+            scrollbarConfig.totalVirtualSize - viewportHeight
+          );
+          finalVirtualScrollTop = scrollRatio * maxVirtualScroll;
+        }
       } else {
         // Standard calculation
         finalVirtualScrollTop = getVirtualPositionFromScrollRatio(scrollRatio);
