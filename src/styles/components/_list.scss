@@ -108,27 +108,49 @@ $scrollbar-fade-transition: opacity 0.2s ease;
   }
   // Placeholder styling
   .#{base.$prefix}-list-item__placeholder {
-    opacity: 0.5;
-    // Use background color to create solid blocks instead of visible characters
-    * {
-      color: var(--mtrl-sys-color-on-surface);
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+
+    // Create solid blocks for placeholder content
+    .user-name,
+    .user-email,
+    .user-role,
+    [class*="__primary"],
+    [class*="__secondary"] {
+      position: relative;
+      display: inline-block; // Make width based on content
+
+      // Hide the actual text but keep it for width calculation
+      color: transparent;
       background-color: var(--mtrl-sys-color-on-surface);
-      background-clip: text;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      transition: background-color 0.2s ease;
-      // Fallback for browsers that don't support background-clip: text
-      @supports not (
-        (background-clip: text) or (-webkit-background-clip: text)
-      ) {
-        color: inherit !important;
-        opacity: 0.2;
-        background-color: transparent;
-      }
+      border-radius: 0.1em; // Smaller radius for thinner appearance
+      opacity: 0.3; // Adjust opacity for the blocks
+
+      // Remove any text decoration
+      text-decoration: none;
+
+      // Thinner blocks - adjust line height and padding
+      line-height: 1;
+      padding: 0.05em 0; // Much less padding for thinner blocks
+
+      // Ensure proper vertical alignment
+      vertical-align: middle;
     }
 
-    // Smooth transition when replacing with real content
-    transition: opacity 0.2s ease;
+    // Ensure email and role are on separate lines
+    .user-email,
+    .user-role {
+      // display: block; // Force block display to ensure new lines
+      margin-top: 0.2em; // Small spacing between lines
+    }
+
+    // For avatar placeholder
+    .user-avatar {
+      background-color: var(--mtrl-sys-color-on-surface);
+      color: transparent;
+      border-radius: 50%;
+      opacity: 0.3;
+    }
   }
 
   // Dark theme support for scrollbar
