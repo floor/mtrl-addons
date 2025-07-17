@@ -68,7 +68,7 @@ export const createVirtualManager = (
 
   /**
    * Calculate visible range based on scroll position
-   * Uses index-based approach for large datasets
+   * Uses unified index-based approach for all dataset sizes
    */
   const calculateVisibleRange = (scrollPosition: number): ItemRange => {
     const actualTotalItems = getTotalItems
@@ -79,8 +79,8 @@ export const createVirtualManager = (
       return { start: 0, end: 0 };
     }
 
-    // For large datasets, use index-based calculation
-    if (actualTotalItems > 100000 && totalVirtualSize > 0) {
+    // Always use index-based calculation for consistency
+    if (totalVirtualSize > 0) {
       // Map scroll position to item index using ratio
       const scrollRatio = Math.min(1, scrollPosition / totalVirtualSize);
       const exactScrollIndex = scrollRatio * actualTotalItems;
@@ -192,15 +192,11 @@ export const createVirtualManager = (
       return { start, end };
     }
 
-    // For smaller datasets, use the standard calculation with measured sizes
-    return calculateVisibleRangeUtil(
-      scrollPosition,
-      containerSize,
-      itemSizeManager.getEstimatedItemSize(),
-      actualTotalItems,
-      overscan,
-      itemSizeManager.getMeasuredSizes()
+    // This should not happen as totalVirtualSize should always be > 0
+    console.warn(
+      `[VIRTUAL] Unexpected state: totalVirtualSize=${totalVirtualSize}`
     );
+    return { start: 0, end: Math.min(10, actualTotalItems - 1) };
   };
 
   /**
@@ -217,13 +213,16 @@ export const createVirtualManager = (
     let newTotalVirtualSize: number;
 
     if (totalItems * estimatedItemSize > MAX_VIRTUAL_SIZE) {
-      // Use index-based virtual size
+      // Cap virtual size to prevent browser issues
       newTotalVirtualSize = MAX_VIRTUAL_SIZE;
       console.log(
-        `📐 [VIRTUAL] Using index-based scrolling for ${totalItems.toLocaleString()} items`
+        `📐 [VIRTUAL] Capping virtual size at 10M pixels for ${totalItems.toLocaleString()} items (would be ${(
+          (totalItems * estimatedItemSize) /
+          1_000_000
+        ).toFixed(1)}M pixels)`
       );
     } else {
-      // Use actual size for smaller datasets
+      // Use actual size when within limits
       newTotalVirtualSize = totalItems * estimatedItemSize;
     }
 

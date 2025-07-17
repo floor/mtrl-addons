@@ -349,21 +349,20 @@ export const createScrollingManager = (
     const previousPosition = virtualScrollPosition;
     const maxScroll = Math.max(0, totalVirtualSize - containerSize);
 
-    // Special handling when at or near the boundaries
-    const isNearBottom = virtualScrollPosition >= maxScroll - 100;
-    const isNearTop = virtualScrollPosition <= 100;
+    // Check if we're using compressed virtual space
+    const actualTotalItems = getTotalItems
+      ? getTotalItems()
+      : component.totalItems;
+    const itemSize = itemSizeManager.getEstimatedItemSize();
+    const actualTotalSize = actualTotalItems * itemSize;
+    const isCompressed = actualTotalSize > totalVirtualSize;
 
-    // When near boundaries and using index-based scrolling, reduce scroll delta
-    // to ensure smooth scrolling through all items
-    if (totalVirtualSize >= 10000000 && (isNearBottom || isNearTop)) {
-      // Calculate the compression ratio for index-based scrolling
-      const actualTotalItems = getTotalItems
-        ? getTotalItems()
-        : component.totalItems;
-      const itemSize = itemSizeManager.getEstimatedItemSize();
-      const actualTotalSize = actualTotalItems * itemSize;
+    // Special handling when using compressed space and near boundaries
+    if (isCompressed) {
+      const isNearBottom = virtualScrollPosition >= maxScroll - 100;
+      const isNearTop = virtualScrollPosition <= 100;
 
-      if (actualTotalSize > totalVirtualSize) {
+      if (isNearBottom || isNearTop) {
         // We're using compressed virtual space
         const compressionRatio = totalVirtualSize / actualTotalSize;
 

@@ -279,16 +279,23 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
         `🚨 [SCROLLBAR-DRAG] === DRAG SESSION ENDED === ratio: ${scrollRatio}`
       );
 
-      // For index-based scrolling, calculate the start index directly from scroll ratio
+      // Calculate the start index and virtual position
       let finalStartIndex: number;
       let finalVirtualScrollTop: number;
 
-      if (
+      // Check if we're using compressed virtual space
+      const actualTotalSize =
+        scrollbarConfig.totalItems * scrollbarConfig.itemHeight;
+      const isCompressed =
         scrollbarConfig.totalVirtualSize &&
-        scrollbarConfig.totalItems &&
-        scrollbarConfig.totalItems > 100000
+        actualTotalSize > scrollbarConfig.totalVirtualSize;
+
+      if (
+        isCompressed &&
+        scrollbarConfig.totalVirtualSize &&
+        scrollbarConfig.totalItems
       ) {
-        // Index-based scrolling: map ratio directly to item index
+        // Compressed space: map ratio directly to item index
         // When ratio = 1, we want to show the last viewport of items
         const viewportItemCount = Math.floor(
           viewportHeight / scrollbarConfig.itemHeight
@@ -306,8 +313,7 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
             scrollbarConfig.totalVirtualSize - viewportHeight;
         } else {
           finalStartIndex = Math.floor(scrollRatio * maxStartIndex);
-          // For index-based scrolling, map the index back to virtual space
-          // using the same ratio to maintain consistency
+          // Map the index back to virtual space using the same ratio
           const maxVirtualScroll = Math.max(
             0,
             scrollbarConfig.totalVirtualSize - viewportHeight
@@ -315,7 +321,7 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
           finalVirtualScrollTop = scrollRatio * maxVirtualScroll;
         }
       } else {
-        // Standard calculation
+        // Direct 1:1 mapping when not compressed
         finalVirtualScrollTop = getVirtualPositionFromScrollRatio(scrollRatio);
         finalStartIndex = Math.floor(
           finalVirtualScrollTop / scrollbarConfig.itemHeight

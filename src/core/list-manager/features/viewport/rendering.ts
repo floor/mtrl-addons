@@ -397,13 +397,17 @@ export const createRenderingManager = (
 
     if (sortedIndices.length === 0) return;
 
-    // Calculate positioning based on the visible range
+    // Calculate positioning using unified index-based approach
     let currentPosition = 0;
     const firstRenderedIndex = sortedIndices[0];
     const lastRenderedIndex = sortedIndices[sortedIndices.length - 1];
 
-    if (totalItems > 100000) {
-      // For index-based scrolling, we need special handling near the bottom
+    // Check if we're using compressed virtual space
+    const actualTotalSize = totalItems * itemSize;
+    const isCompressed = actualTotalSize > virtualTotalSize;
+
+    if (isCompressed) {
+      // When using compressed space, we need special handling near the bottom
       const maxScrollPosition = virtualTotalSize - containerSize;
       const distanceFromBottom = maxScrollPosition - scrollPosition;
       const nearBottomThreshold = containerSize; // Within one viewport height
@@ -413,9 +417,6 @@ export const createRenderingManager = (
         distanceFromBottom >= -1
       ) {
         // Near or at the bottom - use interpolation for smooth transition
-        // When at the very bottom, we want to show the last N items that fit in the viewport
-        // For a viewport of 596px and items of 84px, we can fit 7.09 items
-        // We want to show the last 7 complete items
         const itemsThatFitCompletely = Math.floor(containerSize / itemSize);
         const firstVisibleAtBottom = Math.max(
           0,
@@ -443,7 +444,7 @@ export const createRenderingManager = (
           normalPosition +
           (bottomPosition - normalPosition) * interpolationFactor;
       } else {
-        // For normal scrolling, calculate the exact scroll position in terms of items
+        // For normal scrolling in compressed space
         const scrollRatio = scrollPosition / virtualTotalSize;
         const exactScrollIndex = scrollRatio * totalItems;
 
@@ -452,7 +453,8 @@ export const createRenderingManager = (
         currentPosition = offset * itemSize;
       }
     } else {
-      // For standard scrolling, position based on actual scroll position
+      // When not compressed (actual size <= 10M), use direct positioning
+      // This gives us natural 1:1 scrolling
       const firstItemPosition = firstRenderedIndex * itemSize;
       currentPosition = firstItemPosition - scrollPosition;
     }
