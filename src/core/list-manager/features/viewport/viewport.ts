@@ -88,6 +88,9 @@ export const withViewport =
     // Items container for virtual positioning
     let itemsContainer: HTMLElement | null = null;
 
+    // Viewport element reference
+    let viewportElement: HTMLElement | null = null;
+
     // State
     let isViewportInitialized = false;
     let resizeObserver: ResizeObserver | null = null;
@@ -522,8 +525,12 @@ export const withViewport =
         },
         emit: (event: string, data: any) => {
           if (event === "viewport:changed" && data.source === "scrollbar") {
+            console.log(`🎯 [VIEWPORT] Received scrollbar event:`, data);
             // Handle scrollbar events - scroll to position
             const targetPosition = data.scrollTop || 0;
+            console.log(
+              `🎯 [VIEWPORT] Scrolling to position: ${targetPosition}`
+            );
             scrollingManager.scrollToPosition(targetPosition);
           }
         },
@@ -566,6 +573,9 @@ export const withViewport =
         overflow: hidden;
       `;
 
+      // Store viewport reference
+      viewportElement = viewport;
+
       // Create items container for natural item flow
       itemsContainer = document.createElement("div");
       itemsContainer.className = `${component.getClass(
@@ -603,17 +613,21 @@ export const withViewport =
         updateViewport();
       });
 
-      resizeObserver.observe(component.element);
+      // Observe the viewport element if available, otherwise the component element
+      const observeElement = viewportElement || component.element;
+      resizeObserver.observe(observeElement);
     };
 
     /**
      * Measure container dimensions
      */
     const measureContainer = (): void => {
+      // Measure the actual viewport element, not the component element
+      const measureElement = viewportElement || component.element;
       const newSize =
         orientation === "vertical"
-          ? component.element.offsetHeight
-          : component.element.offsetWidth;
+          ? measureElement.offsetHeight
+          : measureElement.offsetWidth;
 
       const currentSize = virtualManager.getState().containerSize;
       if (newSize !== currentSize) {

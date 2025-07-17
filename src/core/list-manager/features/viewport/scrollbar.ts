@@ -279,15 +279,43 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
         `🚨 [SCROLLBAR-DRAG] === DRAG SESSION ENDED === ratio: ${scrollRatio}`
       );
 
-      // Calculate final virtual position and emit immediately when drag stops
-      const finalVirtualScrollTop =
-        getVirtualPositionFromScrollRatio(scrollRatio);
-      const finalStartIndex = Math.floor(
-        finalVirtualScrollTop / scrollbarConfig.itemHeight
-      );
+      // For index-based scrolling, calculate the start index directly from scroll ratio
+      let finalStartIndex: number;
+      let finalVirtualScrollTop: number;
+
+      if (
+        scrollbarConfig.totalVirtualSize &&
+        scrollbarConfig.totalItems &&
+        scrollbarConfig.totalItems > 100000
+      ) {
+        // Index-based scrolling: map ratio directly to item index
+        // When ratio = 1, we want to show the last viewport of items
+        const viewportItemCount = Math.ceil(
+          viewportHeight / scrollbarConfig.itemHeight
+        );
+        const maxStartIndex = Math.max(
+          0,
+          scrollbarConfig.totalItems - viewportItemCount
+        );
+        finalStartIndex = Math.floor(scrollRatio * maxStartIndex);
+
+        // For index-based scrolling, map the index back to virtual space
+        // using the same ratio to maintain consistency
+        const maxVirtualScroll = Math.max(
+          0,
+          scrollbarConfig.totalVirtualSize - viewportHeight
+        );
+        finalVirtualScrollTop = scrollRatio * maxVirtualScroll;
+      } else {
+        // Standard calculation
+        finalVirtualScrollTop = getVirtualPositionFromScrollRatio(scrollRatio);
+        finalStartIndex = Math.floor(
+          finalVirtualScrollTop / scrollbarConfig.itemHeight
+        );
+      }
 
       console.log(
-        `🚨 [SCROLLBAR-DRAG] === FINAL API REQUEST TRIGGER === virtualScrollTop=${finalVirtualScrollTop}px, startIndex=${finalStartIndex}, totalItems=${scrollbarConfig.totalItems}`
+        `🚨 [SCROLLBAR-DRAG] === FINAL API REQUEST TRIGGER === virtualScrollTop=${finalVirtualScrollTop}px, startIndex=${finalStartIndex}, totalItems=${scrollbarConfig.totalItems}, scrollRatio=${scrollRatio}`
       );
 
       // Emit final viewport change event when drag stops
@@ -298,6 +326,10 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
         source: "scrollbar",
         action: "drag-end", // Indicate this is the final position
       });
+
+      console.log(
+        `🚨 [SCROLLBAR-DRAG] === EVENT EMITTED === scrollTop=${finalVirtualScrollTop}, startIndex=${finalStartIndex}`
+      );
     };
 
     /**

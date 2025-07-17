@@ -79,13 +79,18 @@ export const createVirtualManager = (
       return { start: 0, end: 0 };
     }
 
-    // For large datasets, use simplified index-based calculation
-    if (actualTotalItems > 100000) {
-      const itemSize = itemSizeManager.getEstimatedItemSize();
-      const viewportItemCount = Math.ceil(containerSize / itemSize);
+    // For large datasets, use index-based calculation
+    if (actualTotalItems > 100000 && totalVirtualSize > 0) {
+      // Map scroll position to item index using ratio
+      const scrollRatio = Math.min(1, scrollPosition / totalVirtualSize);
+      const exactScrollIndex = scrollRatio * actualTotalItems;
+      const startIndex = Math.floor(exactScrollIndex);
 
-      // Calculate start index directly from scroll position
-      const startIndex = Math.floor(scrollPosition / itemSize);
+      // Calculate viewport size in items
+      const viewportItemCount = Math.ceil(
+        containerSize / itemSizeManager.getEstimatedItemSize()
+      );
+
       const endIndex = Math.min(
         startIndex + viewportItemCount - 1,
         actualTotalItems - 1
@@ -94,6 +99,15 @@ export const createVirtualManager = (
       // Apply overscan
       const start = Math.max(0, startIndex - overscan);
       const end = Math.min(actualTotalItems - 1, endIndex + overscan);
+
+      console.log(`📊 [VIRTUAL] Index-based visible range calculation:
+        scrollPosition: ${scrollPosition}
+        totalVirtualSize: ${totalVirtualSize}
+        scrollRatio: ${scrollRatio}
+        exactScrollIndex: ${exactScrollIndex}
+        startIndex: ${startIndex}
+        viewportItemCount: ${viewportItemCount}
+        range: ${start}-${end}`);
 
       return { start, end };
     }

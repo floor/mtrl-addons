@@ -480,10 +480,19 @@ export const createScrollingManager = (
    * Scroll to a specific position
    */
   const scrollToPosition = (position: number): void => {
+    console.log(
+      `🎯 [SCROLLING] scrollToPosition called: position=${position}, currentPosition=${virtualScrollPosition}, totalVirtualSize=${totalVirtualSize}`
+    );
+
     const maxScroll = Math.max(0, totalVirtualSize - containerSize);
     const clampedPosition = clamp(position, 0, maxScroll);
 
+    console.log(
+      `🎯 [SCROLLING] Clamped position: ${clampedPosition}, maxScroll=${maxScroll}`
+    );
+
     if (clampedPosition === virtualScrollPosition) {
+      console.log(`🎯 [SCROLLING] Position unchanged, skipping`);
       return;
     }
 
@@ -491,6 +500,10 @@ export const createScrollingManager = (
 
     // Update scroll position immediately
     virtualScrollPosition = clampedPosition;
+
+    console.log(
+      `🎯 [SCROLLING] Updated virtualScrollPosition to ${virtualScrollPosition}`
+    );
 
     // Update velocity tracking
     const deltaPosition = clampedPosition - previousPosition;
@@ -516,6 +529,10 @@ export const createScrollingManager = (
 
     const newVisibleRange = calculateVisibleRange();
     onVirtualRangeChanged?.(newVisibleRange);
+
+    console.log(
+      `🎯 [SCROLLING] scrollToPosition complete: newVisibleRange=${newVisibleRange.start}-${newVisibleRange.end}`
+    );
   };
 
   /**
