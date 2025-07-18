@@ -1,5 +1,5 @@
 // Removed unused imports
-import { CLASSES, LOGGING } from "../../constants";
+import { CLASSES } from "../../constants";
 import { addClass, removeClass } from "mtrl";
 
 /**

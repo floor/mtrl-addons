@@ -351,12 +351,6 @@ export const withCollection =
           items,
         });
 
-        console.log(
-          `✅ [COLLECTION] Successfully loaded range ${rangeId} (${offset}-${
-            offset + limit - 1
-          }), ${items.length} items`
-        );
-
         return items;
       } catch (error) {
         const errorMessage =
@@ -450,14 +444,6 @@ export const withCollection =
           loadPromises.push(loadRange(offset, rangeSize));
           rangesQueued++;
         }
-      }
-
-      if (rangesToLoad.length > 0) {
-        console.log(
-          `📥 [COLLECTION] Loading ${
-            rangesToLoad.length
-          } ranges: [${rangesToLoad.join(", ")}]`
-        );
       }
 
       // Load ranges concurrently but respect max concurrent requests

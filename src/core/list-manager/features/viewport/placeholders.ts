@@ -187,15 +187,8 @@ export const withPlaceholders =
      */
     const showPlaceholders = (range: ItemRange): void => {
       if (!placeholdersConfig.enabled || !hasAnalyzed) {
-        console.log(
-          `⏭️ [PLACEHOLDERS] Skipping - not enabled or no analysis yet`
-        );
         return;
       }
-
-      console.log(
-        `🎭 [PLACEHOLDERS] Showing placeholders for range ${range.start}-${range.end}`
-      );
 
       const placeholderItems = generatePlaceholderItems(range);
 

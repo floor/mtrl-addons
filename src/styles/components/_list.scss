@@ -146,10 +146,10 @@ $scrollbar-fade-transition: opacity 0.2s ease;
 
     // For avatar placeholder
     .user-avatar {
-      background-color: var(--mtrl-sys-color-on-surface);
-      color: transparent;
+      background-color: var(--mtrl-sys-color-primary-container);
+      color: var(--mtrl-sys-color-primary-container);
       border-radius: 50%;
-      opacity: 0.3;
+      opacity: 0.7;
     }
   }
 

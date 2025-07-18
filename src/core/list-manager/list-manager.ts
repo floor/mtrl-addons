@@ -145,7 +145,10 @@ export const createListManager = (
       ) => {
         // Use loading manager if available
         if (loadingManager) {
-          loadingManager.requestLoad(range, priority || "normal");
+          // Check if this range is already being loaded
+          if (!loadingManager.isRangeLoading(range)) {
+            loadingManager.requestLoad(range, priority || "normal");
+          }
         } else {
           // Fallback to direct collection loading
           setTimeout(() => {

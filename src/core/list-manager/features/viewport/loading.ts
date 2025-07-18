@@ -20,6 +20,7 @@ export interface LoadingManager {
   updateVelocity(velocity: number, direction: "forward" | "backward"): void;
   cancelPendingLoads(): void;
   getStats(): LoadingStats;
+  isRangeLoading(range: ItemRange): boolean;
 }
 
 interface LoadingStats {
@@ -136,10 +137,16 @@ export const createLoadingManager = (
 
     // Check velocity for all requests
     if (!canLoad()) {
+      // console.log(
+      //   `🚫 [LOADING] Request cancelled - velocity ${currentVelocity.toFixed(
+      //     2
+      //   )} px/ms exceeds threshold ${cancelLoadThreshold} px/ms`
+      // );
       cancelledRequests++;
       return;
     }
 
+    // For higher velocities or zero velocity, execute immediately
     // If velocity is low, execute immediately
     if (activeRequests < maxConcurrentRequests) {
       executeLoad(range, priority);
@@ -161,6 +168,10 @@ export const createLoadingManager = (
         );
         cancelledRequests += removed.length;
       }
+    } else {
+      // Queue is disabled and we're at capacity - drop the request
+
+      cancelledRequests++;
     }
   };
 
@@ -218,10 +229,18 @@ export const createLoadingManager = (
   };
 
   /**
+   * Check if a range is already being loaded
+   */
+  const isRangeLoading = (range: ItemRange): boolean => {
+    const rangeKey = getRangeKey(range);
+    return activeRanges.has(rangeKey);
+  };
+
+  /**
    * Get loading statistics
    */
   const getStats = (): LoadingStats => {
-    return {
+    const stats = {
       pendingRequests: activeRequests,
       completedRequests,
       failedRequests,
@@ -230,6 +249,8 @@ export const createLoadingManager = (
       canLoad: canLoad(),
       queuedRequests: requestQueue.length,
     };
+
+    return stats;
   };
 
   return {
@@ -237,5 +258,6 @@ export const createLoadingManager = (
     updateVelocity,
     cancelPendingLoads,
     getStats,
+    isRangeLoading,
   };
 };

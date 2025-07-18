@@ -8,7 +8,7 @@ export const VIEWPORT_CONSTANTS = {
    * Request queue configuration
    */
   REQUEST_QUEUE: {
-    ENABLED: true, // Enable/disable request queue system
+    ENABLED: false, // Enable request queue system to handle rapid requests
     MAX_QUEUE_SIZE: 50, // Maximum number of queued requests
     MAX_ACTIVE_REQUESTS: 1, // Maximum concurrent active requests (1 = sequential)
   },
@@ -17,7 +17,7 @@ export const VIEWPORT_CONSTANTS = {
    * Loading configuration
    */
   LOADING: {
-    CANCEL_THRESHOLD: 10, // px/ms - velocity above which loads are cancelled (lowered for better scrollbar response)
+    CANCEL_THRESHOLD: 1000, // px/ms - velocity above which loads are cancelled
   },
 
   // Placeholder settings

@@ -208,7 +208,13 @@ export const createRenderingManager = (
           component.items[i] !== null &&
           component.items[i] !== undefined;
 
-        if (!itemExists) {
+        // Also check if the item is a placeholder (which means real data is missing)
+        const isItemPlaceholder =
+          itemExists &&
+          hasPlaceholders &&
+          placeholdersAPI.isPlaceholder(component.items[i]);
+
+        if (!itemExists || isItemPlaceholder) {
           visibleMissingCount++;
           visibleMissingIndices.push(i);
         }
@@ -235,7 +241,13 @@ export const createRenderingManager = (
           component.items[i] !== null &&
           component.items[i] !== undefined;
 
-        if (!itemExists) {
+        // Also check if the item is a placeholder (which means real data is missing)
+        // const isItemPlaceholder =
+        //   itemExists &&
+        //   hasPlaceholders &&
+        //   placeholdersAPI.isPlaceholder(component.items[i]);
+
+        if (!itemExists || isItemPlaceholder) {
           extendedMissingCount++;
           extendedMissingIndices.push(i);
         }

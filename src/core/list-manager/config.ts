@@ -10,7 +10,6 @@ import {
   VIRTUAL_SCROLLING,
   ELEMENT_RECYCLING,
   VIEWPORT,
-  HEIGHT_MEASUREMENT,
   PERFORMANCE,
   SCROLL,
   ORIENTATION,
@@ -91,7 +90,7 @@ export const defaultPerformanceConfig = {
   memoryCleanup: true,
   fpsMonitoring: false,
   trackFPS: true,
-  fpsTarget: PERFORMANCE.TARGET_FPS,
+  fpsTarget: PERFORMANCE.DEFAULT_FPS_TARGET,
   trackMemory: false,
   memoryThreshold: PERFORMANCE.MEMORY_WARNING_THRESHOLD,
 } as const;
@@ -101,9 +100,9 @@ export const defaultPerformanceConfig = {
  */
 export const defaultHeightMeasurementConfig = {
   enabled: true,
-  strategy: HEIGHT_MEASUREMENT.DEFAULT_STRATEGY,
-  estimatedHeight: HEIGHT_MEASUREMENT.ESTIMATED_HEIGHT_FALLBACK,
-  cacheSize: HEIGHT_MEASUREMENT.CACHE_SIZE,
+  strategy: "dynamic",
+  estimatedHeight: 50,
+  cacheSize: 1000,
   dynamicMeasurement: true,
 } as const;
 
