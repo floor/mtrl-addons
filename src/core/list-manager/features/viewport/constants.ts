@@ -25,18 +25,11 @@ export const VIEWPORT_CONSTANTS = {
     MASK_CHARACTER: "x",
     CSS_CLASS: "list-item__placeholder",
     MIN_SAMPLE_SIZE: 5, // Minimum items needed for reliable analysis
-    MAX_SAMPLE_SIZE: 20, // Maximum items to analyze for performance
+    MIN_SAMPLE_SIZE: 20, // Maximum items to analyze for performance
   },
 
   // Scrolling settings
   SCROLLING: {
     OVERSCAN: 2,
-    DEBOUNCE_MS: 50,
-  },
-
-  // Rendering settings
-  RENDERING: {
-    BATCH_SIZE: 100,
-    MIN_ITEM_HEIGHT: 20,
   },
 };
