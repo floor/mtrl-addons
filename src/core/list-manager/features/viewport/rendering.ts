@@ -242,10 +242,10 @@ export const createRenderingManager = (
           component.items[i] !== undefined;
 
         // Also check if the item is a placeholder (which means real data is missing)
-        // const isItemPlaceholder =
-        //   itemExists &&
-        //   hasPlaceholders &&
-        //   placeholdersAPI.isPlaceholder(component.items[i]);
+        const isItemPlaceholder =
+          itemExists &&
+          hasPlaceholders &&
+          placeholdersAPI.isPlaceholder(component.items[i]);
 
         if (!itemExists || isItemPlaceholder) {
           extendedMissingCount++;

@@ -129,7 +129,7 @@ export const RANGE_LOADING = {
   MAX_BUFFER_SIZE: 50,
 
   // Prefetching
-  PREFETCH_RANGES: 1, // ranges to load ahead
+  PREFETCH_RANGES: 0, // ranges to load ahead
   PREFETCH_THRESHOLD: 0.8, // start prefetch when 80% through current range
   PRELOAD_DIRECTION_BIAS: 0.7, // 70% in scroll direction, 30% opposite
 
