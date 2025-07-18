@@ -96,7 +96,7 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
     listElement.appendChild(scrollbarTrack);
 
     // Hide native scrollbar using CSS classes instead of inline styles
-    addClass(viewport, "list__scrollbar-enabled");
+    addClass(viewport, CLASSES.SCROLLBAR_ENABLED);
 
     /**
      * Calculate scrollbar dimensions and position
@@ -170,7 +170,7 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
         clearTimeout(fadeTimeoutId);
         fadeTimeoutId = null;
       }
-      addClass(scrollbarTrack, "list__scrollbar--scrolling");
+      addClass(scrollbarTrack, CLASSES.SCROLLBAR_SCROLLING);
     };
 
     /**
@@ -179,7 +179,7 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
     const hideScrollbar = (): void => {
       if (fadeTimeoutId) clearTimeout(fadeTimeoutId);
       fadeTimeoutId = window.setTimeout(() => {
-        removeClass(scrollbarTrack, "list__scrollbar--scrolling");
+        removeClass(scrollbarTrack, CLASSES.SCROLLBAR_SCROLLING);
         fadeTimeoutId = null;
       }, scrollbarConfig.fadeTimeout);
     };
@@ -199,8 +199,8 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
       document.addEventListener("mouseup", handleThumbMouseUp);
 
       // Add dragging state class
-      addClass(scrollbarTrack, "list__scrollbar--dragging");
-      addClass(scrollbarThumb, "list__scrollbar-thumb--dragging");
+      addClass(scrollbarTrack, CLASSES.SCROLLBAR_DRAGGING);
+      addClass(scrollbarThumb, CLASSES.SCROLLBAR_THUMB_DRAGGING);
       showScrollbar();
     };
 
@@ -251,8 +251,8 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
       document.removeEventListener("mouseup", handleThumbMouseUp);
 
       // Remove dragging state classes
-      removeClass(scrollbarTrack, "list__scrollbar--dragging");
-      removeClass(scrollbarThumb, "list__scrollbar-thumb--dragging");
+      removeClass(scrollbarTrack, CLASSES.SCROLLBAR_DRAGGING);
+      removeClass(scrollbarThumb, CLASSES.SCROLLBAR_THUMB_DRAGGING);
       hideScrollbar();
 
       // Calculate the start index and virtual position
@@ -471,7 +471,7 @@ export const scrollbar = (config: Partial<ScrollbarConfig> = {}): any => ({
         }
 
         // Remove scrollbar classes from viewport
-        removeClass(viewport, "list__scrollbar-enabled");
+        removeClass(viewport, CLASSES.SCROLLBAR_ENABLED);
 
         // Clean up event subscriptions
         unsubscribeScrollbar();

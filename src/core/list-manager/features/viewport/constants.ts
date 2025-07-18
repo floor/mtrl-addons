@@ -17,7 +17,7 @@ export const VIEWPORT_CONSTANTS = {
    * Loading configuration
    */
   LOADING: {
-    CANCEL_THRESHOLD: 3, // px/ms - velocity above which loads are cancelled (lowered for better scrollbar response)
+    CANCEL_THRESHOLD: 10, // px/ms - velocity above which loads are cancelled (lowered for better scrollbar response)
   },
 
   // Placeholder settings
