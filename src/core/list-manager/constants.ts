@@ -216,9 +216,9 @@ export const LIST_MANAGER_CONSTANTS = {
 
   RANGE_LOADING: {
     DEFAULT_RANGE_SIZE: 20, // items per range (old pageSize)
-    BUFFER_SIZE: 10, // extra items to maintain
-    PREFETCH_RANGES: 1, // ranges to load ahead
-    MAX_CONCURRENT_REQUESTS: 3, // prevent request spam
+    BUFFER_SIZE: 3, // extra items to maintain
+    PREFETCH_RANGES: 0, // ranges to load ahead
+    MAX_CONCURRENT_REQUESTS: 1, // prevent request spam
   },
 
   SCROLLBAR: {
