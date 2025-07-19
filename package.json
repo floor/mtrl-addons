@@ -1,25 +1,17 @@
 {
   "name": "mtrl-addons",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Additional components and utilities for the mtrl system, featuring forms, specialized elements, and extended functionality for modern applications",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "files": [
-    "dist"
-  ],
+  "type": "module",
+  "main": "index.ts",
   "scripts": {
     "build": "bun run ./build.js",
+    "build:app": "bun run ../mtrl-app/build.js",
     "dev": "bun run ./build.js --watch",
     "test": "bun test",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run build",
+    "debug:list": "bun run ../mtrl-app/scripts/debug/list-addons.ts",
+    "debug:list:interactive": "bun run ../mtrl-app/scripts/debug/list-addons.ts --interactive"
   },
   "repository": {
     "type": "git",
@@ -28,7 +20,7 @@
   "keywords": [
     "mtrl",
     "addons",
-    "components", 
+    "components",
     "forms",
     "ui"
   ],
@@ -40,6 +32,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "bun-types": "^1.0.0",
+    "madge": "^8.0.0",
     "mtrl": "^0.2.8",
     "standard": "^17.0.0",
     "typescript": "^5.0.0"
