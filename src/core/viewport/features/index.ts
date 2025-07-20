@@ -4,11 +4,8 @@
  * Viewport features export
  */
 
-export { withViewport } from "./with-viewport";
-export { withPlaceholders } from "./placeholders";
+export { createViewportManager } from "./manager";
+export { createPlaceholderFeature } from "./placeholders";
 
 // Types
-export type { PlaceholdersComponent } from "./placeholders";
-
-// Configs
-export type { PlaceholdersConfig } from "./placeholders";
+export type { PlaceholderFeature, PlaceholderConfig } from "./placeholders";

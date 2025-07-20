@@ -3,7 +3,7 @@
  * Handles wheel events, scroll position management, scrollbar interactions, and velocity measurement
  */
 
-import type { ViewportHost } from "../types";
+import type { ViewportContext } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
 import {
   createSpeedTracker,
@@ -28,7 +28,7 @@ export interface ScrollingConfig {
 
 export interface ScrollingFeature {
   name: string;
-  initialize: (viewport: ViewportHost) => void;
+  initialize: (viewport: ViewportContext) => void;
   destroy: () => void;
   handleWheel: (event: WheelEvent) => void;
   scrollToPosition: (position: number, source?: string) => void;

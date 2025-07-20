@@ -1,7 +1,7 @@
-// src/core/viewport/features/with-viewport.ts
+// src/core/viewport/features/manager.ts
 
 import type { BaseComponent } from "mtrl/src/core";
-import type { ViewportHost, ViewportConfig } from "../types";
+import type { ViewportContext, ViewportConfig } from "../types";
 import { createCollectionFeature } from "./collection";
 import { createScrollingFeature } from "./scrolling";
 import { createScrollbarFeature } from "./scrollbar";
@@ -33,9 +33,9 @@ export interface ViewportFeature {
 }
 
 /**
- * Creates viewport functionality for virtual scrolling
+ * Creates viewport manager with all features
  */
-export function withViewport<T extends BaseComponent>(
+export function createViewportManager<T extends BaseComponent>(
   config: ViewportConfig = {}
 ) {
   return (component: T): T & { viewport: ViewportFeature } => {
@@ -333,8 +333,8 @@ export function withViewport<T extends BaseComponent>(
         viewportElement.appendChild(itemsContainer);
         component.element.appendChild(viewportElement);
 
-        // Create viewport host for features
-        const viewportHost: ViewportHost = {
+        // Create viewport context for features
+        const viewportContext: ViewportContext = {
           element: viewportElement,
           getEstimatedItemSize: () => estimatedItemSize,
           getTotalVirtualSize: () => {
@@ -351,8 +351,8 @@ export function withViewport<T extends BaseComponent>(
         } as any;
 
         // Initialize features
-        scrollingFeature.initialize(viewportHost);
-        scrollbarFeature.initialize(viewportHost);
+        scrollingFeature.initialize(viewportContext);
+        scrollbarFeature.initialize(viewportContext);
 
         // Create and initialize placeholder feature if enabled
         if (config.enablePlaceholders !== false) {
@@ -362,7 +362,7 @@ export function withViewport<T extends BaseComponent>(
             maskCharacter: config.maskCharacter,
             randomLengthVariance: true,
           });
-          placeholderFeature.initialize(viewportHost);
+          placeholderFeature.initialize(viewportContext);
         }
 
         // Create and initialize collection feature if configured

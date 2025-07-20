@@ -7,13 +7,13 @@
 
 // Main viewport creator
 export { createViewport } from "./viewport";
-export { withViewport } from "./features/with-viewport";
+export { createViewportManager } from "./features/manager";
 
 // Types
 export type {
   ViewportConfig,
   ViewportComponent,
-  ViewportHost,
+  ViewportContext,
   ItemRange,
   ViewportInfo,
 } from "./types";

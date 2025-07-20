@@ -6,7 +6,7 @@
  * Shows placeholders while data is loading
  */
 
-import type { ViewportHost } from "../types";
+import type { ViewportContext } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
 
 /**
@@ -34,7 +34,7 @@ interface FieldStructure {
 export interface PlaceholderFeature {
   // Core feature methods
   name: string;
-  initialize: (host: ViewportHost) => void;
+  initialize: (context: ViewportContext) => void;
   destroy: () => void;
 
   // Structure analysis
@@ -73,7 +73,7 @@ export function createPlaceholderFeature(
   let fieldStructures: Map<string, FieldStructure> | null = null;
   let hasAnalyzed = false;
   let placeholderIdCounter = 0;
-  let viewportHost: ViewportHost | null = null;
+  let viewportContext: ViewportContext | null = null;
 
   /**
    * Analyze data structure from first loaded items
@@ -145,9 +145,9 @@ export function createPlaceholderFeature(
     fieldStructures = structures;
     hasAnalyzed = true;
 
-    // Emit event if viewport host is available
-    if (viewportHost && "emit" in viewportHost) {
-      (viewportHost as any).emit?.("placeholders:analyzed", {
+    // Emit event if viewport context is available
+    if (viewportContext && "emit" in viewportContext) {
+      (viewportContext as any).emit?.("placeholders:analyzed", {
         fieldCount: structures.size,
         sampleSize,
       });
@@ -214,7 +214,7 @@ export function createPlaceholderFeature(
    * Show placeholders for a range
    */
   const showPlaceholders = (range: { start: number; end: number }): void => {
-    if (!enabled || !viewportHost) {
+    if (!enabled || !viewportContext) {
       return;
     }
 
@@ -225,8 +225,8 @@ export function createPlaceholderFeature(
     const placeholderItems = generatePlaceholderItems(range);
 
     // Emit event for viewport to handle
-    if ("emit" in viewportHost) {
-      (viewportHost as any).emit?.("placeholders:show", {
+    if ("emit" in viewportContext) {
+      (viewportContext as any).emit?.("placeholders:show", {
         range,
         items: placeholderItems,
       });
@@ -237,7 +237,7 @@ export function createPlaceholderFeature(
    * Replace placeholders with real data
    */
   const replacePlaceholders = (items: any[], offset: number): void => {
-    if (!enabled || !viewportHost) {
+    if (!enabled || !viewportContext) {
       return;
     }
 
@@ -254,8 +254,8 @@ export function createPlaceholderFeature(
         `✅ [PLACEHOLDERS] Replaced ${replacedCount} placeholders with real data`
       );
 
-      if ("emit" in viewportHost) {
-        (viewportHost as any).emit?.("placeholders:replaced", {
+      if ("emit" in viewportContext) {
+        (viewportContext as any).emit?.("placeholders:replaced", {
           offset,
           count: replacedCount,
         });
@@ -300,12 +300,12 @@ export function createPlaceholderFeature(
   return {
     name: "placeholders",
 
-    initialize(host: ViewportHost) {
-      viewportHost = host;
+    initialize(context: ViewportContext) {
+      viewportContext = context;
 
       // Listen for first data load if configured
-      if (analyzeFirstLoad && "on" in host) {
-        (host as any).on?.("collection:range-loaded", (data: any) => {
+      if (analyzeFirstLoad && "on" in context) {
+        (context as any).on?.("collection:range-loaded", (data: any) => {
           if (
             !hasAnalyzed &&
             data?.items?.length >=
@@ -319,7 +319,7 @@ export function createPlaceholderFeature(
 
     destroy() {
       clear();
-      viewportHost = null;
+      viewportContext = null;
     },
 
     // API methods

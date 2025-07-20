@@ -6,7 +6,7 @@
  */
 
 import type { VListConfig } from "../types";
-import { withViewport as withCoreViewport } from "../../../core/viewport";
+import { createViewport } from "../../../core/viewport";
 
 /**
  * Adds viewport functionality to VList
@@ -25,7 +25,7 @@ export const withViewport = <T = any>(config: VListConfig<T>) => {
     }
 
     // Apply viewport with all config options
-    const viewportEnhanced = withCoreViewport({
+    const viewportEnhanced = createViewport({
       container: config.container || config.parent,
       orientation: config.orientation || "vertical",
       estimatedItemSize: config.estimatedItemSize || 50,

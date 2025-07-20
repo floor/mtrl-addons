@@ -23,9 +23,9 @@ export interface ViewportInfo {
 }
 
 /**
- * Host component interface - minimal requirements for viewport
+ * Viewport context interface - provides context for viewport features
  */
-export interface ViewportHost {
+export interface ViewportContext {
   element: HTMLElement;
   items: any[];
   totalItems: number;
@@ -71,7 +71,7 @@ export interface ViewportConfig {
 /**
  * Enhanced component after viewport is applied
  */
-export interface ViewportComponent extends ViewportHost {
+export interface ViewportComponent extends ViewportContext {
   viewport: {
     // Core API
     initialize(): void;

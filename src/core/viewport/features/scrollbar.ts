@@ -1,6 +1,6 @@
 // src/core/viewport/features/scrollbar.ts
 
-import type { ViewportHost } from "../types";
+import type { ViewportContext } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
 
 export interface ScrollbarConfig {
@@ -16,7 +16,7 @@ export interface ScrollbarConfig {
 
 export interface ScrollbarFeature {
   name: string;
-  initialize: (viewport: ViewportHost) => void;
+  initialize: (viewport: ViewportContext) => void;
   destroy: () => void;
   updateScrollPosition: (position: number) => void;
   updateBounds: (totalVirtualSize: number, containerSize: number) => void;
