@@ -5,6 +5,11 @@
 
 import type { ViewportHost } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
+import {
+  createSpeedTracker,
+  updateSpeedTracker,
+  type SpeedTracker,
+} from "../utils/speed-tracker";
 
 export interface ScrollingConfig {
   orientation?: "vertical" | "horizontal";
@@ -14,6 +19,10 @@ export interface ScrollingConfig {
     position: number;
     direction: "forward" | "backward";
     previousPosition?: number;
+  }) => void;
+  onSpeedChanged?: (data: {
+    velocity: number;
+    direction: "forward" | "backward";
   }) => void;
 }
 
@@ -42,6 +51,7 @@ export function createScrollingFeature(
     sensitivity = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.SCROLL_SENSITIVITY,
     smoothing = false,
     onScrollPositionChanged,
+    onSpeedChanged,
   } = config;
 
   let scrollPosition = 0;
@@ -56,8 +66,61 @@ export function createScrollingFeature(
   let renderItems: (() => void) | null = null;
   let getTotalItems: (() => number) | null = null;
 
+  // Speed tracking
+  let speedTracker: SpeedTracker = createSpeedTracker();
+
+  // Idle detection
+  let lastIdleCheckPosition = 0;
+  let idleCheckFrame: number | null = null;
+
   const clamp = (value: number, min: number, max: number) => {
     return Math.max(min, Math.min(max, value));
+  };
+
+  /**
+   * Start idle detection
+   */
+  const startIdleDetection = (): void => {
+    const checkIdle = () => {
+      // Check if position hasn't changed and velocity is not already 0
+      if (
+        scrollPosition === lastIdleCheckPosition &&
+        speedTracker.velocity > 0
+      ) {
+        setVelocityToZero();
+      }
+
+      lastIdleCheckPosition = scrollPosition;
+      idleCheckFrame = requestAnimationFrame(checkIdle);
+    };
+
+    idleCheckFrame = requestAnimationFrame(checkIdle);
+  };
+
+  /**
+   * Set velocity to zero and trigger necessary updates
+   */
+  const setVelocityToZero = (): void => {
+    // Reset velocity state
+    speedTracker = createSpeedTracker();
+
+    // Emit speed change via callback
+    onSpeedChanged?.({
+      velocity: 0,
+      direction: speedTracker.direction,
+    });
+
+    // Trigger scroll position changed to load data
+    onScrollPositionChanged?.({
+      position: scrollPosition,
+      direction: speedTracker.direction,
+      previousPosition: scrollPosition,
+    });
+
+    // Trigger rendering
+    if (renderItems) {
+      renderItems();
+    }
   };
 
   const handleWheel = (event: WheelEvent) => {
@@ -77,6 +140,20 @@ export function createScrollingFeature(
       updateContainerPosition();
 
       const direction = newPosition > previousPosition ? "forward" : "backward";
+
+      // Update speed tracker
+      speedTracker = updateSpeedTracker(
+        speedTracker,
+        newPosition,
+        previousPosition
+      );
+
+      // Emit speed change event
+      onSpeedChanged?.({
+        velocity: speedTracker.velocity,
+        direction: speedTracker.direction,
+      });
+
       onScrollPositionChanged?.({
         position: scrollPosition,
         direction,
@@ -185,11 +262,20 @@ export function createScrollingFeature(
           ? "transform 0.1s ease-out"
           : "none";
       }
+
+      // Start idle detection
+      startIdleDetection();
     },
 
     destroy() {
       if (viewportElement) {
         viewportElement.removeEventListener("wheel", handleWheel);
+      }
+
+      // Stop idle detection
+      if (idleCheckFrame) {
+        cancelAnimationFrame(idleCheckFrame);
+        idleCheckFrame = null;
       }
     },
 

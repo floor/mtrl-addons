@@ -732,3 +732,51 @@ $prefix: "mtrl" !default;
 .#{$prefix}-viewport:hover .#{$prefix}-viewport-scrollbar {
   opacity: 1;
 }
+
+// Placeholder styling (following _list.scss pattern)
+.viewport-item__placeholder {
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+
+  // Create solid blocks for placeholder content
+  .user-name,
+  .user-email,
+  .user-role,
+  [class*="__primary"],
+  [class*="__secondary"],
+  .#{$list-item}-headline,
+  .#{$list-item}-supporting {
+    position: relative;
+    display: inline-block; // Make width based on content
+
+    // Hide the actual text but keep it for width calculation
+    color: transparent;
+    background-color: t.color("on-surface");
+    border-radius: 0.1em; // Smaller radius for thinner appearance
+    opacity: 0.7; // Adjust opacity for the blocks
+
+    // Remove any text decoration
+    text-decoration: none;
+
+    // Thinner blocks - adjust line height and padding
+    line-height: 1;
+    padding: 0.05em 0; // Much less padding for thinner blocks
+
+    // Ensure proper vertical alignment
+    vertical-align: middle;
+  }
+
+  // Ensure email and role are on separate lines
+  .user-email,
+  .user-role,
+  .#{$list-item}-supporting {
+    margin-top: 0.2em; // Small spacing between lines
+  }
+
+  // For avatar placeholder
+  .user-avatar {
+    background-color: t.color("primary-container");
+    color: t.color("primary-container");
+    opacity: 1;
+  }
+}

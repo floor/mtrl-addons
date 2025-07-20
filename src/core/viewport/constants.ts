@@ -45,7 +45,7 @@ export const VIEWPORT_CONSTANTS = {
 
   // Loading settings
   LOADING: {
-    CANCEL_THRESHOLD: 1, // px/ms - velocity above which loads are cancelled
+    CANCEL_THRESHOLD: 1, // px/ms - velocity above which loads are cancelled (increased to allow normal scrolling)
     MAX_CONCURRENT_REQUESTS: 1,
     DEFAULT_RANGE_SIZE: 20,
     DEBOUNCE_LOADING: 150, // ms - from list-manager
@@ -74,7 +74,7 @@ export const VIEWPORT_CONSTANTS = {
 
   // Placeholder settings
   PLACEHOLDER: {
-    MASK_CHARACTER: "░", // Updated from list-manager
+    MASK_CHARACTER: "x", // Updated from list-manager
     CSS_CLASS: "viewport-item__placeholder",
     MIN_SAMPLE_SIZE: 5,
     MAX_SAMPLE_SIZE: 20,

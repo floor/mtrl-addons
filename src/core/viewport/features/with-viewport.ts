@@ -5,6 +5,12 @@ import type { ViewportHost, ViewportConfig } from "../types";
 import { createCollectionFeature } from "./collection";
 import { createScrollingFeature } from "./scrolling";
 import { createScrollbarFeature } from "./scrollbar";
+import { createLoadingManager, type LoadingManager } from "./loading-manager";
+import {
+  createPlaceholderFeature,
+  type PlaceholderFeature,
+} from "./placeholders";
+import { VIEWPORT_CONSTANTS } from "../constants";
 
 export interface ViewportFeature {
   initialize: () => void;
@@ -39,6 +45,24 @@ export function withViewport<T extends BaseComponent>(
     let collectionFeature: any = null;
     let scrollingFeature: any = null;
     let scrollbarFeature: any = null;
+    let loadingManager: LoadingManager | null = null;
+    let placeholderFeature: PlaceholderFeature | null = null;
+
+    // Create a reference object that can be updated later
+    const loadingManagerRef = { current: null as LoadingManager | null };
+
+    // Callback for loading data through loading manager
+    const loadDataForRange = (
+      range: { start: number; end: number },
+      priority: "high" | "normal" | "low" = "normal"
+    ): void => {
+      if (loadingManagerRef.current) {
+        loadingManagerRef.current.requestLoad(range, priority);
+      } else if (collectionFeature && collectionFeature.isInitialized()) {
+        // Fallback to direct loading if no loading manager
+        collectionFeature.loadMissingRanges(range);
+      }
+    };
 
     const estimatedItemSize = config.estimatedItemSize || 50;
     const overscan = config.overscan || 5;
@@ -63,13 +87,20 @@ export function withViewport<T extends BaseComponent>(
         // Load missing ranges based on visible area
         if (collectionFeature && collectionFeature.isInitialized()) {
           const visibleRange = calculateVisibleRange(data.position);
-          collectionFeature.loadMissingRanges(visibleRange).then(() => {
-            // Render after ranges are loaded
-            renderItems();
-          });
-        } else {
-          // Render immediately if no collection
-          renderItems();
+          // Use the loadDataForRange callback which handles loading manager
+          loadDataForRange(visibleRange, "high");
+        }
+
+        // Always render on scroll
+        renderItems();
+      },
+      onSpeedChanged: (data) => {
+        // Update loading manager velocity
+        if (loadingManagerRef.current) {
+          loadingManagerRef.current.updateVelocity(
+            data.velocity,
+            data.direction
+          );
         }
       },
     });
@@ -156,6 +187,51 @@ export function withViewport<T extends BaseComponent>(
         `🎯 [VIEWPORT] Visible range: ${visibleRange.start} to ${visibleRange.end}`
       );
 
+      // Check for missing items in visible range
+      if (collectionFeature && collectionFeature.isInitialized()) {
+        let hasMissingItems = false;
+        const missingIndices: number[] = [];
+
+        for (let i = visibleRange.start; i <= visibleRange.end; i++) {
+          if (
+            !items[i] ||
+            (placeholderFeature && placeholderFeature.isPlaceholder(items[i]))
+          ) {
+            hasMissingItems = true;
+            missingIndices.push(i);
+          }
+        }
+
+        if (hasMissingItems) {
+          // Show placeholders for missing items
+          if (
+            placeholderFeature &&
+            placeholderFeature.isEnabled() &&
+            missingIndices.length > 0
+          ) {
+            const placeholderRange = {
+              start: Math.min(...missingIndices),
+              end: Math.max(...missingIndices),
+            };
+
+            // Generate placeholder items
+            const placeholderItems =
+              placeholderFeature.generatePlaceholderItems(placeholderRange);
+
+            // Update items array with placeholders
+            placeholderItems.forEach((placeholder, index) => {
+              const targetIndex = placeholderRange.start + index;
+              if (!items[targetIndex]) {
+                items[targetIndex] = placeholder;
+              }
+            });
+          }
+
+          // Load missing items with high priority
+          loadDataForRange(visibleRange, "high");
+        }
+      }
+
       // Render visible items
       let renderedCount = 0;
       for (
@@ -183,6 +259,11 @@ export function withViewport<T extends BaseComponent>(
           console.log(`⚠️ [VIEWPORT] No template provided, using default`);
           itemElement = document.createElement("div");
           itemElement.textContent = `Item ${i}`;
+        }
+
+        // Add placeholder class if item is a placeholder
+        if (placeholderFeature && placeholderFeature.isPlaceholder(item)) {
+          itemElement.classList.add(VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS);
         }
 
         // Position item using transform for better performance
@@ -273,6 +354,17 @@ export function withViewport<T extends BaseComponent>(
         scrollingFeature.initialize(viewportHost);
         scrollbarFeature.initialize(viewportHost);
 
+        // Create and initialize placeholder feature if enabled
+        if (config.enablePlaceholders !== false) {
+          placeholderFeature = createPlaceholderFeature({
+            enabled: true,
+            analyzeFirstLoad: true,
+            maskCharacter: config.maskCharacter,
+            randomLengthVariance: true,
+          });
+          placeholderFeature.initialize(viewportHost);
+        }
+
         // Create and initialize collection feature if configured
         if (collectionConfig) {
           // Create a viewport component wrapper for collection feature
@@ -294,6 +386,7 @@ export function withViewport<T extends BaseComponent>(
             strategy: collectionConfig.strategy,
             enablePlaceholders: collectionConfig.enablePlaceholders,
             maskCharacter: collectionConfig.maskCharacter,
+            transform: collectionConfig.transform,
           };
 
           collectionFeature = createCollectionFeature(
@@ -301,15 +394,42 @@ export function withViewport<T extends BaseComponent>(
             collectionFeatureConfig
           );
 
+          // Add collection feature to viewport component so loading manager can access it
+          (viewportComponent as any).collectionFeature = collectionFeature;
+
+          // Create loading manager immediately after collection feature
+          loadingManager = createLoadingManager(viewportComponent as any, {
+            maxConcurrentRequests: config.maxConcurrentRequests || 1,
+            enableRequestQueue: true,
+          });
+
+          // Update the reference so scroll handlers can use it
+          loadingManagerRef.current = loadingManager;
+
           // Listen for collection events to trigger rendering
-          component.on?.("collection:range-loaded", () => {
+          component.on?.("collection:range-loaded", (data: any) => {
             console.log(
               "📦 [VIEWPORT] Collection range loaded, rendering items"
             );
+
+            // Analyze data structure for placeholders on first load
+            if (
+              placeholderFeature &&
+              !placeholderFeature.hasAnalyzedStructure() &&
+              data?.items?.length > 0
+            ) {
+              placeholderFeature.analyzeDataStructure(data.items);
+            }
+
             // Small delay to ensure collection has updated its internal state
             setTimeout(() => {
               renderItems();
             }, 0);
+
+            // Process any queued requests now that data is loaded
+            if (loadingManagerRef.current) {
+              loadingManagerRef.current.processQueue();
+            }
           });
 
           component.on?.("collection:total-changed", () => {
@@ -400,6 +520,17 @@ export function withViewport<T extends BaseComponent>(
       };
     }
 
+    // Create the enhanced component first
+    const enhancedComponent = {
+      ...component,
+      viewport: viewportInterface,
+    };
+
+    // Expose loading manager on the component if it was created
+    if (loadingManager) {
+      (enhancedComponent as any).loadingManager = loadingManager;
+    }
+
     // Initialize on next tick if we have items or collection
     setTimeout(() => {
       if (component.items && component.items.length > 0) {
@@ -410,9 +541,6 @@ export function withViewport<T extends BaseComponent>(
       }
     }, 0);
 
-    return {
-      ...component,
-      viewport: viewportInterface,
-    };
+    return enhancedComponent;
   };
 }

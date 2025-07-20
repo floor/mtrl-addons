@@ -18,6 +18,7 @@ export interface CollectionConfig {
   strategy?: "page" | "offset" | "cursor";
   enablePlaceholders?: boolean;
   maskCharacter?: string;
+  transform?: (item: any) => any; // Transform function for items
 }
 
 /**
@@ -198,6 +199,15 @@ export const createCollectionFeature = (
               throw new Error(result.error.message || "Failed to load data");
             }
             loadedItems = result.items || [];
+
+            // Apply transform if provided
+            if (config.transform && loadedItems.length > 0) {
+              console.log(
+                `✨ [COLLECTION] Transforming ${loadedItems.length} items`
+              );
+              loadedItems = loadedItems.map(config.transform);
+            }
+
             responseMeta = result.meta || {};
           }
           break;
@@ -209,6 +219,15 @@ export const createCollectionFeature = (
               throw new Error(result.error.message || "Failed to load data");
             }
             loadedItems = result.items || [];
+
+            // Apply transform if provided
+            if (config.transform && loadedItems.length > 0) {
+              console.log(
+                `✨ [COLLECTION] Transforming ${loadedItems.length} items`
+              );
+              loadedItems = loadedItems.map(config.transform);
+            }
+
             responseMeta = result.meta || {};
           }
           break;

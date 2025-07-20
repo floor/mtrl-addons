@@ -176,29 +176,8 @@ export const createVList = <T = any>(
     // Transform config if needed
     const vlistConfig = transformConfig(config);
 
-    // Apply transform function if provided
-    if (vlistConfig.transform && vlistConfig.collection) {
-      console.log("📊 [VLIST] Applying transform function to collection");
-      const originalRead = vlistConfig.collection.read;
-      vlistConfig.collection.read = async (params: any) => {
-        console.log("🔄 [VLIST] Collection read called with params:", params);
-        try {
-          const result = await originalRead.call(
-            vlistConfig.collection,
-            params
-          );
-          console.log("📦 [VLIST] Collection read result:", result);
-          if (result && result.items && vlistConfig.transform) {
-            console.log(`✨ [VLIST] Transforming ${result.items.length} items`);
-            result.items = result.items.map(vlistConfig.transform);
-          }
-          return result;
-        } catch (error) {
-          console.error("❌ [VLIST] Collection read error:", error);
-          throw error;
-        }
-      };
-    }
+    // Note: Transform should be applied by the collection feature in viewport
+    // VList should not intercept collection reads as it bypasses the loading manager
 
     // Create the component through functional composition
     const component = pipe(
