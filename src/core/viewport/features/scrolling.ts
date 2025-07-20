@@ -54,6 +54,7 @@ export function createScrollingFeature(
     | ((scrollPos: number) => { start: number; end: number })
     | null = null;
   let renderItems: (() => void) | null = null;
+  let getTotalItems: (() => number) | null = null;
 
   const clamp = (value: number, min: number, max: number) => {
     return Math.max(min, Math.min(max, value));
@@ -120,7 +121,21 @@ export function createScrollingFeature(
     if (!getEstimatedItemSize) return;
 
     const itemSize = getEstimatedItemSize();
-    let targetPosition = index * itemSize;
+    const totalItems = getTotalItems?.() || 1000000; // Get from collection
+    const actualTotalSize = totalItems * itemSize;
+    const MAX_VIRTUAL_SIZE = 10 * 1000 * 1000;
+    const isCompressed = actualTotalSize > MAX_VIRTUAL_SIZE;
+
+    let targetPosition: number;
+
+    if (isCompressed) {
+      // In compressed space, map index to virtual position
+      const ratio = index / totalItems;
+      targetPosition = ratio * Math.min(actualTotalSize, MAX_VIRTUAL_SIZE);
+    } else {
+      // Direct calculation when not compressed
+      targetPosition = index * itemSize;
+    }
 
     // Adjust position based on alignment
     switch (alignment) {
@@ -136,14 +151,8 @@ export function createScrollingFeature(
   };
 
   const updateContainerPosition = () => {
-    if (!itemsContainer) return;
-
-    const transform =
-      orientation === "vertical"
-        ? `translateY(${-scrollPosition}px)`
-        : `translateX(${-scrollPosition}px)`;
-
-    itemsContainer.style.transform = transform;
+    // Container doesn't move - items are positioned individually with transforms
+    // This follows the virtual scrolling pattern from list-manager
   };
 
   const updateScrollBounds = (totalSize: number, containerSz: number) => {
@@ -160,6 +169,7 @@ export function createScrollingFeature(
       getEstimatedItemSize = viewport.getEstimatedItemSize;
       calculateVisibleRange = viewport.calculateVisibleRange;
       renderItems = viewport.renderItems;
+      getTotalItems = viewport.getTotalItems;
 
       // Setup wheel event listener
       if (viewportElement) {

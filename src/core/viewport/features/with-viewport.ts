@@ -60,13 +60,16 @@ export function withViewport<T extends BaseComponent>(
           scrollbarFeature.updateScrollPosition(data.position);
         }
 
-        // Trigger render on scroll
-        renderItems();
-
         // Load missing ranges based on visible area
         if (collectionFeature && collectionFeature.isInitialized()) {
           const visibleRange = calculateVisibleRange(data.position);
-          collectionFeature.loadMissingRanges(visibleRange);
+          collectionFeature.loadMissingRanges(visibleRange).then(() => {
+            // Render after ranges are loaded
+            renderItems();
+          });
+        } else {
+          // Render immediately if no collection
+          renderItems();
         }
       },
     });
@@ -81,13 +84,31 @@ export function withViewport<T extends BaseComponent>(
 
     const calculateVisibleRange = (scrollPosition: number) => {
       const containerSize = viewportElement?.offsetHeight || 600;
-      const startIndex = Math.floor(scrollPosition / estimatedItemSize);
+      const totalItems = collectionFeature?.getTotalItems() || 0;
+
+      // Check if we're using compressed virtual space
+      const MAX_VIRTUAL_SIZE = 10 * 1000 * 1000;
+      const actualTotalSize = totalItems * estimatedItemSize;
+      const totalVirtualSize = Math.min(actualTotalSize, MAX_VIRTUAL_SIZE);
+      const isCompressed = actualTotalSize > totalVirtualSize;
+
+      let startIndex: number;
+      if (isCompressed && totalVirtualSize > 0) {
+        // Map scroll position to item index using ratio
+        const scrollRatio = Math.min(1, scrollPosition / totalVirtualSize);
+        const exactIndex = scrollRatio * totalItems;
+        startIndex = Math.floor(exactIndex);
+      } else {
+        // Direct calculation when not compressed
+        startIndex = Math.floor(scrollPosition / estimatedItemSize);
+      }
+
       const visibleCount = Math.ceil(containerSize / estimatedItemSize);
       const endIndex = startIndex + visibleCount + overscan;
 
       return {
         start: Math.max(0, startIndex - overscan),
-        end: endIndex,
+        end: Math.min(totalItems - 1, endIndex),
       };
     };
 
@@ -119,14 +140,17 @@ export function withViewport<T extends BaseComponent>(
       const scrollPosition = scrollingFeature.getScrollPosition();
       const visibleRange = calculateVisibleRange(scrollPosition);
 
-      // Update scroll bounds
-      const totalVirtualSize = totalItems * estimatedItemSize;
+      // Calculate virtual size with capping
+      const MAX_VIRTUAL_SIZE = 10 * 1000 * 1000; // 10M pixels - well within browser limits
+      const actualTotalSize = totalItems * estimatedItemSize;
+      const totalVirtualSize = Math.min(actualTotalSize, MAX_VIRTUAL_SIZE);
       const containerSize = viewportElement?.offsetHeight || 600;
+
       scrollingFeature.updateScrollBounds(totalVirtualSize, containerSize);
       scrollbarFeature.updateBounds(totalVirtualSize, containerSize);
 
-      // Update items container height
-      itemsContainer.style.height = `${totalVirtualSize}px`;
+      // Don't set container height - use virtual scrolling instead
+      // Items will be positioned using transforms
 
       console.log(
         `🎯 [VIEWPORT] Visible range: ${visibleRange.start} to ${visibleRange.end}`
@@ -161,12 +185,35 @@ export function withViewport<T extends BaseComponent>(
           itemElement.textContent = `Item ${i}`;
         }
 
-        // Position item absolutely
+        // Position item using transform for better performance
         itemElement.style.position = "absolute";
-        itemElement.style.top = `${i * estimatedItemSize}px`;
         itemElement.style.left = "0";
         itemElement.style.right = "0";
         itemElement.style.height = `${estimatedItemSize}px`;
+        itemElement.style.willChange = "transform";
+
+        // Calculate position based on scroll and virtual space
+        let relativePosition: number;
+        const MAX_VIRTUAL_SIZE = 10 * 1000 * 1000;
+        const actualTotalSize = totalItems * estimatedItemSize;
+        const totalVirtualSize = Math.min(actualTotalSize, MAX_VIRTUAL_SIZE);
+        const isCompressed = actualTotalSize > totalVirtualSize;
+
+        if (isCompressed) {
+          // In compressed space, use precise fractional positioning
+          const scrollRatio = scrollPosition / totalVirtualSize;
+          const exactScrollIndex = scrollRatio * totalItems;
+
+          // Calculate offset from the exact (fractional) scroll position
+          const offset = i - exactScrollIndex;
+          relativePosition = offset * estimatedItemSize;
+        } else {
+          // Direct positioning when not compressed - precise 1:1 scrolling
+          const itemPosition = i * estimatedItemSize;
+          relativePosition = itemPosition - scrollPosition;
+        }
+
+        itemElement.style.transform = `translateY(${relativePosition}px)`;
 
         itemsContainer.appendChild(itemElement);
         renderedCount++;
@@ -219,6 +266,7 @@ export function withViewport<T extends BaseComponent>(
             calculateVisibleRange(scrollPos),
           renderItems,
           itemsContainer,
+          getTotalItems: () => collectionFeature?.getTotalItems() || 0,
         } as any;
 
         // Initialize features
@@ -269,7 +317,12 @@ export function withViewport<T extends BaseComponent>(
               "📊 [VIEWPORT] Collection total changed, updating bounds"
             );
             const totalItems = collectionFeature.getTotalItems();
-            const totalVirtualSize = totalItems * estimatedItemSize;
+            const MAX_VIRTUAL_SIZE = 10 * 1000 * 1000; // 10M pixels
+            const actualTotalSize = totalItems * estimatedItemSize;
+            const totalVirtualSize = Math.min(
+              actualTotalSize,
+              MAX_VIRTUAL_SIZE
+            );
             const containerSize = viewportElement?.offsetHeight || 600;
             scrollingFeature.updateScrollBounds(
               totalVirtualSize,

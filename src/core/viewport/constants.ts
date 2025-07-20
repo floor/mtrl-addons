@@ -148,7 +148,17 @@ export const VIEWPORT_CONSTANTS = {
 
   // Scrollbar settings (from list-manager)
   SCROLLBAR: {
-    THUMB_MIN_SIZE: 20, // minimum thumb size
+    // Dimensions
+    TRACK_WIDTH: 8,
+    THUMB_MIN_HEIGHT: 20,
+    BORDER_RADIUS: 4,
+
+    // Colors
+    THUMB_COLOR: "#999999",
+    TRACK_COLOR: "#f0f0f0",
+
+    // Behavior
+    FADE_TIMEOUT: 1000,
 
     // CSS classes
     CLASSES: {

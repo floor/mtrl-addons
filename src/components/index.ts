@@ -7,6 +7,10 @@
 // Export the existing list component
 export { createList } from "./list";
 
+// Export the new VList component
+export { createVList } from "./vlist";
+export type { VListConfig, VListComponent } from "./vlist";
+
 // Export list types and utilities
 export type {
   ListConfig,

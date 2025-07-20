@@ -6,6 +6,7 @@
 
 // Import component styles (only addons-specific enhancements)
 @forward "./components/list";
+@forward "./components/vlist";
 
 // Future addons-specific component styles will be added here
 // @forward "./components/datagrid";      // Advanced grid functionality

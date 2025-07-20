@@ -174,12 +174,14 @@ export const createCollectionFeature = (
 
       switch (paginationStrategy) {
         case "page":
-          const page = Math.floor(offset / limit) + 1;
+          // For page-based APIs, we need to use a fixed page size
+          const pageSize = 20; // Standard API page size
+          const page = Math.floor(offset / pageSize) + 1;
           // Don't adjust limit if we don't know total items yet
           const adjustedLimit =
-            totalItems > 0 && offset + limit >= totalItems
-              ? Math.min(limit, totalItems - offset)
-              : limit;
+            totalItems > 0 && offset + pageSize >= totalItems
+              ? Math.min(pageSize, totalItems - offset)
+              : pageSize;
 
           console.log(
             `📄 [COLLECTION] Loading page ${page} with limit ${adjustedLimit}`
@@ -288,8 +290,10 @@ export const createCollectionFeature = (
       return;
     }
 
-    const startRange = Math.floor(visibleRange.start / rangeSize);
-    const endRange = Math.floor(visibleRange.end / rangeSize);
+    // For page-based APIs, use fixed page size for range calculations
+    const pageSize = paginationStrategy === "page" ? 20 : rangeSize;
+    const startRange = Math.floor(visibleRange.start / pageSize);
+    const endRange = Math.floor(visibleRange.end / pageSize);
 
     const loadPromises: Promise<any[]>[] = [];
     const maxRangesToLoad = 3;
@@ -315,8 +319,8 @@ export const createCollectionFeature = (
           }
         }
 
-        const offset = range * rangeSize;
-        loadPromises.push(loadRange(offset, rangeSize));
+        const offset = range * pageSize;
+        loadPromises.push(loadRange(offset, pageSize));
         rangesQueued++;
       }
     }

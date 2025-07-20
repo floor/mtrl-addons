@@ -32,12 +32,12 @@ export function createScrollbarFeature(
 ): ScrollbarFeature {
   const {
     enabled = true,
-    trackWidth = 12,
-    thumbMinHeight = 20,
-    thumbColor = "#999999",
-    trackColor = "#f0f0f0",
-    borderRadius = 6,
-    fadeTimeout = 1000,
+    trackWidth = VIEWPORT_CONSTANTS.SCROLLBAR.TRACK_WIDTH,
+    thumbMinHeight = VIEWPORT_CONSTANTS.SCROLLBAR.THUMB_MIN_HEIGHT,
+    thumbColor = VIEWPORT_CONSTANTS.SCROLLBAR.THUMB_COLOR,
+    trackColor = VIEWPORT_CONSTANTS.SCROLLBAR.TRACK_COLOR,
+    borderRadius = VIEWPORT_CONSTANTS.SCROLLBAR.BORDER_RADIUS,
+    fadeTimeout = VIEWPORT_CONSTANTS.SCROLLBAR.FADE_TIMEOUT,
     onScrollPositionChanged,
   } = config;
 
@@ -166,7 +166,6 @@ export function createScrollbarFeature(
     e.preventDefault();
     e.stopPropagation();
 
-    console.log("🎯 [SCROLLBAR] Mouse down on thumb");
     isDragging = true;
     dragStartY = e.clientY;
     dragStartScrollRatio = scrollPosition / (totalVirtualSize - containerSize);
@@ -184,7 +183,6 @@ export function createScrollbarFeature(
   const handleThumbDrag = (e: MouseEvent) => {
     if (!isDragging || !scrollbarTrack || !scrollbarThumb) return;
 
-    console.log("🎯 [SCROLLBAR] Dragging thumb");
     const deltaY = e.clientY - dragStartY;
     const trackHeight = scrollbarTrack.clientHeight;
     const thumbHeight = scrollbarThumb.clientHeight;
