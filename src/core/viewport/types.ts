@@ -32,6 +32,8 @@ export interface ViewportContext {
   template?: (item: any, index: number) => string | HTMLElement;
   emit?: (event: string, data?: any) => void;
   on?: (event: string, handler: Function) => () => void;
+  once?: (event: string, handler: Function) => () => void;
+  off?: (event: string, handler: Function) => void;
   getClass?: (name: string) => string;
 }
 
@@ -39,38 +41,24 @@ export interface ViewportContext {
  * Viewport configuration
  */
 export interface ViewportConfig {
-  // Container
-  container?: HTMLElement;
-  className?: string;
-
-  // Basic settings
+  element?: HTMLElement;
   orientation?: "vertical" | "horizontal";
   estimatedItemSize?: number;
   overscan?: number;
-
-  // Scrolling settings
-  scrollSensitivity?: number;
-  smoothScrolling?: boolean;
-
-  // Scrollbar settings
   enableScrollbar?: boolean;
   autoHideScrollbar?: boolean;
-
-  // Collection settings
-  collection?: any; // Collection adapter
+  scrollSensitivity?: number;
+  smoothScrolling?: boolean;
+  collection?: any;
   rangeSize?: number;
   paginationStrategy?: "page" | "offset" | "cursor";
-  enablePlaceholders?: boolean;
-  maskCharacter?: string;
   transformItem?: (item: any) => any;
-
-  // Loading settings
   maxConcurrentRequests?: number;
-
-  // Rendering settings
-  template?: (item: any, index: number) => string | HTMLElement;
-
-  // Debug
+  cancelLoadThreshold?: number;
+  enableRequestQueue?: boolean;
+  enablePlaceholders?: boolean;
+  placeholderTemplate?: (index: number) => string | HTMLElement;
+  className?: string;
   debug?: boolean;
 }
 

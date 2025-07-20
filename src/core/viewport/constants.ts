@@ -46,7 +46,7 @@ export const VIEWPORT_CONSTANTS = {
 
   // Loading settings
   LOADING: {
-    CANCEL_THRESHOLD: 1, // px/ms - velocity above which loads are cancelled (increased to allow normal scrolling)
+    CANCEL_THRESHOLD: 30, // px/ms - velocity above which loads are cancelled
     MAX_CONCURRENT_REQUESTS: 1,
     DEFAULT_RANGE_SIZE: 20,
     DEBOUNCE_LOADING: 150, // ms - from list-manager

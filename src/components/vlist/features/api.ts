@@ -95,6 +95,34 @@ export const withAPI = <T = any>(config: VListConfig<T>) => {
         }
       },
 
+      // Data loading
+      loadNext: async function () {
+        console.log(`[VList] loadNext()`);
+
+        if (component.viewport?.collection) {
+          const totalItems = component.viewport.collection.getTotalItems();
+          const loadedRanges = component.viewport.collection.getLoadedRanges();
+
+          // Find the next unloaded range
+          let nextOffset = 0;
+          for (const rangeId of loadedRanges) {
+            const rangeEnd = (rangeId + 1) * (config.rangeSize || 20);
+            if (rangeEnd > nextOffset) {
+              nextOffset = rangeEnd;
+            }
+          }
+
+          if (nextOffset < totalItems) {
+            await component.viewport.collection.loadRange(
+              nextOffset,
+              config.rangeSize || 20
+            );
+          }
+        }
+
+        return Promise.resolve();
+      },
+
       isLoading(): boolean {
         return isLoading;
       },
@@ -172,6 +200,26 @@ export const withAPI = <T = any>(config: VListConfig<T>) => {
           return this.scrollToIndex(totalItems - 1, "end");
         }
         return Promise.resolve();
+      },
+
+      scrollToPage: async function (
+        pageNum: number,
+        alignment: "start" | "center" | "end" = "start",
+        animate?: boolean
+      ) {
+        console.log(`[VList] scrollToPage(${pageNum})`);
+
+        // Get page size from config or default
+        const pageSize = config.rangeSize || 20;
+        const targetIndex = (pageNum - 1) * pageSize;
+
+        // First ensure the page is loaded
+        if (component.viewport?.collection) {
+          await component.viewport.collection.loadRange(targetIndex, pageSize);
+        }
+
+        // Then scroll to the index
+        return this.scrollToIndex(targetIndex, alignment, animate);
       },
 
       getScrollPosition: () => {

@@ -3,7 +3,7 @@
  * Handles visible range calculation and total virtual size management
  */
 
-import type { ViewportContext } from "../types";
+import type { ViewportContext, ViewportComponent } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
 
 export interface VirtualConfig {
@@ -13,197 +13,278 @@ export interface VirtualConfig {
   debug?: boolean;
 }
 
-export interface VirtualComponent {
-  virtual: {
-    calculateVisibleRange: (scrollPosition: number) => {
-      start: number;
-      end: number;
-    };
-    updateTotalVirtualSize: (totalItems: number) => void;
-    getTotalVirtualSize: () => number;
-    getContainerSize: () => number;
-    updateContainerSize: (size: number) => void;
-    getEstimatedItemSize: () => number;
-    calculateIndexFromPosition: (position: number) => number;
-    calculatePositionForIndex: (index: number) => number;
-  };
-}
-
 /**
- * Adds virtual scrolling functionality to viewport component
+ * Virtual scrolling feature for viewport
+ * Handles visible range calculations with compression for large datasets
  */
-export function withVirtual(config: VirtualConfig = {}) {
-  return <T extends ViewportContext>(component: T): T & VirtualComponent => {
+export const withVirtual = (config: VirtualConfig = {}) => {
+  return <T extends ViewportContext & ViewportComponent>(component: T): T => {
     const {
       estimatedItemSize = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.DEFAULT_ITEM_SIZE,
       overscan = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER,
       orientation = "vertical",
+      debug = false,
     } = config;
-
-    // State
-    let totalVirtualSize = 0;
-    let containerSize = 0;
-    let totalItems = 0;
-    let viewportElement: HTMLElement | null = null;
 
     // Constants
     const MAX_VIRTUAL_SIZE = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.MAX_VIRTUAL_SIZE;
 
-    /**
-     * Calculate compression ratio for large datasets
-     */
-    const getCompressionRatio = (): number => {
-      const actualTotalSize = totalItems * estimatedItemSize;
-      return actualTotalSize > MAX_VIRTUAL_SIZE
-        ? MAX_VIRTUAL_SIZE / actualTotalSize
-        : 1;
+    // Get viewport state
+    let viewportState: any;
+    const originalInitialize = component.viewport.initialize;
+    component.viewport.initialize = () => {
+      originalInitialize();
+      viewportState = (component.viewport as any).state;
+
+      // Update state with config values
+      if (viewportState) {
+        viewportState.estimatedItemSize = estimatedItemSize;
+        viewportState.overscan = overscan;
+
+        // Initialize container size if element exists
+        if (component.element) {
+          const size =
+            orientation === "horizontal"
+              ? component.element.offsetWidth
+              : component.element.offsetHeight;
+
+          viewportState.containerSize = size || 600; // Default to 600 if no size
+
+          if (debug) {
+            console.log(
+              `[Virtual] Initialized container size: ${viewportState.containerSize}`
+            );
+          }
+        }
+
+        // Calculate initial virtual size
+        updateTotalVirtualSize(viewportState.totalItems);
+
+        // Calculate initial visible range
+        updateVisibleRange(viewportState.scrollPosition || 0);
+      }
     };
 
-    /**
-     * Calculate visible range based on scroll position
-     */
+    // Helper to get compression ratio
+    const getCompressionRatio = (): number => {
+      if (!viewportState || !viewportState.virtualTotalSize) return 1;
+
+      const actualTotalSize = viewportState.totalItems * estimatedItemSize;
+      if (actualTotalSize <= MAX_VIRTUAL_SIZE) return 1;
+
+      return MAX_VIRTUAL_SIZE / actualTotalSize;
+    };
+
+    // Calculate visible range
     const calculateVisibleRange = (
       scrollPosition: number
     ): { start: number; end: number } => {
-      if (totalItems === 0 || containerSize === 0) {
-        if (config.debug) {
-          console.log(
-            `[Virtual] Empty range: totalItems=${totalItems}, containerSize=${containerSize}`
-          );
+      if (!viewportState) {
+        console.warn("[Virtual] No viewport state, returning empty range");
+        return { start: 0, end: 0 };
+      }
+
+      const { containerSize, totalItems } = viewportState;
+
+      // Validate inputs
+      if (!containerSize || containerSize <= 0) {
+        if (debug) {
+          console.log(`[Virtual] Invalid container size: ${containerSize}`);
+        }
+        return { start: 0, end: 0 };
+      }
+
+      if (!totalItems || totalItems <= 0) {
+        if (debug) {
+          console.log(`[Virtual] No items to display: ${totalItems}`);
         }
         return { start: 0, end: 0 };
       }
 
       const compressionRatio = getCompressionRatio();
-      const effectiveItemSize = estimatedItemSize * compressionRatio;
+      let start: number;
+      let end: number;
 
-      // Calculate visible indices
-      const startIndex = Math.max(
-        0,
-        Math.floor(scrollPosition / effectiveItemSize) - overscan
-      );
-      const endIndex = Math.min(
-        totalItems - 1,
-        Math.ceil((scrollPosition + containerSize) / effectiveItemSize) +
-          overscan
-      );
+      // Use virtualTotalSize if available, otherwise calculate it
+      const virtualSize =
+        viewportState.virtualTotalSize || totalItems * estimatedItemSize;
 
-      if (config.debug && (isNaN(startIndex) || isNaN(endIndex))) {
+      if (compressionRatio < 1) {
+        // Compressed space - use ratio-based calculation
+        const scrollRatio = scrollPosition / virtualSize;
+        const exactIndex = scrollRatio * totalItems;
+        start = Math.floor(exactIndex);
+
+        const visibleCount = Math.ceil(containerSize / estimatedItemSize);
+        end = Math.ceil(exactIndex) + visibleCount;
+
+        // Apply overscan after calculating the base range
+        start = Math.max(0, start - overscan);
+        end = Math.min(totalItems - 1, end + overscan);
+      } else {
+        // Direct calculation
+        start = Math.floor(scrollPosition / estimatedItemSize) - overscan;
+        const visibleCount = Math.ceil(containerSize / estimatedItemSize);
+        end = start + visibleCount + overscan * 2;
+      }
+
+      // Clamp to valid range
+      start = Math.max(0, start);
+      end = Math.min(totalItems - 1, end);
+
+      // Validate output
+      if (isNaN(start) || isNaN(end)) {
+        console.error("[Virtual] NaN in range calculation:", {
+          scrollPosition,
+          containerSize,
+          totalItems,
+          estimatedItemSize,
+          virtualTotalSize: viewportState.virtualTotalSize,
+          compressionRatio,
+          viewportState: {
+            hasState: !!viewportState,
+            stateKeys: viewportState ? Object.keys(viewportState) : [],
+            actualVirtualSize: viewportState?.virtualTotalSize,
+          },
+        });
+        return { start: 0, end: 0 };
+      }
+
+      if (debug) {
         console.log(
-          `[Virtual] NaN detected: scrollPosition=${scrollPosition}, effectiveItemSize=${effectiveItemSize}, containerSize=${containerSize}, totalItems=${totalItems}`
+          `[Virtual] Range: ${start}-${end} (scroll: ${scrollPosition}, container: ${containerSize})`
         );
       }
 
-      return { start: startIndex, end: endIndex };
+      return { start, end };
     };
 
-    /**
-     * Update total virtual size based on item count
-     */
+    // Update visible range in state
+    const updateVisibleRange = (scrollPosition: number) => {
+      if (!viewportState) return;
+
+      const range = calculateVisibleRange(scrollPosition);
+      viewportState.visibleRange = range;
+
+      // Emit range change event
+      component.emit?.("viewport:range-changed", {
+        range,
+        scrollPosition,
+      });
+    };
+
+    // Update total virtual size
     const updateTotalVirtualSize = (newTotalItems: number): void => {
-      totalItems = newTotalItems;
-      const actualTotalSize = totalItems * estimatedItemSize;
+      if (!viewportState) return;
+
+      viewportState.totalItems = newTotalItems;
+      const actualTotalSize = newTotalItems * estimatedItemSize;
 
       // Apply compression for very large datasets
-      totalVirtualSize = Math.min(actualTotalSize, MAX_VIRTUAL_SIZE);
+      viewportState.virtualTotalSize = Math.min(
+        actualTotalSize,
+        MAX_VIRTUAL_SIZE
+      );
+
+      if (debug) {
+        console.log(`[Virtual] Total size updated:`, {
+          totalItems: newTotalItems,
+          actualSize: actualTotalSize,
+          virtualSize: viewportState.virtualTotalSize,
+          compressed: actualTotalSize > MAX_VIRTUAL_SIZE,
+        });
+      }
 
       // Emit size change event
       component.emit?.("viewport:virtual-size-changed", {
-        totalVirtualSize,
-        totalItems,
+        totalVirtualSize: viewportState.virtualTotalSize,
+        totalItems: newTotalItems,
         compressionRatio: getCompressionRatio(),
       });
     };
 
-    /**
-     * Update container size
-     */
-    const updateContainerSize = (size: number): void => {
-      containerSize = size;
-
-      // Emit container size change
-      component.emit?.("viewport:container-size-changed", {
-        containerSize,
-        orientation,
-      });
+    // Override getVisibleRange to use our calculation
+    const originalGetVisibleRange = component.viewport.getVisibleRange;
+    component.viewport.getVisibleRange = () => {
+      if (!viewportState) return { start: 0, end: 0 };
+      return (
+        viewportState.visibleRange ||
+        calculateVisibleRange(viewportState.scrollPosition || 0)
+      );
     };
 
-    /**
-     * Calculate index from virtual position
-     */
-    const calculateIndexFromPosition = (position: number): number => {
-      const compressionRatio = getCompressionRatio();
-      const effectiveItemSize = estimatedItemSize * compressionRatio;
-      return Math.floor(position / effectiveItemSize);
-    };
+    // Listen for scroll events to update visible range
+    component.on?.("viewport:scroll", (data: any) => {
+      updateVisibleRange(data.position);
+    });
 
-    /**
-     * Calculate virtual position for index
-     */
-    const calculatePositionForIndex = (index: number): number => {
-      const compressionRatio = getCompressionRatio();
-      const effectiveItemSize = estimatedItemSize * compressionRatio;
-      return index * effectiveItemSize;
-    };
-
-    // Initialize function
-    const initialize = () => {
-      viewportElement = component.element;
-
-      if (viewportElement) {
-        // Get initial container size
-        containerSize =
-          orientation === "horizontal"
-            ? viewportElement.offsetWidth
-            : viewportElement.offsetHeight;
-
-        // Set up resize observer
-        const resizeObserver = new ResizeObserver((entries) => {
-          for (const entry of entries) {
-            const newSize =
-              orientation === "horizontal"
-                ? entry.contentRect.width
-                : entry.contentRect.height;
-
-            if (newSize !== containerSize) {
-              updateContainerSize(newSize);
-            }
-          }
-        });
-
-        resizeObserver.observe(viewportElement);
-
-        // Store observer for cleanup
-        (component as any)._virtualResizeObserver = resizeObserver;
+    // Listen for item changes
+    component.on?.("viewport:items-changed", (data: any) => {
+      if (data.totalItems !== undefined) {
+        updateTotalVirtualSize(data.totalItems);
+        updateVisibleRange(viewportState?.scrollPosition || 0);
       }
-    };
+    });
 
-    // Cleanup function
-    const destroy = () => {
-      const resizeObserver = (component as any)._virtualResizeObserver;
-      if (resizeObserver) {
-        resizeObserver.disconnect();
-        delete (component as any)._virtualResizeObserver;
+    // Listen for collection loaded events
+    component.on?.("collection:range-loaded", (data: any) => {
+      console.log(
+        "[Virtual] Collection loaded, updating with total:",
+        data.total
+      );
+
+      if (
+        data.total !== undefined &&
+        data.total !== viewportState?.totalItems
+      ) {
+        updateTotalVirtualSize(data.total);
+
+        // Also update viewport state virtual size
+        if (viewportState) {
+          const actualTotalSize = data.total * estimatedItemSize;
+          viewportState.virtualTotalSize = Math.min(
+            actualTotalSize,
+            MAX_VIRTUAL_SIZE
+          );
+          console.log(
+            "[Virtual] Updated virtualTotalSize:",
+            viewportState.virtualTotalSize
+          );
+        }
       }
-    };
 
-    // Store functions for viewport to call
-    (component as any)._virtualInitialize = initialize;
-    (component as any)._virtualDestroy = destroy;
+      // Always update visible range when new data loads
+      updateVisibleRange(viewportState?.scrollPosition || 0);
 
-    // Return enhanced component
-    return {
-      ...component,
-      virtual: {
-        calculateVisibleRange,
-        updateTotalVirtualSize,
-        getTotalVirtualSize: () => totalVirtualSize,
-        getContainerSize: () => containerSize,
-        updateContainerSize,
-        getEstimatedItemSize: () => estimatedItemSize,
-        calculateIndexFromPosition,
-        calculatePositionForIndex,
+      // Trigger render
+      component.viewport?.renderItems?.();
+    });
+
+    // Expose virtual API
+    (component as any).virtual = {
+      calculateVisibleRange,
+      updateTotalVirtualSize,
+      getTotalVirtualSize: () => viewportState?.virtualTotalSize || 0,
+      getContainerSize: () => viewportState?.containerSize || 0,
+      updateContainerSize: (size: number) => {
+        if (viewportState) {
+          viewportState.containerSize = size;
+          updateVisibleRange(viewportState.scrollPosition || 0);
+        }
+      },
+      getEstimatedItemSize: () => estimatedItemSize,
+      calculateIndexFromPosition: (position: number) => {
+        const compressionRatio = getCompressionRatio();
+        const effectiveItemSize = estimatedItemSize * compressionRatio;
+        return Math.floor(position / effectiveItemSize);
+      },
+      calculatePositionForIndex: (index: number) => {
+        const compressionRatio = getCompressionRatio();
+        const effectiveItemSize = estimatedItemSize * compressionRatio;
+        return index * effectiveItemSize;
       },
     };
+
+    return component;
   };
-}
+};

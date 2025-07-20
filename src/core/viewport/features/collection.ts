@@ -5,15 +5,19 @@
  * Handles collection integration, pagination, and data fetching
  */
 
-import type { ViewportContext } from "../types";
-import type { VirtualComponent } from "./virtual";
+import type { ViewportContext, ViewportComponent } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
 
 export interface CollectionConfig {
   collection?: any; // Collection adapter
+  strategy?: "offset" | "page";
   rangeSize?: number;
-  strategy?: "page" | "offset" | "cursor";
   transform?: (item: any) => any;
+  // Loading manager settings
+  cancelLoadThreshold?: number; // Velocity (px/ms) above which loads are cancelled
+  maxConcurrentRequests?: number;
+  enableRequestQueue?: boolean;
+  maxQueueSize?: number;
 }
 
 export interface CollectionComponent {
@@ -33,7 +37,7 @@ export interface CollectionComponent {
  * Adds collection functionality to viewport component
  */
 export function withCollection(config: CollectionConfig = {}) {
-  return <T extends ViewportContext & VirtualComponent>(
+  return <T extends ViewportContext & ViewportComponent>(
     component: T
   ): T & CollectionComponent => {
     const {
@@ -41,7 +45,28 @@ export function withCollection(config: CollectionConfig = {}) {
       rangeSize = VIEWPORT_CONSTANTS.LOADING.DEFAULT_RANGE_SIZE,
       strategy = "offset",
       transform,
+      cancelLoadThreshold = VIEWPORT_CONSTANTS.LOADING.CANCEL_THRESHOLD,
+      maxConcurrentRequests = 3,
+      enableRequestQueue = true,
+      maxQueueSize = 10,
     } = config;
+
+    // Loading manager state
+    interface QueuedRequest {
+      range: { start: number; end: number };
+      priority: "high" | "normal" | "low";
+      timestamp: number;
+      resolve: () => void;
+      reject: (error: any) => void;
+    }
+
+    let currentVelocity = 0;
+    let activeLoadCount = 0;
+    const activeLoadRanges = new Set<string>();
+    const loadRequestQueue: QueuedRequest[] = [];
+    let completedLoads = 0;
+    let failedLoads = 0;
+    let cancelledLoads = 0;
 
     // State
     let items: any[] = [];
@@ -58,11 +83,73 @@ export function withCollection(config: CollectionConfig = {}) {
     >();
     let activeRequests = new Map<number, Promise<any[]>>();
 
+    // Share items array with component
+    component.items = items;
+
     /**
      * Calculate range ID based on offset and limit
      */
     const getRangeId = (offset: number, limit: number): number => {
       return Math.floor(offset / limit);
+    };
+
+    // Loading manager helpers
+    const getRangeKey = (range: { start: number; end: number }): string => {
+      return `${range.start}-${range.end}`;
+    };
+
+    const canLoad = (): boolean => {
+      return currentVelocity <= cancelLoadThreshold;
+    };
+
+    const processQueue = () => {
+      if (!enableRequestQueue || loadRequestQueue.length === 0) return;
+
+      // Sort queue by priority and timestamp
+      loadRequestQueue.sort((a, b) => {
+        const priorityOrder = { high: 0, normal: 1, low: 2 };
+        const priorityDiff =
+          priorityOrder[a.priority] - priorityOrder[b.priority];
+        return priorityDiff !== 0 ? priorityDiff : a.timestamp - b.timestamp;
+      });
+
+      // Process requests up to capacity
+      while (
+        loadRequestQueue.length > 0 &&
+        activeLoadCount < maxConcurrentRequests
+      ) {
+        const request = loadRequestQueue.shift();
+        if (request) {
+          executeQueuedLoad(request);
+        }
+      }
+    };
+
+    const executeQueuedLoad = (request: QueuedRequest) => {
+      activeLoadCount++;
+      activeLoadRanges.add(getRangeKey(request.range));
+
+      console.log(
+        `[LoadingManager] Executing load for range ${request.range.start}-${
+          request.range.end
+        } (velocity: ${currentVelocity.toFixed(2)})`
+      );
+
+      // Call the actual loadMissingRanges function
+      loadMissingRangesInternal(request.range)
+        .then(() => {
+          request.resolve();
+          completedLoads++;
+        })
+        .catch((error: Error) => {
+          request.reject(error);
+          failedLoads++;
+        })
+        .finally(() => {
+          activeLoadCount--;
+          activeLoadRanges.delete(getRangeKey(request.range));
+          processQueue();
+        });
     };
 
     /**
@@ -103,14 +190,13 @@ export function withCollection(config: CollectionConfig = {}) {
       // Create request promise
       const requestPromise = (async () => {
         try {
-          // Call collection adapter
+          // Call collection adapter with appropriate parameters
           const params =
             strategy === "page"
               ? { page: Math.floor(offset / limit) + 1, pageSize: limit }
               : { offset, limit };
 
-          // Support both find and read methods
-          const response = await (collection.find || collection.read)?.(params);
+          const response = await collection.read(params);
 
           // Extract items and total
           const rawItems = response.data || response.items || response;
@@ -133,18 +219,46 @@ export function withCollection(config: CollectionConfig = {}) {
             items[offset + i] = transformedItems[i];
           }
 
+          // Update component items reference
+          component.items = items;
+
+          // Emit items changed event
+          component.emit?.("viewport:items-changed", {
+            totalItems: newTotal,
+            loadedCount: items.filter((item) => item !== undefined).length,
+          });
+
+          // Update viewport state
+          const viewportState = (component.viewport as any).state;
+          if (viewportState) {
+            viewportState.totalItems = newTotal || items.length;
+          }
+
           // Mark as loaded
           loadedRanges.add(rangeId);
           pendingRanges.delete(rangeId);
           failedRanges.delete(rangeId);
 
-          // Emit event
+          // Emit events
           component.emit?.("viewport:range-loaded", {
             offset,
             limit,
             items: transformedItems,
             total: newTotal,
           });
+
+          // Emit collection loaded event with more details
+          component.emit?.("collection:range-loaded", {
+            offset,
+            limit,
+            items: transformedItems,
+            total: newTotal,
+            rangeId,
+            itemsInMemory: items.filter((item) => item !== undefined).length,
+          });
+
+          // Trigger viewport update
+          component.viewport?.updateViewport?.();
 
           return transformedItems;
         } catch (error) {
@@ -177,9 +291,9 @@ export function withCollection(config: CollectionConfig = {}) {
     };
 
     /**
-     * Load missing ranges in visible area
+     * Load missing ranges from collection
      */
-    const loadMissingRanges = async (range: {
+    const loadMissingRangesInternal = async (range: {
       start: number;
       end: number;
     }): Promise<void> => {
@@ -204,6 +318,76 @@ export function withCollection(config: CollectionConfig = {}) {
     };
 
     /**
+     * Velocity-aware wrapper for loadMissingRanges
+     */
+    const loadMissingRanges = (range: {
+      start: number;
+      end: number;
+    }): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const rangeKey = getRangeKey(range);
+
+        // Check if already loading
+        if (activeLoadRanges.has(rangeKey)) {
+          resolve();
+          return;
+        }
+
+        // Check velocity - if too high, cancel the request entirely
+        if (!canLoad()) {
+          console.log(
+            `[LoadingManager] Load cancelled - velocity ${currentVelocity.toFixed(
+              2
+            )} exceeds threshold ${cancelLoadThreshold}`
+          );
+          cancelledLoads++;
+          resolve();
+          return;
+        }
+
+        // Check capacity
+        if (activeLoadCount < maxConcurrentRequests) {
+          // Execute immediately
+          executeQueuedLoad({
+            range,
+            priority: "normal",
+            timestamp: Date.now(),
+            resolve,
+            reject,
+          });
+        } else if (
+          enableRequestQueue &&
+          loadRequestQueue.length < maxQueueSize
+        ) {
+          // Queue the request
+          loadRequestQueue.push({
+            range,
+            priority: "normal",
+            timestamp: Date.now(),
+            resolve,
+            reject,
+          });
+          console.log(
+            `[LoadingManager] Queued request (at capacity), queue size: ${loadRequestQueue.length}`
+          );
+        } else {
+          // Queue overflow - resolve to avoid errors
+          if (loadRequestQueue.length >= maxQueueSize) {
+            const removed = loadRequestQueue.splice(
+              0,
+              loadRequestQueue.length - maxQueueSize
+            );
+            removed.forEach((r) => {
+              cancelledLoads++;
+              r.resolve();
+            });
+          }
+          resolve();
+        }
+      });
+    };
+
+    /**
      * Retry a failed range
      */
     const retryFailedRange = async (rangeId: number): Promise<any[]> => {
@@ -213,61 +397,115 @@ export function withCollection(config: CollectionConfig = {}) {
     };
 
     /**
-     * Set total items and update virtual size
+     * Set total items count
      */
     const setTotalItems = (total: number): void => {
       totalItems = total;
-
-      // Update virtual size
-      component.virtual?.updateTotalVirtualSize(total);
-
-      // Update component items array
-      if (items.length !== total) {
-        const newItems = new Array(total);
-        for (let i = 0; i < Math.min(items.length, total); i++) {
-          if (items[i] !== undefined) {
-            newItems[i] = items[i];
-          }
-        }
-        items = newItems;
-        component.items = items;
-      }
-
-      // Emit event
       component.emit?.("viewport:total-items-changed", { total });
     };
 
-    // Initialize function
-    const initialize = () => {
-      // Set initial items
-      component.items = items;
-      component.totalItems = totalItems;
+    // Hook into viewport initialization
+    const originalInitialize = component.viewport.initialize;
+    component.viewport.initialize = () => {
+      originalInitialize();
 
-      // Listen for scroll events to load data
-      component.on?.("viewport:scroll", async (data: any) => {
-        if (!component.virtual) return;
+      // Set initial total if provided
+      if (component.totalItems) {
+        totalItems = component.totalItems;
+      }
 
-        const visibleRange = component.virtual.calculateVisibleRange(
-          data.position
-        );
-        await loadMissingRanges(visibleRange);
+      // Subscribe to events
+      component.on?.("viewport:range-changed", async (data: any) => {
+        // Check velocity before attempting to load
+        const viewportState = (component.viewport as any).state;
+        const velocity = Math.abs(viewportState?.velocity || 0);
+        if (velocity > 1) {
+          // Using same threshold as loading manager
+          return;
+        }
+
+        if (data.range) {
+          await loadMissingRangesInternal(data.range);
+        }
       });
 
-      // Listen for render complete to check for missing data
-      component.on?.("viewport:render-complete", async (data: any) => {
-        await loadMissingRanges(data.range);
+      // Listen for velocity changes
+      component.on?.("viewport:velocity-changed", (data: any) => {
+        const previousVelocity = currentVelocity;
+        currentVelocity = Math.abs(data.velocity || 0);
+
+        // When velocity drops below threshold, process queue
+        if (
+          previousVelocity > cancelLoadThreshold &&
+          currentVelocity <= cancelLoadThreshold
+        ) {
+          processQueue();
+        }
       });
 
-      // Trigger initial load if collection is available
-      if (collection && rangeSize > 0) {
-        // Load first range
-        setTimeout(() => {
-          loadRange(0, rangeSize).catch((error) => {
-            console.error("[Collection] Initial load failed:", error);
+      // Listen for idle state to process queue
+      component.on?.("viewport:idle", async (data: any) => {
+        currentVelocity = 0;
+
+        // Get current visible range from viewport
+        const viewportState = (component.viewport as any).state;
+        const visibleRange = viewportState?.visibleRange;
+
+        if (visibleRange) {
+          // Load the current visible range if needed
+          await loadMissingRanges(visibleRange);
+        }
+
+        // Also process any queued requests
+        processQueue();
+      });
+
+      // Load initial data if collection is available
+      if (collection) {
+        loadRange(0, rangeSize)
+          .then(() => {
+            // console.log("[Collection] Initial data loaded");
+          })
+          .catch((error) => {
+            console.error("[Collection] Failed to load initial data:", error);
           });
-        }, 0);
       }
     };
+
+    // Add collection API to viewport
+    component.viewport.collection = {
+      loadRange: (offset: number, limit: number) => loadRange(offset, limit),
+      loadMissingRanges: (range: { start: number; end: number }) =>
+        loadMissingRanges(range),
+      getLoadedRanges: () => loadedRanges,
+      getPendingRanges: () => pendingRanges,
+      clearFailedRanges: () => failedRanges.clear(),
+      retryFailedRange,
+      setTotalItems,
+      getTotalItems: () => totalItems,
+    };
+
+    // Add collection data access with direct assignment
+    (component as any).collection = {
+      items,
+      getItems: () => items,
+      getItem: (index: number) => items[index],
+      loadRange,
+      loadMissingRanges: (range: { start: number; end: number }) =>
+        loadMissingRanges(range),
+      getLoadingStats: () => ({
+        pendingRequests: activeLoadCount,
+        completedRequests: completedLoads,
+        failedRequests: failedLoads,
+        cancelledRequests: cancelledLoads,
+        currentVelocity,
+        canLoad: canLoad(),
+        queuedRequests: loadRequestQueue.length,
+      }),
+    };
+
+    // Also ensure component.items is updated
+    component.items = items;
 
     // Cleanup function
     const destroy = () => {
@@ -276,16 +514,13 @@ export function withCollection(config: CollectionConfig = {}) {
       pendingRanges.clear();
     };
 
-    // Store functions for viewport to call
-    (component as any)._collectionInitialize = initialize;
-    (component as any)._collectionDestroy = destroy;
-
     // Return enhanced component
     return {
       ...component,
       collection: {
         loadRange,
-        loadMissingRanges,
+        loadMissingRanges: (range: { start: number; end: number }) =>
+          loadMissingRanges(range),
         getLoadedRanges: () => loadedRanges,
         getPendingRanges: () => pendingRanges,
         clearFailedRanges: () => failedRanges.clear(),

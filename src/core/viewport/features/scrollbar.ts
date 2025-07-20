@@ -5,8 +5,7 @@
  * Provides visual scroll indication and drag-to-scroll functionality
  */
 
-import type { ViewportContext } from "../types";
-import type { ScrollingComponent } from "./scrolling";
+import type { ViewportContext, ViewportComponent } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
 
 export interface ScrollbarConfig {
@@ -33,7 +32,7 @@ export interface ScrollbarComponent {
  * Adds scrollbar functionality to viewport component
  */
 export function withScrollbar(config: ScrollbarConfig = {}) {
-  return <T extends ViewportContext & ScrollingComponent>(
+  return <T extends ViewportContext & ViewportComponent>(
     component: T
   ): T & ScrollbarComponent => {
     const {
@@ -176,8 +175,8 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       scrollbarTrack.style.display = isVisible ? "block" : "none";
 
       // Update position
-      if (component.scrolling) {
-        updatePosition(component.scrolling.getScrollPosition());
+      if (component.viewport) {
+        updatePosition(component.viewport.getScrollPosition());
       }
     };
 
@@ -220,10 +219,9 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       const targetScrollPosition =
         scrollRatio * (totalVirtualSize - containerSize);
 
-      component.scrolling?.scrollToPosition(
-        targetScrollPosition,
-        "scrollbar-track"
-      );
+      if (component.viewport) {
+        component.viewport.scrollToPosition(targetScrollPosition);
+      }
     };
 
     /**
@@ -235,7 +233,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
 
       isDragging = true;
       dragStartY = e.clientY;
-      dragStartScrollPosition = component.scrolling?.getScrollPosition() || 0;
+      dragStartScrollPosition = component.viewport?.getScrollPosition() || 0;
 
       if (scrollbarThumb) {
         scrollbarThumb.style.cursor = "grabbing";
@@ -257,12 +255,8 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
 
       const thumbMovementRatio = deltaY / maxThumbPosition;
       const scrollDelta = thumbMovementRatio * scrollableDistance;
-      const targetScrollPosition = dragStartScrollPosition + scrollDelta;
-
-      component.scrolling?.scrollToPosition(
-        targetScrollPosition,
-        "scrollbar-drag"
-      );
+      const newPosition = component.viewport?.getScrollPosition() + scrollDelta;
+      component.viewport?.scrollToPosition(newPosition);
     };
 
     /**
@@ -286,13 +280,15 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
 
     // Initialize function
     const initialize = () => {
-      viewportElement = component.element;
-
-      if (!viewportElement) return;
+      viewportElement = (component as any).viewportElement || component.element;
+      if (!viewportElement) {
+        console.warn("[Scrollbar] No viewport element found");
+        return;
+      }
 
       createScrollbarElements();
 
-      if (scrollbarTrack) {
+      if (scrollbarTrack && viewportElement) {
         viewportElement.appendChild(scrollbarTrack);
 
         // Add event listeners
@@ -325,8 +321,22 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       // Listen for scroll events
       component.on?.("viewport:scroll", (data: any) => {
         updatePosition(data.position);
+        show();
+      });
+
+      // Listen for virtual size changes
+      component.on?.("viewport:virtual-size-changed", (data: any) => {
+        updateBounds(data.totalVirtualSize, containerSize);
+      });
+
+      // Listen for container size changes
+      component.on?.("viewport:container-size-changed", (data: any) => {
+        updateBounds(totalVirtualSize, data.containerSize);
       });
     };
+
+    // Store initialize function
+    (component as any)._scrollbarInitialize = initialize;
 
     // Cleanup function
     const destroy = () => {
@@ -347,7 +357,6 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
     };
 
     // Store functions for viewport to call
-    (component as any)._scrollbarInitialize = initialize;
     (component as any)._scrollbarDestroy = destroy;
 
     // Return enhanced component

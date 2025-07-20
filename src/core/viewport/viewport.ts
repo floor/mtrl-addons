@@ -1,35 +1,39 @@
 // src/core/viewport/viewport.ts
 
 /**
- * Viewport - Composable virtual scrolling system
- *
- * Uses feature composition to build a complete viewport from individual features:
- * - Base: Core structure and event system
- * - Virtual: Virtual scrolling calculations
- * - Scrolling: Wheel events and scroll management
- * - Scrollbar: Visual scrollbar
- * - Rendering: DOM element creation and positioning
- * - Collection: Data loading and pagination
- * - Placeholders: Smart placeholder generation
- * - Loading: Velocity-based load management
+ * Viewport System - High-performance virtual scrolling
+ * Implements GPU-accelerated rendering with feature composition
  */
 
-import { pipe } from "mtrl/src/core";
+import { pipe } from "../compose";
 import type {
   ViewportConfig,
   ViewportComponent,
   ViewportContext,
+  ItemRange,
+  ViewportInfo,
 } from "./types";
-
-// Import feature enhancers
 import { withBase } from "./features/base";
 import { withVirtual } from "./features/virtual";
 import { withScrolling } from "./features/scrolling";
 import { withScrollbar } from "./features/scrollbar";
-import { withRendering } from "./features/rendering";
 import { withCollection } from "./features/collection";
 import { withPlaceholders } from "./features/placeholders";
-import { withLoadingManager } from "./features/loading-manager";
+import { withRendering } from "./features/rendering";
+import { withEvents } from "./features/events";
+
+// Internal viewport state
+interface ViewportState {
+  scrollPosition: number;
+  totalItems: number;
+  estimatedItemSize: number;
+  containerSize: number;
+  virtualTotalSize: number;
+  visibleRange: ItemRange;
+  itemsContainer: HTMLElement | null;
+  velocity: number;
+  scrollDirection: "forward" | "backward";
+}
 
 /**
  * Creates a viewport-enhanced component using composition
@@ -39,10 +43,120 @@ import { withLoadingManager } from "./features/loading-manager";
  */
 export const createViewport = (config: ViewportConfig = {}) => {
   return <T extends ViewportContext>(component: T): T & ViewportComponent => {
+    // Create shared viewport state
+    const state: ViewportState = {
+      scrollPosition: 0,
+      totalItems: component.totalItems || 0,
+      estimatedItemSize: config.estimatedItemSize || 50,
+      containerSize: 0,
+      virtualTotalSize: 0,
+      visibleRange: { start: 0, end: 0 },
+      itemsContainer: null,
+      velocity: 0,
+      scrollDirection: "forward",
+    };
+
+    // Create base viewport API
+    const viewportAPI = {
+      // Core API
+      initialize: () => {
+        console.log("[Viewport] Initializing with state:", {
+          element: !!component.element,
+          totalItems: component.totalItems,
+          estimatedItemSize: config.estimatedItemSize,
+        });
+
+        // Initialize container size
+        if (component.element) {
+          state.containerSize =
+            config.orientation === "horizontal"
+              ? component.element.offsetWidth
+              : component.element.offsetHeight;
+
+          console.log("[Viewport] Container size:", state.containerSize);
+        }
+
+        // Calculate initial virtual size
+        state.virtualTotalSize = state.totalItems * state.estimatedItemSize;
+
+        // Calculate initial visible range
+        state.visibleRange = calculateVisibleRange(state.scrollPosition);
+
+        console.log("[Viewport] Initial state:", {
+          containerSize: state.containerSize,
+          virtualTotalSize: state.virtualTotalSize,
+          visibleRange: state.visibleRange,
+        });
+      },
+
+      destroy: () => {
+        // Cleanup will be handled by features
+      },
+
+      updateViewport: () => {
+        // Will be implemented by rendering feature
+      },
+
+      // Scrolling API (will be overridden by scrolling feature)
+      scrollToIndex: (
+        index: number,
+        alignment?: "start" | "center" | "end"
+      ) => {
+        // Will be implemented by scrolling feature
+      },
+
+      scrollToPosition: (position: number) => {
+        // Will be implemented by scrolling feature
+      },
+
+      getScrollPosition: () => state.scrollPosition,
+
+      // Info API
+      getVisibleRange: () => state.visibleRange,
+
+      getViewportInfo: (): ViewportInfo => ({
+        containerSize: state.containerSize,
+        totalVirtualSize: state.virtualTotalSize,
+        visibleRange: state.visibleRange,
+        virtualScrollPosition: state.scrollPosition,
+      }),
+
+      // Rendering API
+      renderItems: () => {
+        // Will be implemented by rendering feature
+      },
+
+      // Internal state (for features to access)
+      state,
+    };
+
+    // Helper function to calculate visible range
+    const calculateVisibleRange = (scrollPos: number): ItemRange => {
+      const itemSize = state.estimatedItemSize;
+      const start = Math.floor(scrollPos / itemSize);
+      const visibleCount = Math.ceil(state.containerSize / itemSize);
+      const end = Math.min(start + visibleCount, state.totalItems - 1);
+
+      return { start: Math.max(0, start), end: Math.max(0, end) };
+    };
+
+    // Add viewport API to component
+    const baseComponent = {
+      ...component,
+      viewport: viewportAPI,
+    };
+
     // Build the enhancement pipeline
     const enhancers: Array<(c: any) => any> = [];
 
-    // Base setup (always first)
+    // Events system (always first - provides communication for other features)
+    enhancers.push(
+      withEvents({
+        debug: config.debug,
+      })
+    );
+
+    // Base setup (creates DOM structure)
     enhancers.push(
       withBase({
         className: config.className,
@@ -78,14 +192,17 @@ export const createViewport = (config: ViewportConfig = {}) => {
       );
     }
 
-    // Collection management (optional)
+    // Add collection if configured
     if (config.collection) {
       enhancers.push(
         withCollection({
           collection: config.collection,
           rangeSize: config.rangeSize,
           strategy: config.paginationStrategy,
-          transform: config.transformItem || (config as any).transform,
+          transform: config.transformItem,
+          cancelLoadThreshold: config.cancelLoadThreshold,
+          maxConcurrentRequests: config.maxConcurrentRequests,
+          enableRequestQueue: config.enableRequestQueue !== false,
         })
       );
     }
@@ -101,21 +218,11 @@ export const createViewport = (config: ViewportConfig = {}) => {
       );
     }
 
-    // Loading manager (optional, requires collection)
-    if (config.collection) {
-      enhancers.push(
-        withLoadingManager({
-          maxConcurrentRequests: config.maxConcurrentRequests,
-          enableRequestQueue: true,
-        })
-      );
-    }
-
     // Rendering (always last to have access to all features)
     enhancers.push(
       withRendering({
         template: config.template,
-        debug: config.debug,
+        overscan: config.overscan,
       })
     );
 
@@ -123,75 +230,11 @@ export const createViewport = (config: ViewportConfig = {}) => {
     const enhance = pipe(...enhancers);
 
     // Apply enhancements
-    const enhanced = enhance(component);
-
-    // Initialize all features
-    const initialize = () => {
-      // Call all initialize functions in order
-      const initFunctions = [
-        "_baseInitialize",
-        "_virtualInitialize",
-        "_scrollingInitialize",
-        "_scrollbarInitialize",
-        "_collectionInitialize",
-        "_placeholdersInitialize",
-        "_loadingInitialize",
-        "_renderingInitialize",
-      ];
-
-      for (const funcName of initFunctions) {
-        const initFunc = (enhanced as any)[funcName];
-        if (typeof initFunc === "function") {
-          initFunc();
-        }
-      }
-    };
-
-    // Destroy all features
-    const destroy = () => {
-      // Call all destroy functions in reverse order
-      const destroyFunctions = [
-        "_renderingDestroy",
-        "_loadingDestroy",
-        "_placeholdersDestroy",
-        "_collectionDestroy",
-        "_scrollbarDestroy",
-        "_scrollingDestroy",
-        "_virtualDestroy",
-      ];
-
-      for (const funcName of destroyFunctions) {
-        const destroyFunc = (enhanced as any)[funcName];
-        if (typeof destroyFunc === "function") {
-          destroyFunc();
-        }
-      }
-    };
-
-    // Add viewport API
-    (enhanced as any).viewport = {
-      initialize,
-      destroy,
-
-      // Expose feature APIs for direct access if needed
-      scrolling: (enhanced as any).scrolling,
-      scrollbar: (enhanced as any).scrollbar,
-      virtual: (enhanced as any).virtual,
-      rendering: (enhanced as any).rendering,
-      collection: (enhanced as any).collection,
-      placeholders: (enhanced as any).placeholders,
-      loadingManager: (enhanced as any).loadingManager,
-
-      // Expose commonly used methods directly
-      scrollToIndex: (enhanced as any).scrolling?.scrollToIndex,
-      scrollToPosition: (enhanced as any).scrolling?.scrollToPosition,
-      getScrollPosition: (enhanced as any).scrolling?.getScrollPosition,
-      calculateVisibleRange: (enhanced as any).virtual?.calculateVisibleRange,
-    };
+    const enhanced = enhance(baseComponent);
 
     // Auto-initialize if element is provided
     if (enhanced.element) {
-      initialize();
+      enhanced.viewport.initialize();
     }
 
     return enhanced as T & ViewportComponent;

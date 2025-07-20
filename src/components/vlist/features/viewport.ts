@@ -13,6 +13,12 @@ import { createViewport } from "../../../core/viewport";
  */
 export const withViewport = <T = any>(config: VListConfig<T>) => {
   return (component: any) => {
+    console.log("📋 [VList] Applying viewport feature", {
+      hasElement: !!component.element,
+      hasItems: !!config.items,
+      itemCount: config.items?.length || 0,
+    });
+
     // Set initial items if provided
     if (config.items) {
       component.items = config.items;
@@ -24,9 +30,14 @@ export const withViewport = <T = any>(config: VListConfig<T>) => {
       component.template = config.template;
     }
 
+    // Ensure the element has both vlist and viewport classes
+    const viewportConfig = {
+      ...config,
+      className: "mtrl-viewport", // This will be added by viewport base feature
+    };
+
     // Pass VList config directly to viewport
-    // The viewport will use the same config structure
-    const viewportEnhanced = createViewport(config as any)(component);
+    const viewportEnhanced = createViewport(viewportConfig as any)(component);
 
     // Handle parent element if provided
     if (config.parent || config.container) {
@@ -38,6 +49,12 @@ export const withViewport = <T = any>(config: VListConfig<T>) => {
 
       if (element && viewportEnhanced.element) {
         element.appendChild(viewportEnhanced.element);
+
+        // Ensure viewport is initialized after DOM attachment
+        if (viewportEnhanced.viewport && viewportEnhanced.viewport.initialize) {
+          console.log("📋 [VList] Initializing viewport after DOM attachment");
+          viewportEnhanced.viewport.initialize();
+        }
       }
     }
 
