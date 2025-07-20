@@ -33,9 +33,12 @@ export interface VListConfig<T = any> {
   rangeSize?: number;
   paginationStrategy?: "page" | "offset" | "cursor";
   enablePlaceholders?: boolean;
+  maskCharacter?: string;
+  maxConcurrentRequests?: number;
 
   // Data transformation
   transform?: (item: any) => T;
+  transformItem?: (item: any) => T; // Alias for transform
 
   // Performance settings
   performance?: any;
@@ -45,6 +48,10 @@ export interface VListConfig<T = any> {
 
   // Scroll settings
   scroll?: any;
+  scrollSensitivity?: number;
+  smoothScrolling?: boolean;
+  enableScrollbar?: boolean;
+  autoHideScrollbar?: boolean;
 
   // Styling
   className?: string;

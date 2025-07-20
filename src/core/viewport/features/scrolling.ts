@@ -1,6 +1,6 @@
 /**
- * Scrolling Module - Virtual scrolling with integrated velocity tracking
- * Handles wheel events, scroll position management, scrollbar interactions, and velocity measurement
+ * Scrolling Feature - Virtual scrolling with integrated velocity tracking
+ * Handles wheel events, scroll position management, and velocity measurement
  */
 
 import type { ViewportContext } from "../types";
@@ -15,275 +15,225 @@ export interface ScrollingConfig {
   orientation?: "vertical" | "horizontal";
   sensitivity?: number;
   smoothing?: boolean;
-  onScrollPositionChanged?: (data: {
-    position: number;
-    direction: "forward" | "backward";
-    previousPosition?: number;
-  }) => void;
-  onSpeedChanged?: (data: {
-    velocity: number;
-    direction: "forward" | "backward";
-  }) => void;
 }
 
-export interface ScrollingFeature {
-  name: string;
-  initialize: (viewport: ViewportContext) => void;
-  destroy: () => void;
-  handleWheel: (event: WheelEvent) => void;
-  scrollToPosition: (position: number, source?: string) => void;
-  scrollToIndex: (
-    index: number,
-    alignment?: "start" | "center" | "end"
-  ) => void;
-  getScrollPosition: () => number;
-  updateScrollBounds: (totalSize: number, containerSize: number) => void;
+export interface ScrollingComponent {
+  scrolling: {
+    handleWheel: (event: WheelEvent) => void;
+    scrollToPosition: (position: number, source?: string) => void;
+    scrollToIndex: (
+      index: number,
+      alignment?: "start" | "center" | "end"
+    ) => void;
+    getScrollPosition: () => number;
+    updateScrollBounds: (totalSize: number, containerSize: number) => void;
+    getVelocity: () => number;
+    getDirection: () => "forward" | "backward" | "idle";
+  };
 }
 
 /**
- * Creates scrolling functionality for viewport
+ * Adds scrolling functionality to viewport component
  */
-export function createScrollingFeature(
-  config: ScrollingConfig = {}
-): ScrollingFeature {
-  const {
-    orientation = "vertical",
-    sensitivity = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.SCROLL_SENSITIVITY,
-    smoothing = false,
-    onScrollPositionChanged,
-    onSpeedChanged,
-  } = config;
+export function withScrolling(config: ScrollingConfig = {}) {
+  return <T extends ViewportContext>(component: T): T & ScrollingComponent => {
+    const {
+      orientation = "vertical",
+      sensitivity = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.SCROLL_SENSITIVITY,
+      smoothing = false,
+    } = config;
 
-  let scrollPosition = 0;
-  let totalVirtualSize = 0;
-  let containerSize = 0;
-  let viewportElement: HTMLElement | null = null;
-  let itemsContainer: HTMLElement | null = null;
-  let getEstimatedItemSize: (() => number) | null = null;
-  let calculateVisibleRange:
-    | ((scrollPos: number) => { start: number; end: number })
-    | null = null;
-  let renderItems: (() => void) | null = null;
-  let getTotalItems: (() => number) | null = null;
+    // State
+    let scrollPosition = 0;
+    let totalVirtualSize = 0;
+    let containerSize = 0;
+    let viewportElement: HTMLElement | null = null;
+    let speedTracker: SpeedTracker = createSpeedTracker();
+    let lastIdleCheckPosition = 0;
+    let idleCheckFrame: number | null = null;
+    let wheelListener: ((e: WheelEvent) => void) | null = null;
 
-  // Speed tracking
-  let speedTracker: SpeedTracker = createSpeedTracker();
+    // Helper functions
+    const clamp = (value: number, min: number, max: number) => {
+      return Math.max(min, Math.min(max, value));
+    };
 
-  // Idle detection
-  let lastIdleCheckPosition = 0;
-  let idleCheckFrame: number | null = null;
-
-  const clamp = (value: number, min: number, max: number) => {
-    return Math.max(min, Math.min(max, value));
-  };
-
-  /**
-   * Start idle detection
-   */
-  const startIdleDetection = (): void => {
-    const checkIdle = () => {
-      // Check if position hasn't changed and velocity is not already 0
-      if (
-        scrollPosition === lastIdleCheckPosition &&
-        speedTracker.velocity > 0
-      ) {
-        setVelocityToZero();
-      }
-
-      lastIdleCheckPosition = scrollPosition;
+    /**
+     * Start idle detection
+     */
+    const startIdleDetection = (): void => {
+      const checkIdle = () => {
+        if (
+          scrollPosition === lastIdleCheckPosition &&
+          speedTracker.velocity > 0
+        ) {
+          setVelocityToZero();
+        }
+        lastIdleCheckPosition = scrollPosition;
+        idleCheckFrame = requestAnimationFrame(checkIdle);
+      };
       idleCheckFrame = requestAnimationFrame(checkIdle);
     };
 
-    idleCheckFrame = requestAnimationFrame(checkIdle);
-  };
+    /**
+     * Set velocity to zero and trigger updates
+     */
+    const setVelocityToZero = (): void => {
+      speedTracker = createSpeedTracker();
 
-  /**
-   * Set velocity to zero and trigger necessary updates
-   */
-  const setVelocityToZero = (): void => {
-    // Reset velocity state
-    speedTracker = createSpeedTracker();
+      // Emit speed change event
+      component.emit?.("viewport:speed-changed", {
+        velocity: 0,
+        direction: "idle" as const,
+      });
 
-    // Emit speed change via callback
-    onSpeedChanged?.({
-      velocity: 0,
-      direction: speedTracker.direction,
-    });
+      // Trigger scroll position changed to load data
+      component.emit?.("viewport:scroll", {
+        position: scrollPosition,
+        direction: speedTracker.direction,
+        previousPosition: scrollPosition,
+      });
+    };
 
-    // Trigger scroll position changed to load data
-    onScrollPositionChanged?.({
-      position: scrollPosition,
-      direction: speedTracker.direction,
-      previousPosition: scrollPosition,
-    });
+    /**
+     * Update scroll position
+     */
+    const updateScrollPosition = (
+      newPosition: number,
+      source: string = "unknown"
+    ): void => {
+      const maxScroll = Math.max(0, totalVirtualSize - containerSize);
+      const clampedPosition = clamp(newPosition, 0, maxScroll);
 
-    // Trigger rendering
-    if (renderItems) {
-      renderItems();
-    }
-  };
+      if (clampedPosition === scrollPosition) return;
 
-  const handleWheel = (event: WheelEvent) => {
-    event.preventDefault();
-
-    const delta = orientation === "vertical" ? event.deltaY : event.deltaX;
-    const scrollDelta = delta * sensitivity;
-
-    const previousPosition = scrollPosition;
-    const maxScroll = Math.max(0, totalVirtualSize - containerSize);
-
-    let newPosition = scrollPosition + scrollDelta;
-    newPosition = clamp(newPosition, 0, maxScroll);
-
-    if (newPosition !== scrollPosition) {
-      scrollPosition = newPosition;
-      updateContainerPosition();
-
-      const direction = newPosition > previousPosition ? "forward" : "backward";
+      const previousPosition = scrollPosition;
+      scrollPosition = clampedPosition;
 
       // Update speed tracker
       speedTracker = updateSpeedTracker(
         speedTracker,
-        newPosition,
+        clampedPosition,
         previousPosition
       );
 
-      // Emit speed change event
-      onSpeedChanged?.({
+      // Emit events
+      component.emit?.("viewport:scroll", {
+        position: scrollPosition,
+        direction: speedTracker.direction,
+        previousPosition,
+        source,
+      });
+
+      component.emit?.("viewport:speed-changed", {
         velocity: speedTracker.velocity,
         direction: speedTracker.direction,
       });
+    };
 
-      onScrollPositionChanged?.({
-        position: scrollPosition,
-        direction,
-        previousPosition,
-      });
+    /**
+     * Handle wheel events
+     */
+    const handleWheel = (event: WheelEvent): void => {
+      event.preventDefault();
 
-      // Trigger render
-      if (renderItems) {
-        renderItems();
+      const delta = orientation === "horizontal" ? event.deltaX : event.deltaY;
+      const adjustedDelta = delta * sensitivity;
+
+      updateScrollPosition(scrollPosition + adjustedDelta, "wheel");
+    };
+
+    /**
+     * Scroll to specific position
+     */
+    const scrollToPosition = (
+      position: number,
+      source: string = "api"
+    ): void => {
+      updateScrollPosition(position, source);
+    };
+
+    /**
+     * Scroll to specific index
+     */
+    const scrollToIndex = (
+      index: number,
+      alignment: "start" | "center" | "end" = "start"
+    ): void => {
+      const estimatedItemSize =
+        VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.DEFAULT_ITEM_SIZE;
+      let targetPosition = index * estimatedItemSize;
+
+      if (alignment === "center") {
+        targetPosition -= containerSize / 2 - estimatedItemSize / 2;
+      } else if (alignment === "end") {
+        targetPosition -= containerSize - estimatedItemSize;
       }
-    }
-  };
 
-  const scrollToPosition = (position: number, source?: string) => {
-    const maxScroll = Math.max(0, totalVirtualSize - containerSize);
-    const clampedPosition = clamp(position, 0, maxScroll);
+      scrollToPosition(targetPosition, "scrollToIndex");
+    };
 
-    if (clampedPosition !== scrollPosition) {
-      const previousPosition = scrollPosition;
-      scrollPosition = clampedPosition;
-      updateContainerPosition();
+    /**
+     * Update scroll bounds
+     */
+    const updateScrollBounds = (
+      totalSize: number,
+      newContainerSize: number
+    ): void => {
+      totalVirtualSize = totalSize;
+      containerSize = newContainerSize;
 
-      const direction =
-        clampedPosition > previousPosition ? "forward" : "backward";
-      onScrollPositionChanged?.({
-        position: scrollPosition,
-        direction,
-        previousPosition,
-      });
-
-      // Trigger render
-      if (renderItems) {
-        renderItems();
+      // Clamp current position to new bounds
+      const maxScroll = Math.max(0, totalVirtualSize - containerSize);
+      if (scrollPosition > maxScroll) {
+        updateScrollPosition(maxScroll, "bounds-update");
       }
-    }
-  };
+    };
 
-  const scrollToIndex = (
-    index: number,
-    alignment: "start" | "center" | "end" = "start"
-  ) => {
-    if (!getEstimatedItemSize) return;
+    // Initialize function to be called by viewport
+    const initialize = () => {
+      viewportElement = component.element;
 
-    const itemSize = getEstimatedItemSize();
-    const totalItems = getTotalItems?.() || 1000000; // Get from collection
-    const actualTotalSize = totalItems * itemSize;
-    const MAX_VIRTUAL_SIZE = 10 * 1000 * 1000;
-    const isCompressed = actualTotalSize > MAX_VIRTUAL_SIZE;
-
-    let targetPosition: number;
-
-    if (isCompressed) {
-      // In compressed space, map index to virtual position
-      const ratio = index / totalItems;
-      targetPosition = ratio * Math.min(actualTotalSize, MAX_VIRTUAL_SIZE);
-    } else {
-      // Direct calculation when not compressed
-      targetPosition = index * itemSize;
-    }
-
-    // Adjust position based on alignment
-    switch (alignment) {
-      case "center":
-        targetPosition -= containerSize / 2 - itemSize / 2;
-        break;
-      case "end":
-        targetPosition -= containerSize - itemSize;
-        break;
-    }
-
-    scrollToPosition(targetPosition);
-  };
-
-  const updateContainerPosition = () => {
-    // Container doesn't move - items are positioned individually with transforms
-    // This follows the virtual scrolling pattern from list-manager
-  };
-
-  const updateScrollBounds = (totalSize: number, containerSz: number) => {
-    totalVirtualSize = totalSize;
-    containerSize = containerSz;
-  };
-
-  return {
-    name: "scrolling",
-
-    initialize(viewport) {
-      viewportElement = viewport.element;
-      itemsContainer = viewport.itemsContainer;
-      getEstimatedItemSize = viewport.getEstimatedItemSize;
-      calculateVisibleRange = viewport.calculateVisibleRange;
-      renderItems = viewport.renderItems;
-      getTotalItems = viewport.getTotalItems;
-
-      // Setup wheel event listener
       if (viewportElement) {
-        viewportElement.addEventListener("wheel", handleWheel, {
+        // Add wheel listener
+        wheelListener = (e: WheelEvent) => handleWheel(e);
+        viewportElement.addEventListener("wheel", wheelListener, {
           passive: false,
         });
+
+        // Start idle detection
+        startIdleDetection();
+      }
+    };
+
+    // Cleanup function
+    const destroy = () => {
+      if (viewportElement && wheelListener) {
+        viewportElement.removeEventListener("wheel", wheelListener);
       }
 
-      // Set initial container styles
-      if (itemsContainer) {
-        itemsContainer.style.willChange = "transform";
-        itemsContainer.style.transition = smoothing
-          ? "transform 0.1s ease-out"
-          : "none";
-      }
-
-      // Start idle detection
-      startIdleDetection();
-    },
-
-    destroy() {
-      if (viewportElement) {
-        viewportElement.removeEventListener("wheel", handleWheel);
-      }
-
-      // Stop idle detection
       if (idleCheckFrame) {
         cancelAnimationFrame(idleCheckFrame);
         idleCheckFrame = null;
       }
-    },
+    };
 
-    // Public API
-    handleWheel,
-    scrollToPosition,
-    scrollToIndex,
-    getScrollPosition: () => scrollPosition,
-    updateScrollBounds,
+    // Store initialize and destroy on component for viewport to call
+    (component as any)._scrollingInitialize = initialize;
+    (component as any)._scrollingDestroy = destroy;
+
+    // Return enhanced component
+    return {
+      ...component,
+      scrolling: {
+        handleWheel,
+        scrollToPosition,
+        scrollToIndex,
+        getScrollPosition: () => scrollPosition,
+        updateScrollBounds,
+        getVelocity: () => speedTracker.velocity,
+        getDirection: () => speedTracker.direction,
+      },
+    };
   };
 }

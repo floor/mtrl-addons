@@ -7,7 +7,16 @@
 
 // Main viewport creator
 export { createViewport } from "./viewport";
-export { createViewportManager } from "./features/manager";
+
+// Feature enhancers (for custom composition)
+export { withBase } from "./features/base";
+export { withVirtual } from "./features/virtual";
+export { withScrolling } from "./features/scrolling";
+export { withScrollbar } from "./features/scrollbar";
+export { withRendering } from "./features/rendering";
+export { withCollection } from "./features/collection";
+export { withPlaceholders } from "./features/placeholders";
+export { withLoadingManager } from "./features/loading-manager";
 
 // Types
 export type {

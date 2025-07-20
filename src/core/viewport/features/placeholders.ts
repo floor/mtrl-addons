@@ -1,12 +1,13 @@
 // src/core/viewport/features/placeholders.ts
 
 /**
- * Placeholder Feature for Viewport
+ * Placeholder Feature - Smart placeholder generation
  * Analyzes first loaded data to generate realistic masked placeholders
  * Shows placeholders while data is loading
  */
 
 import type { ViewportContext } from "../types";
+import type { CollectionComponent } from "./collection";
 import { VIEWPORT_CONSTANTS } from "../constants";
 
 /**
@@ -28,309 +29,307 @@ interface FieldStructure {
   avgLength: number;
 }
 
-/**
- * Placeholder feature interface
- */
-export interface PlaceholderFeature {
-  // Core feature methods
-  name: string;
-  initialize: (context: ViewportContext) => void;
-  destroy: () => void;
-
-  // Structure analysis
-  analyzeDataStructure: (items: any[]) => void;
-  hasAnalyzedStructure: () => boolean;
-
-  // Placeholder generation
-  generatePlaceholderItem: (index: number) => any;
-  generatePlaceholderItems: (range: { start: number; end: number }) => any[];
-
-  // Placeholder management
-  showPlaceholders: (range: { start: number; end: number }) => void;
-  isPlaceholder: (item: any) => boolean;
-  replacePlaceholders: (items: any[], offset: number) => void;
-
-  // State
-  isEnabled: () => boolean;
-  clear: () => void;
+export interface PlaceholderComponent {
+  placeholders: {
+    analyzeDataStructure: (items: any[]) => void;
+    hasAnalyzedStructure: () => boolean;
+    generatePlaceholderItem: (index: number) => any;
+    generatePlaceholderItems: (range: { start: number; end: number }) => any[];
+    showPlaceholders: (range: { start: number; end: number }) => void;
+    isPlaceholder: (item: any) => boolean;
+    replacePlaceholders: (items: any[], offset: number) => void;
+    clear: () => void;
+  };
 }
 
 /**
- * Creates placeholder functionality for viewport
+ * Adds placeholder functionality to viewport component
  */
-export function createPlaceholderFeature(
-  config: PlaceholderConfig = {}
-): PlaceholderFeature {
-  const {
-    enabled = true,
-    analyzeFirstLoad = true,
-    maskCharacter = VIEWPORT_CONSTANTS.PLACEHOLDER.MASK_CHARACTER,
-    randomLengthVariance = VIEWPORT_CONSTANTS.PLACEHOLDER
-      .RANDOM_LENGTH_VARIANCE,
-  } = config;
+export function withPlaceholders(config: PlaceholderConfig = {}) {
+  return <T extends ViewportContext & CollectionComponent>(
+    component: T
+  ): T & PlaceholderComponent => {
+    const {
+      enabled = true,
+      analyzeFirstLoad = true,
+      maskCharacter = VIEWPORT_CONSTANTS.PLACEHOLDER.MASK_CHARACTER,
+      randomLengthVariance = VIEWPORT_CONSTANTS.PLACEHOLDER
+        .RANDOM_LENGTH_VARIANCE,
+    } = config;
 
-  // State
-  let fieldStructures: Map<string, FieldStructure> | null = null;
-  let hasAnalyzed = false;
-  let placeholderIdCounter = 0;
-  let viewportContext: ViewportContext | null = null;
+    // State
+    let fieldStructures: Map<string, FieldStructure> | null = null;
+    let hasAnalyzed = false;
+    let placeholderIdCounter = 0;
 
-  /**
-   * Analyze data structure from first loaded items
-   */
-  const analyzeDataStructure = (items: any[]): void => {
-    if (!enabled || hasAnalyzed || !items.length) {
-      return;
-    }
-
-    console.log(
-      `🔍 [PLACEHOLDERS] Analyzing data structure from ${items.length} items`
-    );
-
-    const structures = new Map<string, FieldStructure>();
-    const sampleSize = Math.min(
-      items.length,
-      VIEWPORT_CONSTANTS.PLACEHOLDER.MAX_SAMPLE_SIZE
-    );
-
-    // Analyze each field across all sample items
-    const fieldStats = new Map<string, number[]>();
-
-    for (let i = 0; i < sampleSize; i++) {
-      const item = items[i];
-      if (!item || typeof item !== "object") continue;
-
-      Object.keys(item).forEach((field) => {
-        // Skip internal fields
-        if (
-          field.startsWith("_") ||
-          field === VIEWPORT_CONSTANTS.PLACEHOLDER.PLACEHOLDER_FLAG
-        ) {
-          return;
-        }
-
-        const value = item[field];
-        if (value === null || value === undefined) return;
-
-        const length = String(value).length;
-
-        if (!fieldStats.has(field)) {
-          fieldStats.set(field, []);
-        }
-        fieldStats.get(field)!.push(length);
-      });
-    }
-
-    // Calculate min/max/avg for each field
-    fieldStats.forEach((lengths, field) => {
-      if (lengths.length === 0) return;
-
-      const minLength = Math.min(...lengths);
-      const maxLength = Math.max(...lengths);
-      const avgLength = Math.round(
-        lengths.reduce((sum, len) => sum + len, 0) / lengths.length
-      );
-
-      structures.set(field, {
-        minLength,
-        maxLength,
-        avgLength,
-      });
+    /**
+     * Analyze data structure from first loaded items
+     */
+    const analyzeDataStructure = (items: any[]): void => {
+      if (!enabled || hasAnalyzed || !items.length) {
+        return;
+      }
 
       console.log(
-        `📊 [PLACEHOLDERS] Field "${field}": min=${minLength}, max=${maxLength}, avg=${avgLength}`
+        `🔍 [PLACEHOLDERS] Analyzing data structure from ${items.length} items`
       );
-    });
 
-    fieldStructures = structures;
-    hasAnalyzed = true;
+      const structures = new Map<string, FieldStructure>();
+      const sampleSize = Math.min(
+        items.length,
+        VIEWPORT_CONSTANTS.PLACEHOLDER.MAX_SAMPLE_SIZE
+      );
 
-    // Emit event if viewport context is available
-    if (viewportContext && "emit" in viewportContext) {
-      (viewportContext as any).emit?.("placeholders:analyzed", {
-        fieldCount: structures.size,
-        sampleSize,
+      // Analyze each field across all sample items
+      const fieldStats = new Map<string, number[]>();
+
+      for (let i = 0; i < sampleSize; i++) {
+        const item = items[i];
+        if (!item || typeof item !== "object") continue;
+
+        Object.keys(item).forEach((field) => {
+          // Skip internal fields
+          if (
+            field.startsWith("_") ||
+            field === VIEWPORT_CONSTANTS.PLACEHOLDER.PLACEHOLDER_FLAG
+          ) {
+            return;
+          }
+
+          const value = String(item[field] || "");
+          const length = value.length;
+
+          if (!fieldStats.has(field)) {
+            fieldStats.set(field, []);
+          }
+          fieldStats.get(field)!.push(length);
+        });
+      }
+
+      // Calculate statistics for each field
+      fieldStats.forEach((lengths, field) => {
+        if (lengths.length === 0) return;
+
+        const minLength = Math.min(...lengths);
+        const maxLength = Math.max(...lengths);
+        const avgLength = Math.round(
+          lengths.reduce((sum, len) => sum + len, 0) / lengths.length
+        );
+
+        structures.set(field, {
+          minLength,
+          maxLength,
+          avgLength,
+        });
       });
-    }
-  };
 
-  /**
-   * Generate a single placeholder item based on analyzed structure
-   */
-  const generatePlaceholderItem = (index: number): any => {
-    if (!enabled) {
-      return null;
-    }
+      fieldStructures = structures;
+      hasAnalyzed = true;
 
-    const placeholder: Record<string, any> = {
-      id: `placeholder-${++placeholderIdCounter}`,
-      [VIEWPORT_CONSTANTS.PLACEHOLDER.PLACEHOLDER_FLAG]: true,
+      console.log(
+        `✅ [PLACEHOLDERS] Structure analyzed:`,
+        Object.fromEntries(structures)
+      );
+
+      // Emit event
+      component.emit?.("viewport:placeholders-structure-analyzed", {
+        structure: Object.fromEntries(structures),
+      });
     };
 
-    if (!fieldStructures) {
-      // Generate default placeholder if no structure analyzed
-      placeholder.text = maskCharacter.repeat(20);
-      placeholder.subtitle = maskCharacter.repeat(30);
-      return placeholder;
-    }
+    /**
+     * Generate a single placeholder item
+     */
+    const generatePlaceholderItem = (index: number): any => {
+      const placeholder: Record<string, any> = {
+        id: `placeholder-${placeholderIdCounter++}`,
+        [VIEWPORT_CONSTANTS.PLACEHOLDER.PLACEHOLDER_FLAG]: true,
+        _index: index,
+      };
 
-    // Generate masked values for each analyzed field
-    fieldStructures.forEach((structure, field) => {
-      const { minLength, maxLength } = structure;
-
-      // Random length within the range
-      let length: number;
-      if (randomLengthVariance && minLength !== maxLength) {
-        length =
-          Math.floor(Math.random() * (maxLength - minLength + 1)) + minLength;
-      } else {
-        length = structure.avgLength;
+      if (!fieldStructures || fieldStructures.size === 0) {
+        // No structure analyzed yet - return basic placeholder
+        placeholder.label = maskCharacter.repeat(10);
+        return placeholder;
       }
 
-      // Generate masked string
-      placeholder[field] = maskCharacter.repeat(length);
-    });
+      // Generate fields based on analyzed structure
+      fieldStructures.forEach((structure, field) => {
+        let length: number;
 
-    return placeholder;
-  };
+        if (
+          randomLengthVariance &&
+          structure.minLength !== structure.maxLength
+        ) {
+          // Random length within range
+          length = Math.floor(
+            Math.random() * (structure.maxLength - structure.minLength + 1) +
+              structure.minLength
+          );
+        } else {
+          // Use average length
+          length = structure.avgLength;
+        }
 
-  /**
-   * Generate multiple placeholder items for a range
-   */
-  const generatePlaceholderItems = (range: {
-    start: number;
-    end: number;
-  }): any[] => {
-    const items: any[] = [];
+        // Apply some variation to make it look more natural
+        if (randomLengthVariance && Math.random() < 0.3) {
+          length = Math.max(1, length + Math.floor(Math.random() * 3) - 1);
+        }
 
-    for (let i = range.start; i <= range.end; i++) {
-      items.push(generatePlaceholderItem(i));
-    }
-
-    return items;
-  };
-
-  /**
-   * Show placeholders for a range
-   */
-  const showPlaceholders = (range: { start: number; end: number }): void => {
-    if (!enabled || !viewportContext) {
-      return;
-    }
-
-    console.log(
-      `🔲 [PLACEHOLDERS] Showing placeholders for range ${range.start}-${range.end}`
-    );
-
-    const placeholderItems = generatePlaceholderItems(range);
-
-    // Emit event for viewport to handle
-    if ("emit" in viewportContext) {
-      (viewportContext as any).emit?.("placeholders:show", {
-        range,
-        items: placeholderItems,
+        placeholder[field] = maskCharacter.repeat(length);
       });
-    }
-  };
 
-  /**
-   * Replace placeholders with real data
-   */
-  const replacePlaceholders = (items: any[], offset: number): void => {
-    if (!enabled || !viewportContext) {
-      return;
-    }
+      return placeholder;
+    };
 
-    let replacedCount = 0;
-    items.forEach((item, index) => {
-      const targetIndex = offset + index;
-      if (item && !isPlaceholder(item)) {
-        replacedCount++;
+    /**
+     * Generate multiple placeholder items
+     */
+    const generatePlaceholderItems = (range: {
+      start: number;
+      end: number;
+    }): any[] => {
+      const items: any[] = [];
+      for (let i = range.start; i <= range.end; i++) {
+        items.push(generatePlaceholderItem(i));
       }
-    });
+      return items;
+    };
 
-    if (replacedCount > 0) {
+    /**
+     * Show placeholders for a range
+     */
+    const showPlaceholders = (range: { start: number; end: number }): void => {
+      if (!enabled) return;
+
+      const placeholders = generatePlaceholderItems(range);
+
+      // Update items array
+      if (component.items) {
+        for (let i = 0; i < placeholders.length; i++) {
+          const index = range.start + i;
+          if (!component.items[index]) {
+            component.items[index] = placeholders[i];
+          }
+        }
+      }
+
       console.log(
-        `✅ [PLACEHOLDERS] Replaced ${replacedCount} placeholders with real data`
+        `🔄 [PLACEHOLDERS] Showing ${placeholders.length} placeholders for range ${range.start}-${range.end}`
       );
 
-      if ("emit" in viewportContext) {
-        (viewportContext as any).emit?.("placeholders:replaced", {
+      // Emit event
+      component.emit?.("viewport:placeholders-shown", {
+        range,
+        count: placeholders.length,
+      });
+    };
+
+    /**
+     * Check if an item is a placeholder
+     */
+    const isPlaceholder = (item: any): boolean => {
+      return (
+        item &&
+        typeof item === "object" &&
+        item[VIEWPORT_CONSTANTS.PLACEHOLDER.PLACEHOLDER_FLAG] === true
+      );
+    };
+
+    /**
+     * Replace placeholders with real data
+     */
+    const replacePlaceholders = (items: any[], offset: number): void => {
+      if (!component.items) return;
+
+      let replacedCount = 0;
+
+      for (let i = 0; i < items.length; i++) {
+        const index = offset + i;
+        const currentItem = component.items[index];
+
+        if (isPlaceholder(currentItem)) {
+          component.items[index] = items[i];
+          replacedCount++;
+        }
+      }
+
+      if (replacedCount > 0) {
+        console.log(
+          `✨ [PLACEHOLDERS] Replaced ${replacedCount} placeholders at offset ${offset}`
+        );
+
+        // Emit event
+        component.emit?.("viewport:placeholders-replaced", {
           offset,
           count: replacedCount,
         });
       }
-    }
-  };
+    };
 
-  /**
-   * Check if an item is a placeholder
-   */
-  const isPlaceholder = (item: any): boolean => {
-    return (
-      item &&
-      typeof item === "object" &&
-      item[VIEWPORT_CONSTANTS.PLACEHOLDER.PLACEHOLDER_FLAG] === true
-    );
-  };
+    /**
+     * Clear all placeholder state
+     */
+    const clear = (): void => {
+      fieldStructures = null;
+      hasAnalyzed = false;
+      placeholderIdCounter = 0;
+    };
 
-  /**
-   * Check if placeholders are enabled
-   */
-  const isEnabled = (): boolean => {
-    return enabled;
-  };
+    // Initialize function
+    const initialize = () => {
+      if (!enabled) return;
 
-  /**
-   * Clear placeholder state
-   */
-  const clear = (): void => {
-    fieldStructures = null;
-    hasAnalyzed = false;
-    placeholderIdCounter = 0;
-  };
-
-  /**
-   * Check if structure has been analyzed
-   */
-  const hasAnalyzedStructure = (): boolean => {
-    return hasAnalyzed;
-  };
-
-  return {
-    name: "placeholders",
-
-    initialize(context: ViewportContext) {
-      viewportContext = context;
-
-      // Listen for first data load if configured
-      if (analyzeFirstLoad && "on" in context) {
-        (context as any).on?.("collection:range-loaded", (data: any) => {
-          if (
-            !hasAnalyzed &&
-            data?.items?.length >=
-              VIEWPORT_CONSTANTS.PLACEHOLDER.MIN_SAMPLE_SIZE
-          ) {
+      // Listen for first data load to analyze structure
+      if (analyzeFirstLoad) {
+        const handleRangeLoaded = (data: any) => {
+          if (!hasAnalyzed && data.items && data.items.length > 0) {
             analyzeDataStructure(data.items);
           }
-        });
+
+          // Replace any placeholders with real data
+          replacePlaceholders(data.items, data.offset);
+        };
+
+        component.on?.("viewport:range-loaded", handleRangeLoaded);
       }
-    },
 
-    destroy() {
+      // Show initial placeholders if configured
+      const totalItems = component.collection?.getTotalItems() || 0;
+      if (totalItems > 0) {
+        const initialRange = {
+          start: 0,
+          end: Math.min(
+            VIEWPORT_CONSTANTS.PLACEHOLDER.MAX_SAMPLE_SIZE - 1,
+            totalItems - 1
+          ),
+        };
+        showPlaceholders(initialRange);
+      }
+    };
+
+    // Cleanup function
+    const destroy = () => {
       clear();
-      viewportContext = null;
-    },
+    };
 
-    // API methods
-    analyzeDataStructure,
-    hasAnalyzedStructure,
-    generatePlaceholderItem,
-    generatePlaceholderItems,
-    showPlaceholders,
-    isPlaceholder,
-    replacePlaceholders,
-    isEnabled,
-    clear,
+    // Store functions for viewport to call
+    (component as any)._placeholdersInitialize = initialize;
+    (component as any)._placeholdersDestroy = destroy;
+
+    // Return enhanced component
+    return {
+      ...component,
+      placeholders: {
+        analyzeDataStructure,
+        hasAnalyzedStructure: () => hasAnalyzed,
+        generatePlaceholderItem,
+        generatePlaceholderItems,
+        showPlaceholders,
+        isPlaceholder,
+        replacePlaceholders,
+        clear,
+      },
+    };
   };
 }

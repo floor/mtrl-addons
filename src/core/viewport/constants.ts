@@ -14,6 +14,7 @@ export const VIEWPORT_CONSTANTS = {
     MIN_ITEM_SIZE: 20,
     MAX_ITEM_SIZE: 1000,
     SCROLL_SENSITIVITY: 1.0,
+    MAX_VIRTUAL_SIZE: 10 * 1000 * 1000, // 10M pixels - well within browser limits
   },
 
   // Scrolling settings

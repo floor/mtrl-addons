@@ -30,7 +30,6 @@ export {
   getElementConfig,
   getApiConfig,
   getCollectionConfig,
-  getListManagerConfig,
   validateConfig,
 } from "./config";
 

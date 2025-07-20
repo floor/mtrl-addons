@@ -1,13 +1,14 @@
 // src/core/viewport/features/loading-manager.ts
 
 /**
- * Loading Manager - Velocity-based intelligent data loading
+ * Loading Manager Feature - Velocity-based intelligent data loading
  * Manages data loading based on scroll velocity to prevent server overload
  */
 
-import type { ViewportComponent } from "../types";
+import type { ViewportContext } from "../types";
+import type { CollectionComponent } from "./collection";
+import type { ScrollingComponent } from "./scrolling";
 import { VIEWPORT_CONSTANTS } from "../constants";
-import type { SpeedTracker } from "../utils/speed-tracker";
 
 export interface LoadingConfig {
   cancelLoadThreshold?: number; // Velocity (px/ms) above which loads are cancelled
@@ -25,16 +26,21 @@ export interface LoadingStats {
   queuedRequests: number;
 }
 
-export interface LoadingManager {
-  requestLoad(
-    range: { start: number; end: number },
-    priority: "high" | "normal" | "low"
-  ): void;
-  updateVelocity(velocity: number, direction: "forward" | "backward"): void;
-  cancelPendingLoads(): void;
-  getStats(): LoadingStats;
-  isRangeLoading(range: { start: number; end: number }): boolean;
-  processQueue(): void;
+export interface LoadingComponent {
+  loading: {
+    requestLoad: (
+      range: { start: number; end: number },
+      priority?: "high" | "normal" | "low"
+    ) => void;
+    updateVelocity: (
+      velocity: number,
+      direction: "forward" | "backward" | "idle"
+    ) => void;
+    cancelPendingLoads: () => void;
+    getStats: () => LoadingStats;
+    isRangeLoading: (range: { start: number; end: number }) => boolean;
+    processQueue: () => void;
+  };
 }
 
 interface QueuedRequest {
@@ -44,264 +50,281 @@ interface QueuedRequest {
 }
 
 /**
- * Creates a loading manager that handles data loading based on scroll velocity
+ * Adds loading management functionality to viewport component
  */
-export function createLoadingManager(
-  viewport: ViewportComponent,
-  config: LoadingConfig = {}
-): LoadingManager {
-  const {
-    cancelLoadThreshold = VIEWPORT_CONSTANTS.LOADING.CANCEL_THRESHOLD,
-    maxConcurrentRequests = VIEWPORT_CONSTANTS.LOADING.MAX_CONCURRENT_REQUESTS,
-    enableRequestQueue = true,
-  } = config;
+export function withLoadingManager(config: LoadingConfig = {}) {
+  return <T extends ViewportContext & CollectionComponent & ScrollingComponent>(
+    component: T
+  ): T & LoadingComponent => {
+    const {
+      cancelLoadThreshold = VIEWPORT_CONSTANTS.SPEED_TRACKING
+        .CANCEL_LOAD_THRESHOLD,
+      maxConcurrentRequests = VIEWPORT_CONSTANTS.LOADING
+        .MAX_CONCURRENT_REQUESTS,
+      enableRequestQueue = VIEWPORT_CONSTANTS.REQUEST_QUEUE.ENABLED,
+    } = config;
 
-  console.log(`🚀 [LOADING] Creating loading manager with config:`, config);
+    // State
+    let currentVelocity = 0;
+    let currentDirection: "forward" | "backward" | "idle" = "idle";
+    let activeRequests = new Set<string>();
+    let requestQueue: QueuedRequest[] = [];
+    let stats = {
+      pendingRequests: 0,
+      completedRequests: 0,
+      failedRequests: 0,
+      cancelledRequests: 0,
+    };
+    let queueProcessTimer: number | null = null;
 
-  // State
-  let currentVelocity = 0;
-  let scrollDirection: "forward" | "backward" = "forward";
-  let activeRequests = 0;
+    /**
+     * Get range key for tracking
+     */
+    const getRangeKey = (range: { start: number; end: number }): string => {
+      return `${range.start}-${range.end}`;
+    };
 
-  // Request queue
-  let requestQueue: QueuedRequest[] = [];
+    /**
+     * Check if we can load based on velocity
+     */
+    const canLoad = (): boolean => {
+      const absVelocity = Math.abs(currentVelocity);
+      return absVelocity < cancelLoadThreshold;
+    };
 
-  // Track active requests to prevent duplicates
-  const activeRanges = new Set<string>();
+    /**
+     * Request to load a range
+     */
+    const requestLoad = (
+      range: { start: number; end: number },
+      priority: "high" | "normal" | "low" = "normal"
+    ): void => {
+      const rangeKey = getRangeKey(range);
 
-  // Stats
-  let completedRequests = 0;
-  let failedRequests = 0;
-  let cancelledRequests = 0;
-
-  // Collection feature reference
-  let collectionFeature: any = null;
-
-  /**
-   * Get range key for deduplication
-   */
-  const getRangeKey = (range: { start: number; end: number }): string => {
-    return `${range.start}-${range.end}`;
-  };
-
-  /**
-   * Check if we should load data at current velocity
-   */
-  const canLoad = (): boolean => {
-    return currentVelocity <= cancelLoadThreshold;
-  };
-
-  /**
-   * Update current velocity
-   */
-  const updateVelocity = (
-    velocity: number,
-    direction: "forward" | "backward"
-  ): void => {
-    const previousVelocity = currentVelocity;
-    currentVelocity = Math.abs(velocity);
-    scrollDirection = direction;
-
-    // When velocity drops below threshold or reaches zero, process queued requests
-    if (
-      (previousVelocity > cancelLoadThreshold &&
-        currentVelocity <= cancelLoadThreshold) ||
-      (currentVelocity === 0 && requestQueue.length > 0)
-    ) {
-      console.log(
-        `📊 [LOADING] Velocity dropped to ${currentVelocity.toFixed(
-          2
-        )} px/ms, processing queue (${requestQueue.length} queued requests)`
-      );
-      processQueue();
-    }
-  };
-
-  /**
-   * Process the request queue
-   */
-  const processQueue = (): void => {
-    if (!enableRequestQueue) {
-      return;
-    }
-
-    let processed = 0;
-    while (requestQueue.length > 0 && activeRequests < maxConcurrentRequests) {
-      const request = requestQueue.shift();
-      if (request) {
-        executeLoad(request.range, request.priority);
-        processed++;
+      // Skip if already loading
+      if (activeRequests.has(rangeKey)) {
+        return;
       }
-    }
 
-    if (processed > 0) {
-      console.log(`✅ [LOADING] Processed ${processed} queued requests`);
-    }
-  };
+      // Check if we should queue or load immediately
+      if (!canLoad() || activeRequests.size >= maxConcurrentRequests) {
+        if (enableRequestQueue) {
+          // Add to queue
+          const existingIndex = requestQueue.findIndex(
+            (req) => getRangeKey(req.range) === rangeKey
+          );
 
-  /**
-   * Request to load a range with priority
-   */
-  const requestLoad = (
-    range: { start: number; end: number },
-    priority: "high" | "normal" | "low"
-  ): void => {
-    const rangeKey = getRangeKey(range);
-    console.log(
-      `📡 [LOADING] requestLoad called for range ${range.start}-${range.end}, velocity: ${currentVelocity}`
-    );
+          if (existingIndex === -1) {
+            requestQueue.push({
+              range,
+              priority,
+              timestamp: Date.now(),
+            });
 
-    // Check if already loading this range
-    if (activeRanges.has(rangeKey)) {
-      return;
-    }
+            // Sort queue by priority and timestamp
+            requestQueue.sort((a, b) => {
+              const priorityWeight = { high: 0, normal: 1, low: 2 };
+              const priorityDiff =
+                priorityWeight[a.priority] - priorityWeight[b.priority];
+              return priorityDiff !== 0
+                ? priorityDiff
+                : a.timestamp - b.timestamp;
+            });
+          }
+        }
+        return;
+      }
 
-    // Check velocity
-    if (!canLoad()) {
+      // Load immediately
+      loadRange(range);
+    };
+
+    /**
+     * Load a range
+     */
+    const loadRange = async (range: {
+      start: number;
+      end: number;
+    }): Promise<void> => {
+      const rangeKey = getRangeKey(range);
+      activeRequests.add(rangeKey);
+      stats.pendingRequests++;
+
       console.log(
-        `🚫 [LOADING] Request cancelled - velocity ${currentVelocity.toFixed(
-          2
-        )} px/ms exceeds threshold ${cancelLoadThreshold} px/ms`
+        `📥 [LOADING] Loading range ${range.start}-${
+          range.end
+        } (velocity: ${currentVelocity.toFixed(2)} px/ms)`
       );
-      cancelledRequests++;
 
-      // Queue the request if enabled
-      if (enableRequestQueue) {
-        requestQueue.push({
-          range,
-          priority,
-          timestamp: Date.now(),
-        });
+      try {
+        await component.collection?.loadMissingRanges(range);
+        stats.completedRequests++;
 
-        // Sort queue by priority
-        requestQueue.sort((a, b) => {
-          const priorityOrder = { high: 0, normal: 1, low: 2 };
-          return priorityOrder[a.priority] - priorityOrder[b.priority];
-        });
+        // Emit success event
+        component.emit?.("viewport:load-complete", { range });
+      } catch (error) {
+        stats.failedRequests++;
+        console.error(`❌ [LOADING] Failed to load range ${rangeKey}:`, error);
 
-        // Enforce max queue size
-        if (requestQueue.length > 50) {
-          const removed = requestQueue.splice(50);
-          cancelledRequests += removed.length;
+        // Emit error event
+        component.emit?.("viewport:load-error", { range, error });
+      } finally {
+        activeRequests.delete(rangeKey);
+        stats.pendingRequests--;
+
+        // Process queue if we have capacity
+        if (activeRequests.size < maxConcurrentRequests) {
+          processQueue();
         }
       }
-      return;
-    }
-
-    // Execute immediately if we have capacity
-    if (activeRequests < maxConcurrentRequests) {
-      executeLoad(range, priority);
-    } else if (enableRequestQueue) {
-      // Add to queue if we're at capacity
-      requestQueue.push({
-        range,
-        priority,
-        timestamp: Date.now(),
-      });
-    } else {
-      // Queue is disabled and we're at capacity
-      cancelledRequests++;
-    }
-  };
-
-  /**
-   * Execute load immediately
-   */
-  const executeLoad = (
-    range: { start: number; end: number },
-    priority: "high" | "normal" | "low"
-  ): void => {
-    const rangeKey = getRangeKey(range);
-
-    // Double-check for duplicates
-    if (activeRanges.has(rangeKey)) {
-      return;
-    }
-
-    activeRequests++;
-    activeRanges.add(rangeKey);
-
-    console.log(
-      `📡 [LOADING] Loading range ${range.start}-${range.end} (priority: ${priority})`
-    );
-
-    // Get collection feature from viewport
-    if (!collectionFeature) {
-      const component = viewport as any;
-      collectionFeature = component.collectionFeature;
-    }
-
-    if (
-      collectionFeature &&
-      typeof collectionFeature.loadMissingRanges === "function"
-    ) {
-      collectionFeature
-        .loadMissingRanges(range)
-        .then(() => {
-          activeRequests--;
-          activeRanges.delete(rangeKey);
-          completedRequests++;
-          // Process more requests from queue
-          processQueue();
-        })
-        .catch((error: any) => {
-          console.error(
-            `❌ [LOADING] Failed to load range ${rangeKey}:`,
-            error
-          );
-          activeRequests--;
-          activeRanges.delete(rangeKey);
-          failedRequests++;
-          // Process more requests from queue even on failure
-          processQueue();
-        });
-    } else {
-      activeRequests--;
-      activeRanges.delete(rangeKey);
-    }
-  };
-
-  /**
-   * Cancel all pending loads
-   */
-  const cancelPendingLoads = (): void => {
-    const count = requestQueue.length;
-    if (count > 0) {
-      cancelledRequests += count;
-      requestQueue = [];
-      console.log(`🚫 [LOADING] Cancelled ${count} pending requests`);
-    }
-  };
-
-  /**
-   * Check if a range is already being loaded
-   */
-  const isRangeLoading = (range: { start: number; end: number }): boolean => {
-    const rangeKey = getRangeKey(range);
-    return activeRanges.has(rangeKey);
-  };
-
-  /**
-   * Get loading statistics
-   */
-  const getStats = (): LoadingStats => {
-    return {
-      pendingRequests: activeRequests,
-      completedRequests,
-      failedRequests,
-      cancelledRequests,
-      currentVelocity,
-      canLoad: canLoad(),
-      queuedRequests: requestQueue.length,
     };
-  };
 
-  return {
-    requestLoad,
-    updateVelocity,
-    cancelPendingLoads,
-    getStats,
-    isRangeLoading,
-    processQueue,
+    /**
+     * Update velocity
+     */
+    const updateVelocity = (
+      velocity: number,
+      direction: "forward" | "backward" | "idle"
+    ): void => {
+      const prevVelocity = currentVelocity;
+      currentVelocity = velocity;
+      currentDirection = direction;
+
+      // Cancel loads if velocity exceeds threshold
+      if (
+        Math.abs(velocity) >= cancelLoadThreshold &&
+        prevVelocity < cancelLoadThreshold
+      ) {
+        console.log(
+          `⚡ [LOADING] High velocity detected (${velocity.toFixed(
+            2
+          )} px/ms), cancelling pending loads`
+        );
+        cancelPendingLoads();
+      }
+
+      // Process queue when velocity drops
+      if (
+        Math.abs(velocity) < cancelLoadThreshold &&
+        prevVelocity >= cancelLoadThreshold
+      ) {
+        console.log(`🐌 [LOADING] Velocity decreased, processing queue`);
+        processQueue();
+      }
+    };
+
+    /**
+     * Cancel pending loads
+     */
+    const cancelPendingLoads = (): void => {
+      const cancelledCount = activeRequests.size;
+      if (cancelledCount > 0) {
+        activeRequests.clear();
+        stats.cancelledRequests += cancelledCount;
+        stats.pendingRequests = 0;
+
+        console.log(
+          `🚫 [LOADING] Cancelled ${cancelledCount} pending requests`
+        );
+
+        // Emit event
+        component.emit?.("viewport:loads-cancelled", { count: cancelledCount });
+      }
+    };
+
+    /**
+     * Process queued requests
+     */
+    const processQueue = (): void => {
+      if (!enableRequestQueue || requestQueue.length === 0) {
+        return;
+      }
+
+      // Clear any existing timer
+      if (queueProcessTimer) {
+        clearTimeout(queueProcessTimer);
+      }
+
+      // Debounce queue processing
+      queueProcessTimer = window.setTimeout(() => {
+        while (
+          requestQueue.length > 0 &&
+          activeRequests.size < maxConcurrentRequests &&
+          canLoad()
+        ) {
+          const request = requestQueue.shift();
+          if (request) {
+            loadRange(request.range);
+          }
+        }
+      }, 50);
+    };
+
+    /**
+     * Check if a range is currently loading
+     */
+    const isRangeLoading = (range: { start: number; end: number }): boolean => {
+      return activeRequests.has(getRangeKey(range));
+    };
+
+    /**
+     * Get loading statistics
+     */
+    const getStats = (): LoadingStats => {
+      return {
+        ...stats,
+        currentVelocity,
+        canLoad: canLoad(),
+        queuedRequests: requestQueue.length,
+      };
+    };
+
+    // Initialize function
+    const initialize = () => {
+      // Listen for speed changes
+      component.on?.("viewport:speed-changed", (data: any) => {
+        updateVelocity(data.velocity, data.direction);
+      });
+
+      // Listen for render complete to check what needs loading
+      component.on?.("viewport:render-complete", (data: any) => {
+        requestLoad(data.range, "high");
+      });
+
+      // Get initial velocity if available
+      if (component.scrolling) {
+        const velocity = component.scrolling.getVelocity();
+        const direction = component.scrolling.getDirection();
+        updateVelocity(velocity, direction);
+      }
+    };
+
+    // Cleanup function
+    const destroy = () => {
+      cancelPendingLoads();
+      requestQueue = [];
+
+      if (queueProcessTimer) {
+        clearTimeout(queueProcessTimer);
+        queueProcessTimer = null;
+      }
+    };
+
+    // Store functions for viewport to call
+    (component as any)._loadingInitialize = initialize;
+    (component as any)._loadingDestroy = destroy;
+
+    // Return enhanced component
+    return {
+      ...component,
+      loading: {
+        requestLoad,
+        updateVelocity,
+        cancelPendingLoads,
+        getStats,
+        isRangeLoading,
+        processQueue,
+      },
+    };
   };
 }

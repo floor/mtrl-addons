@@ -24,24 +24,9 @@ export const withViewport = <T = any>(config: VListConfig<T>) => {
       component.template = config.template;
     }
 
-    // Apply viewport with all config options
-    const viewportEnhanced = createViewport({
-      container: config.container || config.parent,
-      orientation: config.orientation || "vertical",
-      estimatedItemSize: config.estimatedItemSize || 50,
-      overscan: config.overscan || 3,
-      template: config.template,
-      // Pass collection configuration if adapter is provided
-      collection: config.collection
-        ? {
-            adapter: config.collection,
-            rangeSize: config.rangeSize || 20,
-            strategy: config.paginationStrategy || "page",
-            enablePlaceholders: config.enablePlaceholders !== false,
-          }
-        : undefined,
-      debug: config.debug || false,
-    })(component);
+    // Pass VList config directly to viewport
+    // The viewport will use the same config structure
+    const viewportEnhanced = createViewport(config as any)(component);
 
     // Handle parent element if provided
     if (config.parent || config.container) {

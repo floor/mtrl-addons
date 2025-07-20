@@ -5,7 +5,7 @@
  * Virtual scrolling and rendering types
  */
 
-import type { CollectionFeature } from "./features/collection";
+import type { CollectionComponent } from "./features/collection";
 
 /**
  * Core Range and Item Types
@@ -41,21 +41,20 @@ export interface ViewportContext {
 export interface ViewportConfig {
   // Container
   container?: HTMLElement;
+  className?: string;
 
   // Basic settings
   orientation?: "vertical" | "horizontal";
   estimatedItemSize?: number;
   overscan?: number;
 
-  // Features configuration
-  features?: {
-    collection?: any; // Collection adapter
-    rendering?: any;
-    scrolling?: any;
-    template?: any;
-    loading?: any;
-    placeholders?: any;
-  };
+  // Scrolling settings
+  scrollSensitivity?: number;
+  smoothScrolling?: boolean;
+
+  // Scrollbar settings
+  enableScrollbar?: boolean;
+  autoHideScrollbar?: boolean;
 
   // Collection settings
   collection?: any; // Collection adapter
@@ -63,6 +62,13 @@ export interface ViewportConfig {
   paginationStrategy?: "page" | "offset" | "cursor";
   enablePlaceholders?: boolean;
   maskCharacter?: string;
+  transformItem?: (item: any) => any;
+
+  // Loading settings
+  maxConcurrentRequests?: number;
+
+  // Rendering settings
+  template?: (item: any, index: number) => string | HTMLElement;
 
   // Debug
   debug?: boolean;
@@ -84,7 +90,7 @@ export interface ViewportComponent extends ViewportContext {
     getScrollPosition(): number;
 
     // Collection feature (optional)
-    collection?: CollectionFeature;
+    collection?: CollectionComponent["collection"];
 
     // Info
     getVisibleRange(): ItemRange;
