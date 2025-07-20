@@ -1,0 +1,737 @@
+// src/styles/components/_vlist.scss
+@use "../../../../mtrl/src/styles/abstract/base" as base;
+@use "../../../../mtrl/src/styles/abstract/variables" as v;
+@use "../../../../mtrl/src/styles/abstract/functions" as f;
+@use "../../../../mtrl/src/styles/abstract/mixins" as m;
+@use "../../../../mtrl/src/styles/abstract/theme" as t;
+
+// Component variables
+$component: "#{base.$prefix}-vlist";
+$viewport: "#{base.$prefix}-list__viewport";
+$viewport-items: "#{base.$prefix}-list__viewport-items";
+$list-item: "#{base.$prefix}-list-item";
+$list-item-height: 48px !default;
+$list-item-dense-height: 40px !default;
+$list-padding: 8px !default;
+$list-item-padding: 16px !default;
+$list-section-padding: 16px !default;
+$list-container-min-height: 200px !default;
+
+// Transition variables
+$state-transition-duration: v.motion("duration-medium1") !default;
+$state-transition-easing: v.motion("easing-standard") !default;
+$quick-transition: v.motion("duration-short4")
+  v.motion("easing-standard-accelerate");
+
+// Reusable transitions
+$color-transition: color $state-transition-duration $state-transition-easing;
+$bg-transition: background-color $state-transition-duration
+  $state-transition-easing;
+$opacity-transition: opacity $state-transition-duration $state-transition-easing;
+
+// Placeholder styling variables
+$placeholder-opacity: 0.6 !default;
+$placeholder-opacity-skeleton: 0.8 !default;
+$placeholder-opacity-masked: 0.7 !default;
+$placeholder-opacity-subtle: 0.4 !default;
+$placeholder-background-alpha: 0.4 !default;
+$placeholder-shimmer-alpha: 0.2 !default;
+$placeholder-animation-speed: 1.5s !default;
+
+// Component-specific mixins
+@mixin list-item-state-layer($state: "hover", $color: "on-surface") {
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: t.color($color);
+    opacity: f.get-state-opacity($state);
+    pointer-events: none;
+    border-radius: inherit;
+    transition: $opacity-transition;
+  }
+}
+
+@mixin list-section-title {
+  @include m.typography("label-large");
+  color: t.color("primary");
+  padding: $list-section-padding $list-item-padding 8px;
+}
+
+// VLIST CONTAINER (the main component)
+.#{$component} {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: $list-container-min-height;
+  background-color: t.color("surface");
+  transition: $bg-transition;
+
+  // Performance optimizations
+  contain: layout style paint;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+// VIEWPORT CONTAINER (the scrollable area)
+.#{$viewport} {
+  position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+
+  // Performance optimizations
+  will-change: scroll-position;
+
+  // Scrollbar styling
+  &::-webkit-scrollbar {
+    width: 8px;
+
+    &-track {
+      background: transparent;
+    }
+
+    &-thumb {
+      background-color: t.color("outline-variant");
+      border-radius: 4px;
+      transition: $bg-transition;
+
+      &:hover {
+        background-color: t.alpha("outline", 0.38);
+      }
+    }
+  }
+
+  // Loading state
+  &--loading::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      t.color("primary"),
+      transparent
+    );
+    animation: loading-shimmer 1.5s infinite v.motion("easing-standard");
+  }
+}
+
+// VIEWPORT ITEMS CONTAINER
+.#{$viewport-items} {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: $list-padding 0;
+}
+
+// LIST ITEMS
+.#{$list-item} {
+  display: flex;
+  align-items: center;
+  min-height: $list-item-height;
+  padding: $list-padding $list-item-padding;
+  position: relative;
+  width: 100%;
+  gap: 16px;
+  color: t.color("on-surface");
+  cursor: pointer;
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: $bg-transition, $color-transition, opacity 0.2s ease-in-out;
+
+  // Performance optimizations
+  contain: layout style;
+  transform: translateZ(0);
+  will-change: transform;
+
+  // State layer base
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-color: t.color("on-surface");
+    opacity: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    transition: $opacity-transition;
+  }
+
+  // State interactions
+  &:hover::before {
+    opacity: f.get-state-opacity("hover");
+  }
+
+  &:focus-visible {
+    outline: none;
+
+    &::before {
+      opacity: f.get-state-opacity("focus");
+    }
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      box-shadow: inset 0 0 0 2px t.color("primary");
+      pointer-events: none;
+      transition: box-shadow $state-transition-duration $state-transition-easing;
+    }
+  }
+
+  &:active::before {
+    opacity: f.get-state-opacity("pressed");
+    transition: opacity $quick-transition;
+  }
+
+  // Content elements
+  &-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: $opacity-transition;
+  }
+
+  &-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  // Text elements with shared properties
+  &-overline,
+  &-supporting,
+  &-meta {
+    color: t.color("on-surface-variant");
+    transition: $color-transition;
+  }
+
+  &-overline {
+    @include m.typography("label-small");
+  }
+
+  &-headline {
+    @include m.typography("body-large");
+    color: t.color("on-surface");
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: $color-transition;
+  }
+
+  &-supporting {
+    @include m.typography("body-medium");
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &-meta {
+    @include m.typography("label-small");
+    margin-top: 4px;
+  }
+
+  // Leading/trailing elements
+  &-leading,
+  &-trailing {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: t.color("on-surface-variant");
+    transition: $color-transition, $opacity-transition;
+  }
+
+  &-leading {
+    width: 24px;
+    height: 24px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+      transition: fill $state-transition-duration $state-transition-easing,
+        stroke $state-transition-duration $state-transition-easing;
+    }
+  }
+
+  // Selected state
+  &--selected {
+    background-color: t.color("secondary-container");
+    color: t.color("on-secondary-container");
+    transition: $bg-transition, $color-transition;
+
+    // Update state layer color for selected state
+    &::before {
+      background-color: t.color("on-secondary-container");
+    }
+
+    // Update text and icon colors for selected state
+    &-leading,
+    &-trailing,
+    &-supporting,
+    &-overline,
+    &-meta {
+      color: t.color("on-secondary-container");
+      transition: $color-transition;
+    }
+  }
+
+  // Disabled state
+  &--disabled {
+    opacity: 0.38;
+    pointer-events: none;
+    transition: $opacity-transition;
+  }
+
+  // Placeholder loading state
+  &.#{base.$prefix}-item-placeholder {
+    opacity: $placeholder-opacity;
+    pointer-events: none;
+    position: relative;
+    height: 84px;
+    transition: opacity 0.3s ease-in-out,
+      background-color $state-transition-duration $state-transition-easing;
+
+    // Performance optimizations for placeholders
+    contain: strict;
+    will-change: contents;
+
+    // Background tint for visibility
+    background-color: t.alpha("surface-variant", $placeholder-background-alpha);
+
+    // Text styling for placeholder visibility
+    .#{$list-item}-headline,
+    .#{$list-item}-supporting,
+    .#{$list-item}-meta {
+      transition: color 0.3s ease-in-out, opacity 0.3s ease-in-out;
+      opacity: 1;
+    }
+
+    // Placeholder mode variants
+    &--skeleton {
+      opacity: $placeholder-opacity-skeleton;
+
+      .#{$list-item}-headline,
+      .#{$list-item}-supporting {
+        background-color: t.color("surface-variant");
+        border-radius: 4px;
+        color: transparent;
+        animation: skeleton-pulse 1.5s infinite;
+      }
+    }
+
+    &--masked {
+      opacity: $placeholder-opacity-masked;
+    }
+
+    &--subtle {
+      opacity: $placeholder-opacity-subtle;
+    }
+
+    // High contrast mode
+    @include m.high-contrast {
+      outline: 2px dashed currentColor;
+      outline-offset: -2px;
+    }
+  }
+
+  // Recycled element optimizations
+  &.#{base.$prefix}-item-recycled {
+    will-change: contents;
+  }
+}
+
+// Dense variant
+.#{$component}--dense {
+  .#{$list-item} {
+    min-height: $list-item-dense-height;
+  }
+}
+
+// Disabled state for entire list
+.#{$component}--disabled {
+  pointer-events: none;
+  opacity: 0.38;
+  transition: $opacity-transition;
+}
+
+// High contrast mode
+@include m.high-contrast {
+  .#{$component} {
+    border: 1px solid currentColor;
+  }
+
+  .#{$list-item}--selected {
+    outline: 2px solid currentColor;
+    outline-offset: -2px;
+  }
+}
+
+// VIRTUAL LIST SPECIFIC ELEMENTS
+
+// Virtual list spacer
+.#{$viewport}-spacer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  visibility: hidden;
+  pointer-events: none;
+
+  // Performance optimizations for spacer
+  contain: strict;
+  will-change: height;
+  transform: translateZ(0);
+  overflow: hidden;
+}
+
+// Sentinel elements for intersection observer
+.#{$viewport}-sentinel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  contain: layout;
+
+  &--top {
+    top: 0;
+  }
+
+  &--bottom {
+    bottom: 0;
+  }
+}
+
+// Empty state
+.#{$component}-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  color: t.color("on-surface-variant");
+  transition: $color-transition, $opacity-transition;
+
+  &-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.6;
+    transition: $opacity-transition;
+  }
+
+  &-text {
+    @include m.typography("body-large");
+    transition: $color-transition;
+  }
+
+  &-action {
+    margin-top: 16px;
+    transition: $opacity-transition;
+  }
+}
+
+// Loading indicator
+.#{$component}-loading-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  width: 100%;
+  color: t.color("on-surface-variant");
+  transition: $color-transition;
+
+  &::after {
+    content: "";
+    width: 24px;
+    height: 24px;
+    border: 2px solid currentColor;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    animation: rotation 0.8s infinite linear;
+  }
+}
+
+// ANIMATIONS
+@keyframes loading-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes rotation {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes skeleton-pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+// PERFORMANCE UTILITIES
+.#{$component} {
+  // Performance mode for slower devices
+  &--performance-mode {
+    .#{$list-item} {
+      will-change: auto;
+      transform: none;
+      contain: none; // Reduce containment on slower devices
+    }
+  }
+
+  // Debug mode for development
+  &--debug {
+    .#{$list-item} {
+      outline: 1px solid rgba(255, 0, 0, 0.3);
+
+      &.#{base.$prefix}-item-placeholder {
+        outline-color: rgba(0, 255, 0, 0.3);
+      }
+
+      &.#{base.$prefix}-item-recycled {
+        outline-color: rgba(0, 0, 255, 0.3);
+      }
+    }
+  }
+}
+
+// Dark mode optimizations
+@media (prefers-color-scheme: dark) {
+  .#{$list-item}.#{base.$prefix}-item-placeholder {
+    background-color: t.alpha("surface-variant", 0.2);
+  }
+}
+
+// Responsive performance optimizations
+@media (max-width: 768px) {
+  .#{$list-item} {
+    // Optimize for touch on mobile
+    touch-action: pan-y;
+  }
+}
+
+// High-density display optimizations
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .#{$list-item} {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+// Print optimizations
+@media print {
+  .#{$list-item} {
+    will-change: auto !important;
+    transform: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+// VList Component Styles
+// Virtual list with high-performance scrolling
+
+// Import prefix variable
+$prefix: "mtrl" !default;
+
+.#{$prefix}-vlist {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+
+  // Viewport container
+  .#{$prefix}-viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+
+    // Items container
+    &-items {
+      position: relative;
+      width: 100%;
+      will-change: transform;
+    }
+
+    // Custom scrollbar
+    &-scrollbar {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 12px;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 6px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      cursor: pointer;
+      z-index: 10;
+
+      &-thumb {
+        position: absolute;
+        top: 0;
+        width: 100%;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 6px;
+        min-height: 20px;
+        cursor: grab;
+        transition: background 0.2s ease;
+
+        &:hover {
+          background: rgba(0, 0, 0, 0.5);
+        }
+
+        &:active {
+          cursor: grabbing;
+          background: rgba(0, 0, 0, 0.6);
+        }
+      }
+    }
+
+    // Show scrollbar on hover
+    &:hover .#{$prefix}-viewport-scrollbar {
+      opacity: 1;
+    }
+  }
+
+  // List items
+  .#{$prefix}-list-item {
+    position: absolute;
+    left: 0;
+    right: 0;
+    box-sizing: border-box;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    background: white;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+
+    &:active {
+      background-color: rgba(0, 0, 0, 0.04);
+    }
+  }
+
+  // User list specific styles
+  &.#{$prefix}-list--users {
+    .user-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+
+      .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
+        color: #666;
+        flex-shrink: 0;
+      }
+
+      .user-details {
+        flex: 1;
+        min-width: 0;
+
+        .user-name {
+          font-weight: 500;
+          color: #333;
+          margin-bottom: 4px;
+        }
+
+        .user-email {
+          font-size: 14px;
+          color: #666;
+          margin-bottom: 2px;
+        }
+
+        .user-role {
+          font-size: 12px;
+          color: #999;
+        }
+      }
+    }
+  }
+}
+
+// Viewport scrollbar styles
+.#{$prefix}-viewport-scrollbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  cursor: pointer;
+  z-index: 10;
+
+  &--visible {
+    opacity: 1;
+  }
+
+  &-thumb {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    min-height: 20px;
+    cursor: grab;
+    transition: background 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    &:active,
+    &--dragging {
+      cursor: grabbing;
+      background: rgba(0, 0, 0, 0.6);
+    }
+  }
+}
+
+// Show scrollbar on viewport hover
+.#{$prefix}-viewport:hover .#{$prefix}-viewport-scrollbar {
+  opacity: 1;
+}
