@@ -46,9 +46,10 @@ export function withCollection(config: CollectionConfig = {}) {
       strategy = "offset",
       transform,
       cancelLoadThreshold = VIEWPORT_CONSTANTS.LOADING.CANCEL_THRESHOLD,
-      maxConcurrentRequests = 3,
-      enableRequestQueue = true,
-      maxQueueSize = 10,
+      maxConcurrentRequests = VIEWPORT_CONSTANTS.LOADING
+        .MAX_CONCURRENT_REQUESTS,
+      enableRequestQueue = VIEWPORT_CONSTANTS.REQUEST_QUEUE.ENABLED,
+      maxQueueSize = VIEWPORT_CONSTANTS.REQUEST_QUEUE.MAX_QUEUE_SIZE,
     } = config;
 
     // Loading manager state
@@ -416,6 +417,9 @@ export function withCollection(config: CollectionConfig = {}) {
 
       // Subscribe to events
       component.on?.("viewport:range-changed", async (data: any) => {
+        // Don't load during fast scrolling - loadMissingRanges will handle velocity check
+        
+
         // Check velocity before attempting to load
         const viewportState = (component.viewport as any).state;
         const velocity = Math.abs(viewportState?.velocity || 0);
@@ -425,7 +429,7 @@ export function withCollection(config: CollectionConfig = {}) {
         }
 
         if (data.range) {
-          await loadMissingRangesInternal(data.range);
+          await loadMissingRanges(data.range);
         }
       });
 

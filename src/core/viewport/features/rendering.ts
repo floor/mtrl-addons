@@ -10,8 +10,8 @@ export interface RenderingConfig {
   template?: (item: any, index: number) => string | HTMLElement;
   overscan?: number;
   measureItems?: boolean;
-  enableDeferredCleanup?: boolean;
-  cleanupDelay?: number;
+  enableRecycling?: boolean;
+  maxPoolSize?: number;
 }
 
 // Internal state interface
@@ -35,21 +35,71 @@ export const withRendering = (config: RenderingConfig = {}) => {
       template,
       overscan = 5,
       measureItems = false,
-      enableDeferredCleanup = true,
-      cleanupDelay = 500,
+      enableRecycling = true,
+      maxPoolSize = VIEWPORT_CONSTANTS.RENDERING.DEFAULT_MAX_POOL_SIZE,
     } = config;
 
     // State
     const renderedElements = new Map<number, HTMLElement>();
+    const collectionItems: Record<number, any> = {};
+    let viewportState: ViewportState | null = null;
     let currentVisibleRange = { start: 0, end: 0 };
-    let cleanupTimeoutId: number | null = null;
     let lastRenderTime = 0;
-    let isCleanupScheduled = false;
-    let collectionItems: any[] = []; // Store collection items locally
+
+    // Element pool for recycling
+    const elementPool: HTMLElement[] = [];
+    const poolStats = {
+      created: 0,
+      recycled: 0,
+      poolSize: 0,
+    };
+
+    /**
+     * Get an element from the pool or create a new one
+     */
+    const getPooledElement = (): HTMLElement => {
+      if (enableRecycling && elementPool.length > 0) {
+        poolStats.recycled++;
+        return elementPool.pop()!;
+      }
+
+      // Create new element
+      const element = document.createElement("div");
+      element.className = "mtrl-viewport-item";
+      poolStats.created++;
+      return element;
+    };
+
+    /**
+     * Release an element back to the pool
+     */
+    const releaseElement = (element: HTMLElement): void => {
+      if (!enableRecycling) {
+        element.remove();
+        return;
+      }
+
+      // Clean up element for reuse
+      element.className = "mtrl-viewport-item";
+      element.removeAttribute("data-index");
+      element.style.cssText = "";
+      element.innerHTML = "";
+
+      // Remove all event listeners by cloning
+      const cleanElement = element.cloneNode(false) as HTMLElement;
+
+      // Add to pool if not at max capacity
+      if (elementPool.length < maxPoolSize) {
+        elementPool.push(cleanElement);
+        poolStats.poolSize = elementPool.length;
+      }
+
+      // Remove from DOM
+      element.remove();
+    };
 
     // Get viewport state reference
-    let viewportState: ViewportState;
-    const originalInitialize = component.viewport.initialize;
+    let originalInitialize = component.viewport.initialize;
     component.viewport.initialize = () => {
       originalInitialize();
       viewportState = (component.viewport as any).state;
@@ -61,8 +111,24 @@ export const withRendering = (config: RenderingConfig = {}) => {
           for (let i = 0; i < data.items.length; i++) {
             collectionItems[data.offset + i] = data.items[i];
           }
+
+          // Check if loaded range overlaps with current visible range
+          const loadedStart = data.offset;
+          const loadedEnd = data.offset + data.items.length - 1;
+          const visibleRange = viewportState?.visibleRange;
+
+          if (visibleRange) {
+            const renderStart = Math.max(0, visibleRange.start - overscan);
+            const renderEnd = Math.min(
+              viewportState?.totalItems ?? 0 - 1,
+              visibleRange.end + overscan
+            );
+
+            // Always render when data is loaded
+            // The viewport might have moved slightly, but we should still render
+            renderItems();
+          }
         }
-        renderItems();
       });
 
       // Listen for viewport range changes
@@ -73,15 +139,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
       // Listen for scroll events to update positions
       component.on?.("viewport:scroll", () => {
         updateItemPositions();
-      });
-
-      // Listen for idle events to ensure rendering after scroll stops
-      component.on?.("viewport:idle", () => {
-        // Small delay to allow collection to load data first
-        setTimeout(() => {
-          // Force render visible items with proper positioning
-          forceRenderVisible();
-        }, 50);
       });
     };
 
@@ -96,51 +153,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
     // Helper to check if item is placeholder
     const isPlaceholder = (item: any): boolean => {
       return item && typeof item === "object" && item.__isPlaceholder === true;
-    };
-
-    // Schedule deferred cleanup
-    const scheduleDeferredCleanup = () => {
-      if (!enableDeferredCleanup || isCleanupScheduled) return;
-
-      isCleanupScheduled = true;
-
-      if (cleanupTimeoutId) {
-        clearTimeout(cleanupTimeoutId);
-      }
-
-      cleanupTimeoutId = window.setTimeout(() => {
-        performDeferredCleanup();
-        isCleanupScheduled = false;
-      }, cleanupDelay);
-    };
-
-    // Perform deferred cleanup
-    const performDeferredCleanup = () => {
-      const visibleRange = currentVisibleRange;
-      const buffer = overscan * 2;
-
-      const keepStart = visibleRange.start - buffer;
-      const keepEnd = visibleRange.end + buffer;
-
-      // Remove elements outside the keep range
-      const toRemove: number[] = [];
-      renderedElements.forEach((element, index) => {
-        if (index < keepStart || index > keepEnd) {
-          toRemove.push(index);
-        }
-      });
-
-      toRemove.forEach((index) => {
-        const element = renderedElements.get(index);
-        if (element && element.parentNode) {
-          element.remove();
-        }
-        renderedElements.delete(index);
-      });
-
-      if (toRemove.length > 0) {
-        console.log(`🧹 [Rendering] Cleaned up ${toRemove.length} items`);
-      }
     };
 
     /**
@@ -218,18 +230,30 @@ export const withRendering = (config: RenderingConfig = {}) => {
         let element: HTMLElement;
 
         if (typeof result === "string") {
-          const wrapper = document.createElement("div");
-          wrapper.innerHTML = result;
-          element = wrapper.firstElementChild as HTMLElement;
+          // For string templates, use a pooled element and set innerHTML
+          element = getPooledElement();
+          element.innerHTML = result;
+
+          // If the result contains a single root element, extract it
+          if (element.children.length === 1) {
+            const child = element.firstElementChild as HTMLElement;
+            child.classList.add("mtrl-viewport-item");
+            // Return the wrapper element for consistency
+          }
         } else if (result instanceof HTMLElement) {
-          element = result;
+          // For HTMLElement templates, we can't easily recycle
+          // so we'll wrap it in a pooled container
+          element = getPooledElement();
+          element.appendChild(result);
         } else {
           console.warn(`[Rendering] Invalid template result for item ${index}`);
           return null;
         }
 
-        // Add viewport item class
-        element.classList.add("mtrl-viewport-item");
+        // Add viewport item class if not already present
+        if (!element.classList.contains("mtrl-viewport-item")) {
+          element.classList.add("mtrl-viewport-item");
+        }
 
         // Add placeholder class if needed
         if (isPlaceholder(item)) {
@@ -336,65 +360,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
     };
 
     /**
-     * Force render and position items in the visible range
-     */
-    const forceRenderVisible = (): void => {
-      if (!viewportState) return;
-
-      const {
-        visibleRange,
-        scrollPosition,
-        containerSize,
-        estimatedItemSize,
-        totalItems,
-        virtualTotalSize,
-      } = viewportState;
-      const container = viewportState.itemsContainer;
-      if (!visibleRange || !container) return;
-
-      // Clear and re-render all items in visible range
-      const overscan = 3;
-      const renderStart = Math.max(0, visibleRange.start - overscan);
-      const renderEnd = Math.min(totalItems - 1, visibleRange.end + overscan);
-
-      // Use collection items if available
-      const hasCollectionItems = Object.keys(collectionItems).length > 0;
-      const items = hasCollectionItems
-        ? collectionItems
-        : component.items || [];
-
-      // Position items starting from the visible range
-      let currentPosition = 0;
-
-      for (let i = renderStart; i <= renderEnd; i++) {
-        const item = items[i];
-        if (!item) continue;
-
-        let element = renderedElements.get(i);
-
-        // Create element if it doesn't exist
-        if (!element) {
-          const newElement = renderItem(item, i);
-          if (newElement) {
-            container.appendChild(newElement);
-            renderedElements.set(i, newElement);
-            element = newElement;
-          }
-        }
-
-        if (element) {
-          // Position relative to render start
-          const relativeIndex = i - renderStart;
-          const position = relativeIndex * estimatedItemSize;
-
-          element.style.position = "absolute";
-          element.style.transform = `translateY(${position}px)`;
-          element.style.width = "100%";
-        }
-      }
-    };
-
-    /**
      * Render items in the visible range
      */
     const renderItems = () => {
@@ -461,12 +426,19 @@ export const withRendering = (config: RenderingConfig = {}) => {
             .slice(0, 10)
             .join(", ")}...`
         );
+
+        if (enableRecycling) {
+          console.log(
+            `[Rendering] Pool stats - Created: ${poolStats.created}, Recycled: ${poolStats.recycled}, Pool size: ${elementPool.length}`
+          );
+        }
       }
 
+      // Remove items outside range
       toRemove.forEach((index) => {
         const element = renderedElements.get(index);
         if (element && element.parentNode) {
-          element.remove();
+          releaseElement(element);
         }
         renderedElements.delete(index);
       });
@@ -481,7 +453,22 @@ export const withRendering = (config: RenderingConfig = {}) => {
         : component.items || [];
 
       // Skip rendering if no items available
-      if (items.length === 0 && totalItems > 0) {
+      if (hasCollectionItems) {
+        // For collection items (object), check if we have any items in the render range
+        let hasItemsInRange = false;
+        for (let i = renderStart; i <= renderEnd; i++) {
+          if (collectionItems[i]) {
+            hasItemsInRange = true;
+            break;
+          }
+        }
+        if (!hasItemsInRange && totalItems > 0) {
+          return;
+        }
+      } else if (
+        (!items || (Array.isArray(items) && items.length === 0)) &&
+        totalItems > 0
+      ) {
         console.log("[Rendering] No items available yet");
         return;
       }
@@ -554,8 +541,14 @@ export const withRendering = (config: RenderingConfig = {}) => {
       // Update positions after rendering
       updateItemPositions();
 
-      // Schedule deferred cleanup
-      scheduleDeferredCleanup();
+      // Final check: if we have no rendered elements after all this,
+      // it means we scrolled to a position with no data
+      if (renderedElements.size === 0 && totalItems > 0) {
+        // Request data for the current visible range
+        if (viewportCollection) {
+          viewportCollection.loadMissingRanges(visibleRange);
+        }
+      }
     };
 
     // Extend viewport API
@@ -569,10 +562,17 @@ export const withRendering = (config: RenderingConfig = {}) => {
     if ("destroy" in component && typeof component.destroy === "function") {
       const originalDestroy = component.destroy;
       component.destroy = () => {
-        if (cleanupTimeoutId) {
-          clearTimeout(cleanupTimeoutId);
-        }
+        // Release all rendered elements to pool
+        renderedElements.forEach((element) => {
+          if (element.parentNode) {
+            releaseElement(element);
+          }
+        });
         renderedElements.clear();
+
+        // Clear the pool
+        elementPool.length = 0;
+
         originalDestroy?.();
       };
     }

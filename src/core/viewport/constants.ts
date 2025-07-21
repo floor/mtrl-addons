@@ -20,8 +20,6 @@ export const VIEWPORT_CONSTANTS = {
   // Scrolling settings
   SCROLLING: {
     OVERSCAN: 2, // From features/constants
-    DEBOUNCE_MS: 50,
-    SMOOTH_SCROLL_DURATION: 300,
     WHEEL_MULTIPLIER: 1,
     TOUCH_MULTIPLIER: 1,
     THROTTLE_SCROLL: 8, // ms - from list-manager
@@ -46,7 +44,7 @@ export const VIEWPORT_CONSTANTS = {
 
   // Loading settings
   LOADING: {
-    CANCEL_THRESHOLD: 30, // px/ms - velocity above which loads are cancelled
+    CANCEL_THRESHOLD: 1, // px/ms - velocity above which loads are cancelled
     MAX_CONCURRENT_REQUESTS: 1,
     DEFAULT_RANGE_SIZE: 20,
     DEBOUNCE_LOADING: 150, // ms - from list-manager
@@ -69,7 +67,7 @@ export const VIEWPORT_CONSTANTS = {
   // Request queue configuration (from features/constants)
   REQUEST_QUEUE: {
     ENABLED: true,
-    MAX_QUEUE_SIZE: 50,
+    MAX_QUEUE_SIZE: 1, // Keep only a few requests in queue to avoid memory issues
     MAX_ACTIVE_REQUESTS: 1, // Sequential requests
   },
 
@@ -93,7 +91,6 @@ export const VIEWPORT_CONSTANTS = {
   // Performance settings
   PERFORMANCE: {
     RESIZE_DEBOUNCE: 150,
-    SCROLL_DEBOUNCE: 50,
 
     // FPS monitoring
     DEFAULT_FPS_TARGET: 60,
