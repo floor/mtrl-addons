@@ -79,9 +79,8 @@ export const withRendering = (config: RenderingConfig = {}) => {
       component.on?.("viewport:idle", () => {
         // Small delay to allow collection to load data first
         setTimeout(() => {
-          // Force update positions to fix any misalignment
-          updateItemPositions();
-          renderItems();
+          // Force render visible items with proper positioning
+          forceRenderVisible();
         }, 50);
       });
     };
@@ -155,24 +154,58 @@ export const withRendering = (config: RenderingConfig = {}) => {
       virtualTotalSize: number,
       containerSize: number
     ): number => {
+      // Get the visible range to check if this item should be visible
+      const visibleRange = viewportState?.visibleRange;
+
       // Check if we're using compressed virtual space
       const actualTotalSize = totalItems * itemSize;
       const isCompressed =
         actualTotalSize > virtualTotalSize && virtualTotalSize > 0;
 
       if (isCompressed && totalItems > 0) {
-        // In compressed space, we need to calculate the position based on the visible range
-        const scrollRatio = scrollPosition / virtualTotalSize;
-        const exactScrollIndex = scrollRatio * totalItems;
+        // Handle compressed space
+        const maxScrollPosition = virtualTotalSize - containerSize;
+        const distanceFromBottom = maxScrollPosition - scrollPosition;
+        const nearBottomThreshold = containerSize;
 
-        // Calculate the item's position relative to the current scroll position
-        const relativeIndex = index - exactScrollIndex;
-        const position = relativeIndex * itemSize;
+        if (
+          distanceFromBottom <= nearBottomThreshold &&
+          distanceFromBottom >= -1
+        ) {
+          // Near bottom - use interpolation
+          const itemsThatFitCompletely = Math.floor(containerSize / itemSize);
+          const firstVisibleAtBottom = Math.max(
+            0,
+            totalItems - itemsThatFitCompletely
+          );
 
-        return position;
+          const scrollRatio = scrollPosition / virtualTotalSize;
+          const exactScrollIndex = scrollRatio * totalItems;
+
+          const interpolationFactor = Math.max(
+            0,
+            Math.min(1, 1 - distanceFromBottom / nearBottomThreshold)
+          );
+
+          const bottomPosition = (index - firstVisibleAtBottom) * itemSize;
+          const normalPosition = (index - exactScrollIndex) * itemSize;
+
+          const result =
+            normalPosition +
+            (bottomPosition - normalPosition) * interpolationFactor;
+
+          return result;
+        } else {
+          // Normal compressed scrolling
+          const scrollRatio = scrollPosition / virtualTotalSize;
+          const exactScrollIndex = scrollRatio * totalItems;
+          const result = (index - exactScrollIndex) * itemSize;
+          return result;
+        }
       } else {
-        // Normal positioning
-        return index * itemSize - scrollPosition;
+        // Direct positioning when not compressed
+        const itemPosition = index * itemSize;
+        return itemPosition - scrollPosition;
       }
     };
 
@@ -214,15 +247,16 @@ export const withRendering = (config: RenderingConfig = {}) => {
     };
 
     /**
-     * Update item positions based on scroll
+     * Update positions of all rendered items
      */
-    const updateItemPositions = () => {
+    const updateItemPositions = (): void => {
       if (!viewportState || renderedElements.size === 0) return;
 
       const scrollPosition = viewportState.scrollPosition || 0;
       const itemSize = viewportState.estimatedItemSize || 50;
       const totalItems = viewportState.totalItems || 0;
       const virtualTotalSize = viewportState.virtualTotalSize || 0;
+      const containerSize = viewportState.containerSize || 0;
       const isHorizontal = false; // TODO: get from viewport state
       const axis = isHorizontal ? "X" : "Y";
 
@@ -242,13 +276,45 @@ export const withRendering = (config: RenderingConfig = {}) => {
       let currentPosition = 0;
 
       if (isCompressed) {
-        // In compressed space, calculate based on scroll ratio
-        const scrollRatio = scrollPosition / virtualTotalSize;
-        const exactScrollIndex = scrollRatio * totalItems;
+        // Handle compressed space
+        const maxScrollPosition = virtualTotalSize - containerSize;
+        const distanceFromBottom = maxScrollPosition - scrollPosition;
+        const nearBottomThreshold = containerSize;
 
-        // Calculate offset from the exact scroll position
-        const offset = firstRenderedIndex - exactScrollIndex;
-        currentPosition = offset * itemSize;
+        if (
+          distanceFromBottom <= nearBottomThreshold &&
+          distanceFromBottom >= -1
+        ) {
+          // Near bottom - use interpolation
+          const itemsThatFitCompletely = Math.floor(containerSize / itemSize);
+          const firstVisibleAtBottom = Math.max(
+            0,
+            totalItems - itemsThatFitCompletely
+          );
+
+          const scrollRatio = scrollPosition / virtualTotalSize;
+          const exactScrollIndex = scrollRatio * totalItems;
+
+          const interpolationFactor = Math.max(
+            0,
+            Math.min(1, 1 - distanceFromBottom / nearBottomThreshold)
+          );
+
+          const bottomPosition =
+            (firstRenderedIndex - firstVisibleAtBottom) * itemSize;
+          const normalPosition =
+            (firstRenderedIndex - exactScrollIndex) * itemSize;
+
+          currentPosition =
+            normalPosition +
+            (bottomPosition - normalPosition) * interpolationFactor;
+        } else {
+          // Normal compressed scrolling
+          const scrollRatio = scrollPosition / virtualTotalSize;
+          const exactScrollIndex = scrollRatio * totalItems;
+          const offset = firstRenderedIndex - exactScrollIndex;
+          currentPosition = offset * itemSize;
+        }
       } else {
         // Normal positioning
         const firstItemPosition = firstRenderedIndex * itemSize;
@@ -260,27 +326,72 @@ export const withRendering = (config: RenderingConfig = {}) => {
         const element = renderedElements.get(index);
         if (!element) return;
 
-        const oldTransform = element.style.transform;
         element.style.transform = `translate${axis}(${Math.round(
           currentPosition
         )}px)`;
 
-        if (
-          index === sortedIndices[0] ||
-          index === sortedIndices[sortedIndices.length - 1]
-        ) {
-          // console.log(
-          //   `[Rendering] Item ${index}: ${oldTransform} -> ${element.style.transform}`
-          // );
-        }
-
         // Move to next position
         currentPosition += itemSize;
       });
+    };
 
-      // console.log(
-      //   `[Rendering] Updated positions for ${renderedElements.size} items at scroll ${scrollPosition} (compressed: ${isCompressed}, first: ${firstRenderedIndex})`
-      // );
+    /**
+     * Force render and position items in the visible range
+     */
+    const forceRenderVisible = (): void => {
+      if (!viewportState) return;
+
+      const {
+        visibleRange,
+        scrollPosition,
+        containerSize,
+        estimatedItemSize,
+        totalItems,
+        virtualTotalSize,
+      } = viewportState;
+      const container = viewportState.itemsContainer;
+      if (!visibleRange || !container) return;
+
+      // Clear and re-render all items in visible range
+      const overscan = 3;
+      const renderStart = Math.max(0, visibleRange.start - overscan);
+      const renderEnd = Math.min(totalItems - 1, visibleRange.end + overscan);
+
+      // Use collection items if available
+      const hasCollectionItems = Object.keys(collectionItems).length > 0;
+      const items = hasCollectionItems
+        ? collectionItems
+        : component.items || [];
+
+      // Position items starting from the visible range
+      let currentPosition = 0;
+
+      for (let i = renderStart; i <= renderEnd; i++) {
+        const item = items[i];
+        if (!item) continue;
+
+        let element = renderedElements.get(i);
+
+        // Create element if it doesn't exist
+        if (!element) {
+          const newElement = renderItem(item, i);
+          if (newElement) {
+            container.appendChild(newElement);
+            renderedElements.set(i, newElement);
+            element = newElement;
+          }
+        }
+
+        if (element) {
+          // Position relative to render start
+          const relativeIndex = i - renderStart;
+          const position = relativeIndex * estimatedItemSize;
+
+          element.style.position = "absolute";
+          element.style.transform = `translateY(${position}px)`;
+          element.style.width = "100%";
+        }
+      }
     };
 
     /**
@@ -332,7 +443,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
       const renderStart = Math.max(0, visibleRange.start - overscan);
       const renderEnd = Math.min(totalItems - 1, visibleRange.end + overscan);
 
-      // Clean up items outside the render range
+      // Remove items outside render range
       const toRemove = new Set<number>();
       renderedElements.forEach((element, index) => {
         if (index < renderStart || index > renderEnd) {
