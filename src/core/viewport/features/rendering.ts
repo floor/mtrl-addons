@@ -109,8 +109,51 @@ export const withRendering = (config: RenderingConfig = {}) => {
       component.on?.("collection:range-loaded", (data: any) => {
         // Update our local items array
         if (data.items && Array.isArray(data.items)) {
+          // Analyze data structure on first load if placeholders are available
+          const componentWithPlaceholders = component as any;
+          if (
+            componentWithPlaceholders.placeholders &&
+            !componentWithPlaceholders.placeholders.hasAnalyzedStructure()
+          ) {
+            componentWithPlaceholders.placeholders.analyzeDataStructure(
+              data.items
+            );
+          }
+
+          // Replace placeholders with real data
           for (let i = 0; i < data.items.length; i++) {
-            collectionItems[data.offset + i] = data.items[i];
+            const index = data.offset + i;
+            const oldItem = collectionItems[index];
+            collectionItems[index] = data.items[i];
+
+            // If we're replacing a placeholder, update the DOM element
+            if (
+              oldItem &&
+              isPlaceholder(oldItem) &&
+              renderedElements.has(index)
+            ) {
+              const element = renderedElements.get(index);
+              if (element) {
+                console.log(
+                  `[Rendering] Replacing placeholder at index ${index}`
+                );
+                // Re-render the element with real data
+                const newElement = renderItem(data.items[i], index);
+                if (newElement) {
+                  // Copy position from old element
+                  newElement.style.position = element.style.position;
+                  newElement.style.transform = element.style.transform;
+                  newElement.style.width = element.style.width;
+
+                  // Replace in DOM
+                  element.parentNode?.replaceChild(newElement, element);
+                  renderedElements.set(index, newElement);
+
+                  // Release old element
+                  releaseElement(element);
+                }
+              }
+            }
           }
 
           // Check if loaded range overlaps with current visible range
@@ -125,9 +168,31 @@ export const withRendering = (config: RenderingConfig = {}) => {
               visibleRange.end + overscan
             );
 
-            // Always render when data is loaded
-            // The viewport might have moved slightly, but we should still render
-            renderItems();
+            // Check if we need to render
+            // Always render if we're replacing placeholders
+            let hasPlaceholdersInRange = false;
+            for (let i = loadedStart; i <= loadedEnd && i <= renderEnd; i++) {
+              // Check if we have a placeholder item stored
+              const storedItem = collectionItems[i];
+              if (storedItem && isPlaceholder(storedItem)) {
+                hasPlaceholdersInRange = true;
+                break;
+              }
+            }
+
+            // Only render if we don't have all items already rendered OR we have placeholders to replace
+            const needsRender =
+              (loadedStart <= renderEnd &&
+                loadedEnd >= renderStart &&
+                renderedElements.size < renderEnd - renderStart + 1) ||
+              hasPlaceholdersInRange;
+
+            if (needsRender) {
+              console.log(
+                `[Rendering] Triggering render after data load - hasPlaceholders: ${hasPlaceholdersInRange}`
+              );
+              renderItems();
+            }
           }
         }
       });
@@ -153,7 +218,12 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
     // Helper to check if item is placeholder
     const isPlaceholder = (item: any): boolean => {
-      return item && typeof item === "object" && item.__isPlaceholder === true;
+      return (
+        item &&
+        typeof item === "object" &&
+        (item._placeholder === true ||
+          item[VIEWPORT_CONSTANTS.PLACEHOLDER.PLACEHOLDER_FLAG] === true)
+      );
     };
 
     /**
@@ -259,6 +329,14 @@ export const withRendering = (config: RenderingConfig = {}) => {
         // Add placeholder class if needed
         if (isPlaceholder(item)) {
           addClass(element, VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS);
+          // Also add to any child element that might be the actual item
+          const itemElement = element.querySelector(".list-item, .user-item");
+          if (itemElement) {
+            addClass(
+              itemElement as HTMLElement,
+              VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS
+            );
+          }
         }
 
         // Set data attribute
@@ -463,15 +541,17 @@ export const withRendering = (config: RenderingConfig = {}) => {
             break;
           }
         }
-        if (!hasItemsInRange && totalItems > 0) {
-          return;
-        }
+        // Don't skip rendering - we should show placeholders or keep existing items
+        // if (!hasItemsInRange && totalItems > 0) {
+        //   return;
+        // }
       } else if (
         (!items || (Array.isArray(items) && items.length === 0)) &&
         totalItems > 0
       ) {
         console.log("[Rendering] No items available yet");
-        return;
+        // Don't return - continue to render placeholders
+        // return;
       }
 
       // Track missing items
@@ -491,11 +571,36 @@ export const withRendering = (config: RenderingConfig = {}) => {
         if (!item) {
           // Track missing item
           missingItems.push(i);
-          continue;
+          // Don't skip - render a placeholder instead
+          // continue;
         }
 
-        // Render item
-        const element = renderItem(item, i);
+        // Render item or placeholder
+        let itemToRender = item;
+        if (!item) {
+          // Use placeholder feature if available
+          const componentWithPlaceholders = component as any;
+          if (componentWithPlaceholders.placeholders) {
+            itemToRender =
+              componentWithPlaceholders.placeholders.generatePlaceholderItem(i);
+          } else {
+            // Fallback to simple placeholder
+            itemToRender = {
+              _placeholder: true,
+              index: i,
+              id: `placeholder-${i}`,
+              // Add some masked content for better visual feedback
+              name: VIEWPORT_CONSTANTS.PLACEHOLDER.MASK_CHARACTER.repeat(15),
+              text: VIEWPORT_CONSTANTS.PLACEHOLDER.MASK_CHARACTER.repeat(25),
+              description:
+                VIEWPORT_CONSTANTS.PLACEHOLDER.MASK_CHARACTER.repeat(40),
+            };
+          }
+          // Store the placeholder in collectionItems so we can detect it later
+          collectionItems[i] = itemToRender;
+        }
+
+        const element = renderItem(itemToRender, i);
         if (element) {
           // Calculate position
           const position = calculateItemPosition(
