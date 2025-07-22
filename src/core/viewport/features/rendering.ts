@@ -134,9 +134,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
             ) {
               const element = renderedElements.get(index);
               if (element) {
-                console.log(
-                  `[Rendering] Replacing placeholder at index ${index}`
-                );
                 // Re-render the element with real data
                 const newElement = renderItem(data.items[i], index);
                 if (newElement) {
@@ -203,9 +200,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
               hasPlaceholdersInRange;
 
             if (needsRender) {
-              console.log(
-                `[Rendering] Triggering render after data load - hasPlaceholders: ${hasPlaceholdersInRange}`
-              );
               renderItems();
             }
           }
@@ -508,21 +502,11 @@ export const withRendering = (config: RenderingConfig = {}) => {
       });
 
       if (toRemove.size > 0) {
-        console.log(
-          `[Rendering] Cleaning up ${
-            toRemove.size
-          } items outside range ${renderStart}-${renderEnd}: ${Array.from(
-            toRemove
-          )
-            .slice(0, 10)
-            .join(", ")}...`
-        );
-
-        if (enableRecycling) {
-          console.log(
-            `[Rendering] Pool stats - Created: ${poolStats.created}, Recycled: ${poolStats.recycled}, Pool size: ${elementPool.length}`
-          );
-        }
+        // if (enableRecycling) {
+        //   console.log(
+        //     `[Rendering] Pool stats - Created: ${poolStats.created}, Recycled: ${poolStats.recycled}, Pool size: ${elementPool.length}`
+        //   );
+        // }
       }
 
       // Remove items outside range
@@ -561,7 +545,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
         (!items || (Array.isArray(items) && items.length === 0)) &&
         totalItems > 0
       ) {
-        console.log("[Rendering] No items available yet");
+        // console.log("[Rendering] No items available yet");
         // Don't return - continue to render placeholders
         // return;
       }

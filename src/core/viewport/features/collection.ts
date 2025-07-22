@@ -88,10 +88,12 @@ export function withCollection(config: CollectionConfig = {}) {
     component.items = items;
 
     /**
-     * Calculate range ID based on offset and limit
+     * Get a unique ID for a range based on offset and the base range size
      */
     const getRangeId = (offset: number, limit: number): number => {
-      return Math.floor(offset / limit);
+      // Always use the base rangeSize for consistent IDs
+      // This ensures merged ranges can be tracked properly
+      return Math.floor(offset / rangeSize);
     };
 
     // Loading manager helpers
@@ -187,6 +189,28 @@ export function withCollection(config: CollectionConfig = {}) {
 
       // Mark as pending
       pendingRanges.add(rangeId);
+
+      // // Check if this range overlaps with the current visible range
+      // // If so, trigger a render to show placeholders
+      // We use this to fix the placeholders issue. But it is not necessary.
+      // const viewportState = (component.viewport as any).state;
+      // if (viewportState && viewportState.visibleRange) {
+      //   const visibleRange = viewportState.visibleRange;
+      //   const requestedStart = offset;
+      //   const requestedEnd = offset + limit - 1;
+
+      //   // Check if requested range overlaps with visible range
+      //   if (
+      //     requestedStart <= visibleRange.end &&
+      //     requestedEnd >= visibleRange.start
+      //   ) {
+      //     console.log(
+      //       `[Collection] Requested range ${requestedStart}-${requestedEnd} overlaps with visible range, triggering render`
+      //     );
+      //     // Trigger viewport render to show placeholders
+      //     component.viewport.renderItems?.();
+      //   }
+      // }
 
       // Create request promise
       const requestPromise = (async () => {

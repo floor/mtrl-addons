@@ -118,11 +118,8 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
 
       // Listen for virtual size changes
       component.on?.("viewport:virtual-size-changed", (data: any) => {
-        console.log(`[Scrolling] Virtual size changed:`, data);
-        if (data.totalVirtualSize) {
-          totalVirtualSize = data.totalVirtualSize;
-          updateScrollBounds(totalVirtualSize, containerSize);
-        }
+        // console.log("[Scrolling] Virtual size changed:", data);
+        updateScrollBounds(data.totalVirtualSize, containerSize);
       });
 
       // Listen for container size changes
