@@ -68,7 +68,7 @@ export const VIEWPORT_CONSTANTS = {
   REQUEST_QUEUE: {
     ENABLED: true,
     MAX_QUEUE_SIZE: 1, // Keep only a few requests in queue to avoid memory issues
-    MAX_ACTIVE_REQUESTS: 1, // Sequential requests
+    MAX_ACTIVE_REQUESTS: 2, // Sequential requests
   },
 
   // Placeholder settings
@@ -88,23 +88,8 @@ export const VIEWPORT_CONSTANTS = {
     },
   },
 
-  // Performance settings
-  PERFORMANCE: {
-    RESIZE_DEBOUNCE: 150,
-
-    // FPS monitoring
-    DEFAULT_FPS_TARGET: 60,
-    MEMORY_WARNING_THRESHOLD: 0.8, // 80% of threshold
-    PERFORMANCE_ENABLED: true,
-  },
-
   // Speed tracking (from list-manager)
   SPEED_TRACKING: {
-    // Velocity thresholds (px/ms)
-    FAST_SCROLL_THRESHOLD: 20, // px/ms - typical mouse wheel fast scroll
-    SLOW_SCROLL_THRESHOLD: 10, // px/ms - slow scrolling
-    CANCEL_LOAD_THRESHOLD: 15, // px/ms - cancel loads above this speed
-
     // Velocity calculation
     DECELERATION_FACTOR: 0.85, // velocity decay per frame
     MEASUREMENT_WINDOW: 100, // ms - window for speed calculation

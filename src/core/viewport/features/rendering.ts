@@ -3,6 +3,7 @@
  * Handles DOM element creation, positioning, recycling, and updates
  */
 
+import { addClass, removeClass, hasClass } from "mtrl";
 import type { ViewportContext, ViewportComponent } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
 
@@ -237,7 +238,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
           // If the result contains a single root element, extract it
           if (element.children.length === 1) {
             const child = element.firstElementChild as HTMLElement;
-            child.classList.add("mtrl-viewport-item");
+            addClass(child, "viewport-item");
             // Return the wrapper element for consistency
           }
         } else if (result instanceof HTMLElement) {
@@ -251,13 +252,13 @@ export const withRendering = (config: RenderingConfig = {}) => {
         }
 
         // Add viewport item class if not already present
-        if (!element.classList.contains("mtrl-viewport-item")) {
-          element.classList.add("mtrl-viewport-item");
+        if (!hasClass(element, "viewport-item")) {
+          addClass(element, "viewport-item");
         }
 
         // Add placeholder class if needed
         if (isPlaceholder(item)) {
-          element.classList.add(VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS);
+          addClass(element, VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS);
         }
 
         // Set data attribute

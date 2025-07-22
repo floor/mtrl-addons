@@ -7,8 +7,8 @@
 
 // Component variables
 $component: "#{base.$prefix}-vlist";
-$viewport: "#{base.$prefix}-list__viewport";
-$viewport-items: "#{base.$prefix}-list__viewport-items";
+$viewport: "#{base.$prefix}-vlist__viewport";
+$viewport-items: "#{base.$prefix}-vlist__viewport-items";
 $list-item: "#{base.$prefix}-list-item";
 $list-item-height: 48px !default;
 $list-item-dense-height: 40px !default;
@@ -640,50 +640,6 @@ $prefix: "mtrl" !default;
 
     &:active {
       background-color: rgba(0, 0, 0, 0.04);
-    }
-  }
-
-  // User list specific styles
-  &.#{$prefix}-list--users {
-    .user-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 16px;
-
-      .user-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: #e0e0e0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 500;
-        color: #666;
-        flex-shrink: 0;
-      }
-
-      .user-details {
-        flex: 1;
-        min-width: 0;
-
-        .user-name {
-          font-weight: 500;
-          margin-bottom: 4px;
-        }
-
-        .user-email {
-          font-size: 14px;
-          color: #666;
-          margin-bottom: 2px;
-        }
-
-        .user-role {
-          font-size: 12px;
-          color: #999;
-        }
-      }
     }
   }
 }

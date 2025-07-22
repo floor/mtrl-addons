@@ -194,8 +194,13 @@ export function withCollection(config: CollectionConfig = {}) {
           // Call collection adapter with appropriate parameters
           const params =
             strategy === "page"
-              ? { page: Math.floor(offset / limit) + 1, pageSize: limit }
+              ? { page: Math.floor(offset / limit) + 1, limit: limit }
               : { offset, limit };
+
+          console.log(
+            `[Viewport Collection] Loading data with params:`,
+            JSON.stringify(params)
+          );
 
           const response = await collection.read(params);
 
@@ -304,16 +309,60 @@ export function withCollection(config: CollectionConfig = {}) {
       const startRange = Math.floor(range.start / rangeSize);
       const endRange = Math.floor(range.end / rangeSize);
 
-      const promises: Promise<any[]>[] = [];
-
+      // Collect ranges that need loading
+      const rangesToLoad: number[] = [];
       for (let rangeId = startRange; rangeId <= endRange; rangeId++) {
         if (!loadedRanges.has(rangeId) && !pendingRanges.has(rangeId)) {
-          const offset = rangeId * rangeSize;
-          promises.push(loadRange(offset, rangeSize));
+          rangesToLoad.push(rangeId);
         }
       }
 
-      if (promises.length > 0) {
+      if (rangesToLoad.length === 0) return;
+
+      // Check if we can merge consecutive ranges for page strategy
+      const shouldMerge =
+        strategy === "page" &&
+        rangesToLoad.length > 1 &&
+        rangesToLoad.every((r, i) => i === 0 || r === rangesToLoad[i - 1] + 1);
+
+      if (shouldMerge) {
+        // Merge into a single request
+        const offset = rangesToLoad[0] * rangeSize;
+        const limit = rangesToLoad.length * rangeSize;
+
+        console.log(
+          `[Collection] Merging ${rangesToLoad.length} consecutive ranges:`,
+          `${rangesToLoad[0]}-${
+            rangesToLoad[rangesToLoad.length - 1]
+          }, limit=${limit}`
+        );
+
+        // Mark as pending and load
+        rangesToLoad.forEach((id) => pendingRanges.add(id));
+
+        try {
+          await loadRange(offset, limit);
+          rangesToLoad.forEach((id) => {
+            loadedRanges.add(id);
+            pendingRanges.delete(id);
+          });
+        } catch (error) {
+          rangesToLoad.forEach((id) => {
+            pendingRanges.delete(id);
+            failedRanges.set(id, {
+              attempts: 1,
+              lastError:
+                error instanceof Error ? error : new Error(String(error)),
+              timestamp: Date.now(),
+            });
+          });
+          throw error;
+        }
+      } else {
+        // Load ranges individually
+        const promises = rangesToLoad.map((rangeId) =>
+          loadRange(rangeId * rangeSize, rangeSize)
+        );
         await Promise.allSettled(promises);
       }
     };
@@ -418,7 +467,6 @@ export function withCollection(config: CollectionConfig = {}) {
       // Subscribe to events
       component.on?.("viewport:range-changed", async (data: any) => {
         // Don't load during fast scrolling - loadMissingRanges will handle velocity check
-        
 
         // Check velocity before attempting to load
         const viewportState = (component.viewport as any).state;

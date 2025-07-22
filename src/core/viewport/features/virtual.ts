@@ -118,6 +118,14 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         const visibleCount = Math.ceil(containerSize / estimatedItemSize);
         end = Math.ceil(exactIndex) + visibleCount;
 
+        // Special handling for max scroll position - ensure last items are visible
+        const maxScroll = virtualSize - containerSize;
+        if (scrollPosition >= maxScroll - 1) {
+          // At the very bottom, show the last items
+          end = totalItems - 1;
+          start = Math.max(0, end - visibleCount - overscan * 2);
+        }
+
         // Apply overscan after calculating the base range
         start = Math.max(0, start - overscan);
         end = Math.min(totalItems - 1, end + overscan);
