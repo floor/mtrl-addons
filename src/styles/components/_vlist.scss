@@ -645,7 +645,7 @@ $prefix: "mtrl" !default;
 }
 
 // Viewport scrollbar styles
-.#{$prefix}-viewport-scrollbar {
+.#{$prefix}-vlist__scrollbar {
   position: absolute;
   top: 0;
   right: 0;
@@ -684,8 +684,28 @@ $prefix: "mtrl" !default;
   }
 }
 
+// Dark theme support for scrollbar
+@media (prefers-color-scheme: dark) {
+  .#{$prefix}-vlist__scrollbar {
+    background: rgba(255, 255, 255, 0.1);
+
+    .#{$prefix}-vlist__scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.5);
+      }
+
+      &:active,
+      &.#{$prefix}-vlist__scrollbar-thumb--dragging {
+        background: rgba(255, 255, 255, 0.6);
+      }
+    }
+  }
+}
+
 // Show scrollbar on viewport hover
-.#{$prefix}-viewport:hover .#{$prefix}-viewport-scrollbar {
+.#{$prefix}-viewport:hover .#{$prefix}-vlist__scrollbar {
   opacity: 1;
 }
 
