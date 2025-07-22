@@ -57,8 +57,6 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       };
     }
 
-    console.error("withScrollbar");
-
     // State
     let viewportElement: HTMLElement | null = null;
     let scrollbarTrack: HTMLElement | null = null;
@@ -315,7 +313,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
     const initialize = () => {
       // Prevent multiple initializations
       if (isInitialized) {
-        console.log("[Scrollbar] Already initialized, skipping");
+        // console.log("[Scrollbar] Already initialized, skipping");
         return;
       }
 
@@ -331,16 +329,16 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
 
       // Check if scrollbar already exists
       if (viewportElement.querySelector(".mtrl-list__scrollbar")) {
-        console.log(
-          "[Scrollbar] Scrollbar already exists, skipping initialization"
-        );
+        // console.log(
+        //   "[Scrollbar] Scrollbar already exists, skipping initialization"
+        // );
         return;
       }
 
-      console.log(
-        "[Scrollbar] Initializing with viewport element:",
-        viewportElement
-      );
+      // console.log(
+      //   "[Scrollbar] Initializing with viewport element:",
+      //   viewportElement
+      // );
       createScrollbarElements();
       isInitialized = true;
 

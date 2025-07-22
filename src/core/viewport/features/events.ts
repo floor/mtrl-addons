@@ -24,9 +24,9 @@ export const withEvents = (config: EventsConfig = {}) => {
 
     // Emit an event
     const emit = (event: string, data?: any) => {
-      if (debug) {
-        console.log(`[Events] Emit: ${event}`, data);
-      }
+      // if (debug) {
+      //   console.log(`[Events] Emit: ${event}`, data);
+      // }
 
       const eventListeners = listeners.get(event);
       if (eventListeners) {
@@ -48,9 +48,9 @@ export const withEvents = (config: EventsConfig = {}) => {
 
       listeners.get(event)!.add(handler);
 
-      if (debug) {
-        console.log(`[Events] Subscribed to: ${event}`);
-      }
+      // if (debug) {
+      //   console.log(`[Events] Subscribed to: ${event}`);
+      // }
 
       // Return unsubscribe function
       return () => {

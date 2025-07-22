@@ -13,11 +13,11 @@ import { createViewport } from "../../../core/viewport";
  */
 export const withViewport = <T = any>(config: VListConfig<T>) => {
   return (component: any) => {
-    console.log("📋 [VList] Applying viewport feature", {
-      hasElement: !!component.element,
-      hasItems: !!config.items,
-      itemCount: config.items?.length || 0,
-    });
+    // console.log("📋 [VList] Applying viewport feature", {
+    //   hasElement: !!component.element,
+    //   hasItems: !!config.items,
+    //   itemCount: config.items?.length || 0,
+    // });
 
     // Set initial items if provided
     if (config.items) {
@@ -52,7 +52,7 @@ export const withViewport = <T = any>(config: VListConfig<T>) => {
 
         // Ensure viewport is initialized after DOM attachment
         if (viewportEnhanced.viewport && viewportEnhanced.viewport.initialize) {
-          console.log("📋 [VList] Initializing viewport after DOM attachment");
+          // console.log("📋 [VList] Initializing viewport after DOM attachment");
           viewportEnhanced.viewport.initialize();
         }
       }

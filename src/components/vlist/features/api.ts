@@ -207,7 +207,7 @@ export const withAPI = <T = any>(config: VListConfig<T>) => {
         alignment: "start" | "center" | "end" = "start",
         animate?: boolean
       ) {
-        console.log(`[VList] scrollToPage(${pageNum})`);
+        // console.log(`[VList] scrollToPage(${pageNum})`);
 
         // Get limit from config (rangeSize) or default
         const limit = config.rangeSize || 20;

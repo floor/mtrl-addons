@@ -70,9 +70,9 @@ export function withPlaceholders(config: PlaceholderConfig = {}) {
         return;
       }
 
-      console.log(
-        `🔍 [PLACEHOLDERS] Analyzing data structure from ${items.length} items`
-      );
+      // console.log(
+      //   `🔍 [PLACEHOLDERS] Analyzing data structure from ${items.length} items`
+      // );
 
       const structures = new Map<string, FieldStructure>();
       const sampleSize = Math.min(
@@ -126,10 +126,10 @@ export function withPlaceholders(config: PlaceholderConfig = {}) {
       fieldStructures = structures;
       hasAnalyzed = true;
 
-      console.log(
-        `✅ [PLACEHOLDERS] Structure analyzed:`,
-        Object.fromEntries(structures)
-      );
+      // console.log(
+      //   `✅ [PLACEHOLDERS] Structure analyzed:`,
+      //   Object.fromEntries(structures)
+      // );
 
       // Emit event
       component.emit?.("viewport:placeholders-structure-analyzed", {

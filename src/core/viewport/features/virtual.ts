@@ -236,10 +236,10 @@ export const withVirtual = (config: VirtualConfig = {}) => {
 
     // Listen for collection loaded events
     component.on?.("collection:range-loaded", (data: any) => {
-      console.log(
-        "[Virtual] Collection loaded, updating with total:",
-        data.total
-      );
+      // console.log(
+      //   "[Virtual] Collection loaded, updating with total:",
+      //   data.total
+      // );
 
       if (
         data.total !== undefined &&
@@ -254,10 +254,10 @@ export const withVirtual = (config: VirtualConfig = {}) => {
             actualTotalSize,
             MAX_VIRTUAL_SIZE
           );
-          console.log(
-            "[Virtual] Updated virtualTotalSize:",
-            viewportState.virtualTotalSize
-          );
+          // console.log(
+          //   "[Virtual] Updated virtualTotalSize:",
+          //   viewportState.virtualTotalSize
+          // );
         }
       }
 

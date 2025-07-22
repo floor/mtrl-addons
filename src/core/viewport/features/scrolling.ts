@@ -97,7 +97,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     let idleCheckFrame: number | null = null;
     let lastIdleCheckPosition = 0;
 
-    console.log(`[Scrolling] Initial state - position: ${scrollPosition}`);
+    // console.log(`[Scrolling] Initial state - position: ${scrollPosition}`);
 
     // Get viewport state
     let viewportState: any;
@@ -111,9 +111,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       if (viewportState) {
         totalVirtualSize = viewportState.virtualTotalSize || 0;
         containerSize = viewportState.containerSize || 0;
-        console.log(
-          `[Scrolling] Initialized with totalVirtualSize: ${totalVirtualSize}, containerSize: ${containerSize}`
-        );
+        // console.log(
+        //   `[Scrolling] Initialized with totalVirtualSize: ${totalVirtualSize}, containerSize: ${containerSize}`
+        // );
       }
 
       // Listen for virtual size changes
@@ -134,7 +134,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       const viewportElement =
         viewportState?.viewportElement || (component as any).viewportElement;
       if (viewportElement) {
-        console.log(`[Scrolling] Attaching wheel event to viewport element`);
+        // console.log(`[Scrolling] Attaching wheel event to viewport element`);
         viewportElement.addEventListener("wheel", handleWheel, {
           passive: false,
         });
@@ -232,9 +232,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
 
       newPosition = clamp(newPosition, 0, maxScroll);
 
-      console.log(
-        `[Scrolling] Wheel: delta=${delta}, scrollDelta=${scrollDelta}, pos=${scrollPosition} -> ${newPosition}, max=${maxScroll}`
-      );
+      // console.log(
+      //   `[Scrolling] Wheel: delta=${delta}, scrollDelta=${scrollDelta}, pos=${scrollPosition} -> ${newPosition}, max=${maxScroll}`
+      // );
 
       if (newPosition !== scrollPosition) {
         scrollPosition = newPosition;
@@ -286,9 +286,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       const maxScroll = Math.max(0, totalVirtualSize - containerSize);
       const clampedPosition = clamp(position, 0, maxScroll);
 
-      console.log(
-        `[Scrolling] scrollToPosition: ${position} -> ${clampedPosition} (max: ${maxScroll}, source: ${source})`
-      );
+      // console.log(
+      //   `[Scrolling] scrollToPosition: ${position} -> ${clampedPosition} (max: ${maxScroll}, source: ${source})`
+      // );
 
       if (clampedPosition !== scrollPosition) {
         const previousPosition = scrollPosition;
@@ -312,7 +312,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         // Trigger render
         component.viewport.renderItems();
       } else {
-        console.log(`[Scrolling] Position unchanged: ${scrollPosition}`);
+        // console.log(`[Scrolling] Position unchanged: ${scrollPosition}`);
       }
     };
 
@@ -351,9 +351,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           break;
       }
 
-      console.log(
-        `[Scrolling] ScrollToIndex: index=${index}, position=${targetPosition}, alignment=${alignment}`
-      );
+      // console.log(
+      //   `[Scrolling] ScrollToIndex: index=${index}, position=${targetPosition}, alignment=${alignment}`
+      // );
 
       scrollToPosition(targetPosition, "scrollToIndex");
     };
@@ -378,9 +378,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       // Convert page to index (page 1 = index 0)
       const index = (page - 1) * limit;
 
-      console.log(
-        `[Scrolling] ScrollToPage: page=${page}, limit=${limit}, targetIndex=${index}, alignment=${alignment}`
-      );
+      // console.log(
+      //   `[Scrolling] ScrollToPage: page=${page}, limit=${limit}, targetIndex=${index}, alignment=${alignment}`
+      // );
 
       // Use scrollToIndex with the calculated index
       scrollToIndex(index, alignment);

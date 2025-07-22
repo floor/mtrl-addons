@@ -60,11 +60,11 @@ export const createViewport = (config: ViewportConfig = {}) => {
     const viewportAPI = {
       // Core API
       initialize: () => {
-        console.log("[Viewport] Initializing with state:", {
-          element: !!component.element,
-          totalItems: component.totalItems,
-          estimatedItemSize: config.estimatedItemSize,
-        });
+        // console.log("[Viewport] Initializing with state:", {
+        //   element: !!component.element,
+        //   totalItems: component.totalItems,
+        //   estimatedItemSize: config.estimatedItemSize,
+        // });
 
         // Initialize container size
         if (component.element) {
@@ -73,7 +73,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
               ? component.element.offsetWidth
               : component.element.offsetHeight;
 
-          console.log("[Viewport] Container size:", state.containerSize);
+          // console.log("[Viewport] Container size:", state.containerSize);
         }
 
         // Calculate initial virtual size
@@ -82,11 +82,11 @@ export const createViewport = (config: ViewportConfig = {}) => {
         // Calculate initial visible range
         state.visibleRange = calculateVisibleRange(state.scrollPosition);
 
-        console.log("[Viewport] Initial state:", {
-          containerSize: state.containerSize,
-          virtualTotalSize: state.virtualTotalSize,
-          visibleRange: state.visibleRange,
-        });
+        // console.log("[Viewport] Initial state:", {
+        //   containerSize: state.containerSize,
+        //   virtualTotalSize: state.virtualTotalSize,
+        //   visibleRange: state.visibleRange,
+        // });
       },
 
       destroy: () => {

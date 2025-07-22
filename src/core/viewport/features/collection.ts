@@ -132,11 +132,11 @@ export function withCollection(config: CollectionConfig = {}) {
       activeLoadCount++;
       activeLoadRanges.add(getRangeKey(request.range));
 
-      console.log(
-        `[LoadingManager] Executing load for range ${request.range.start}-${
-          request.range.end
-        } (velocity: ${currentVelocity.toFixed(2)})`
-      );
+      // console.log(
+      //   `[LoadingManager] Executing load for range ${request.range.start}-${
+      //     request.range.end
+      //   } (velocity: ${currentVelocity.toFixed(2)})`
+      // );
 
       // Call the actual loadMissingRanges function
       loadMissingRangesInternal(request.range)
@@ -221,10 +221,10 @@ export function withCollection(config: CollectionConfig = {}) {
               ? { page: Math.floor(offset / limit) + 1, limit: limit }
               : { offset, limit };
 
-          console.log(
-            `[Viewport Collection] Loading data with params:`,
-            JSON.stringify(params)
-          );
+          // console.log(
+          //   `[Viewport Collection] Loading data with params:`,
+          //   JSON.stringify(params)
+          // );
 
           const response = await collection.read(params);
 
@@ -354,12 +354,12 @@ export function withCollection(config: CollectionConfig = {}) {
         const offset = rangesToLoad[0] * rangeSize;
         const limit = rangesToLoad.length * rangeSize;
 
-        console.log(
-          `[Collection] Merging ${rangesToLoad.length} consecutive ranges:`,
-          `${rangesToLoad[0]}-${
-            rangesToLoad[rangesToLoad.length - 1]
-          }, limit=${limit}`
-        );
+        // console.log(
+        //   `[Collection] Merging ${rangesToLoad.length} consecutive ranges:`,
+        //   `${rangesToLoad[0]}-${
+        //     rangesToLoad[rangesToLoad.length - 1]
+        //   }, limit=${limit}`
+        // );
 
         // Mark as pending and load
         rangesToLoad.forEach((id) => pendingRanges.add(id));
@@ -409,11 +409,11 @@ export function withCollection(config: CollectionConfig = {}) {
 
         // Check velocity - if too high, cancel the request entirely
         if (!canLoad()) {
-          console.log(
-            `[LoadingManager] Load cancelled - velocity ${currentVelocity.toFixed(
-              2
-            )} exceeds threshold ${cancelLoadThreshold}`
-          );
+          // console.log(
+          //   `[LoadingManager] Load cancelled - velocity ${currentVelocity.toFixed(
+          //     2
+          //   )} exceeds threshold ${cancelLoadThreshold}`
+          // );
           cancelledLoads++;
           resolve();
           return;
@@ -441,9 +441,9 @@ export function withCollection(config: CollectionConfig = {}) {
             resolve,
             reject,
           });
-          console.log(
-            `[LoadingManager] Queued request (at capacity), queue size: ${loadRequestQueue.length}`
-          );
+          // console.log(
+          //   `[LoadingManager] Queued request (at capacity), queue size: ${loadRequestQueue.length}`
+          // );
         } else {
           // Queue overflow - resolve to avoid errors
           if (loadRequestQueue.length >= maxQueueSize) {
