@@ -294,7 +294,7 @@ $placeholder-animation-speed: 1.5s !default;
   }
 
   // Placeholder loading state
-  &.#{base.$prefix}-item-placeholder {
+  &.#{base.$prefix}-list-item__placeholder {
     opacity: $placeholder-opacity;
     pointer-events: none;
     position: relative;
@@ -690,7 +690,49 @@ $prefix: "mtrl" !default;
 }
 
 // Placeholder styling (following _list.scss pattern)
-.viewport-item__placeholder {
+// .#{$prefix}-list-item__placeholder {
+//   opacity: 0.4;
+//   transition: opacity 0.2s ease;
+
+//   // Create solid blocks for placeholder content
+//   .user-name,
+//   .user-email,
+//   .user-role,
+//   [class*="__primary"],
+//   [class*="__secondary"],
+//   .#{$list-item}-headline,
+//   .#{$list-item}-supporting {
+//     position: relative;
+//     display: inline-block; // Make width based on content
+
+//     // Hide the actual text but keep it for width calculation
+//     color: transparent;
+//     background-color: t.color("on-surface");
+//     border-radius: 4px;
+//     overflow: hidden;
+
+//     // Shimmer animation
+//     &::after {
+//       content: "";
+//       position: absolute;
+//       top: 0;
+//       left: -100%;
+//       width: 100%;
+//       height: 100%;
+//       background: linear-gradient(
+//         90deg,
+//         transparent 0%,
+//         rgba(255, 255, 255, 0.2) 50%,
+//         transparent 100%
+//       );
+//       animation: shimmer 1.5s infinite;
+//     }
+//   }
+// }
+
+// Also apply to list-item__placeholder for consistency
+// Placeholder styling
+.#{base.$prefix}-list-item__placeholder {
   opacity: 0.4;
   transition: opacity 0.2s ease;
 
@@ -699,15 +741,13 @@ $prefix: "mtrl" !default;
   .user-email,
   .user-role,
   [class*="__primary"],
-  [class*="__secondary"],
-  .#{$list-item}-headline,
-  .#{$list-item}-supporting {
+  [class*="__secondary"] {
     position: relative;
     display: inline-block; // Make width based on content
 
     // Hide the actual text but keep it for width calculation
     color: transparent;
-    background-color: t.color("on-surface");
+    background-color: var(--mtrl-sys-color-on-surface);
     border-radius: 0.1em; // Smaller radius for thinner appearance
     opacity: 0.7; // Adjust opacity for the blocks
 
@@ -724,15 +764,15 @@ $prefix: "mtrl" !default;
 
   // Ensure email and role are on separate lines
   .user-email,
-  .user-role,
-  .#{$list-item}-supporting {
+  .user-role {
+    // display: block; // Force block display to ensure new lines
     margin-top: 0.2em; // Small spacing between lines
   }
 
   // For avatar placeholder
   .user-avatar {
-    background-color: t.color("primary-container");
-    color: t.color("primary-container");
+    background-color: var(--mtrl-sys-color-primary-container);
+    color: var(--mtrl-sys-color-primary-container);
     opacity: 1;
   }
 }

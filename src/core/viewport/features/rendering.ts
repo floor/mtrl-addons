@@ -140,6 +140,21 @@ export const withRendering = (config: RenderingConfig = {}) => {
                 // Re-render the element with real data
                 const newElement = renderItem(data.items[i], index);
                 if (newElement) {
+                  // Ensure the new element doesn't have placeholder classes
+                  removeClass(
+                    newElement,
+                    VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS
+                  );
+                  const itemElement = newElement.querySelector(
+                    ".list-item, .user-item"
+                  );
+                  if (itemElement) {
+                    removeClass(
+                      itemElement as HTMLElement,
+                      "list-item__placeholder"
+                    );
+                  }
+
                   // Copy position from old element
                   newElement.style.position = element.style.position;
                   newElement.style.transform = element.style.transform;
@@ -332,10 +347,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
           // Also add to any child element that might be the actual item
           const itemElement = element.querySelector(".list-item, .user-item");
           if (itemElement) {
-            addClass(
-              itemElement as HTMLElement,
-              VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS
-            );
+            addClass(itemElement as HTMLElement, "list-item__placeholder");
           }
         }
 
