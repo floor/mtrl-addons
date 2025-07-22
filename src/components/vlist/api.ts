@@ -104,23 +104,29 @@ export const withAPI =
       // Scrolling API
       async scrollToIndex(
         index: number,
-        alignment: "start" | "center" | "end" = "start"
+        alignment?: "start" | "center" | "end"
       ): Promise<void> {
         if (typeof index !== "number" || index < 0) {
           throw new Error("Index must be a non-negative number");
         }
+        orchestrationMethods.scrollToIndex?.(index, alignment);
+      },
 
-        // For virtual scrolling with infinite data, don't do strict bounds checking
-        // The orchestration layer will handle loading data as needed
-        try {
-          if (orchestrationMethods.scrollToIndex) {
-            await orchestrationMethods.scrollToIndex(index, alignment);
-          } else {
-            console.warn("scrollToIndex not available");
-          }
-        } catch (error) {
-          console.error("List: Failed to scroll to index", error);
-          throw error;
+      scrollToPage(
+        page: number,
+        pageSize: number = 20,
+        alignment?: "start" | "center" | "end"
+      ): void {
+        if (typeof page !== "number" || page < 1) {
+          throw new Error("Page must be a positive number");
+        }
+        const viewportComponent = component as any;
+        if (viewportComponent.viewport?.scrollToPage) {
+          viewportComponent.viewport.scrollToPage(page, pageSize, alignment);
+        } else {
+          // Fallback to scrollToIndex
+          const index = (page - 1) * pageSize;
+          orchestrationMethods.scrollToIndex?.(index, alignment);
         }
       },
 
@@ -296,6 +302,41 @@ export const withAPI =
 
       getConfig(): ListConfig<T> {
         return component.getConfig?.() || config;
+      },
+
+      // Data loading API
+      async loadRange(
+        pageOrOffset: number,
+        size: number,
+        strategy: "page" | "offset" = "page",
+        alignment: "start" | "center" | "end" = "start"
+      ): Promise<void> {
+        console.log(
+          `[VList API] loadRange called: ${pageOrOffset}, size=${size}, strategy=${strategy}, alignment=${alignment}`
+        );
+
+        const viewportComponent = component as any;
+
+        if (strategy === "page" && viewportComponent.viewport?.scrollToPage) {
+          // Use the new scrollToPage method for page-based loading
+          viewportComponent.viewport.scrollToPage(
+            pageOrOffset,
+            size,
+            alignment
+          );
+        } else {
+          // For offset strategy, use scrollToIndex
+          let targetIndex = pageOrOffset;
+          if (alignment === "center") {
+            targetIndex = pageOrOffset + Math.floor(size / 2);
+          } else if (alignment === "end") {
+            targetIndex = pageOrOffset + size - 1;
+          }
+
+          if (orchestrationMethods.scrollToIndex) {
+            orchestrationMethods.scrollToIndex(targetIndex, alignment);
+          }
+        }
       },
     };
 

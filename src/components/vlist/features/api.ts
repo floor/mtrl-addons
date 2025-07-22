@@ -209,17 +209,17 @@ export const withAPI = <T = any>(config: VListConfig<T>) => {
       ) {
         console.log(`[VList] scrollToPage(${pageNum})`);
 
-        // Get page size from config or default
-        const pageSize = config.rangeSize || 20;
-        const targetIndex = (pageNum - 1) * pageSize;
+        // Get limit from config (rangeSize) or default
+        const limit = config.rangeSize || 20;
 
-        // First ensure the page is loaded
-        if (component.viewport?.collection) {
-          await component.viewport.collection.loadRange(targetIndex, pageSize);
+        // Use viewport's scrollToPage if available
+        if ((component.viewport as any)?.scrollToPage) {
+          (component.viewport as any).scrollToPage(pageNum, limit, alignment);
+        } else {
+          // Fallback to scrollToIndex
+          const targetIndex = (pageNum - 1) * limit;
+          await this.scrollToIndex(targetIndex, alignment);
         }
-
-        // Then scroll to the index
-        return this.scrollToIndex(targetIndex, alignment, animate);
       },
 
       getScrollPosition: () => {

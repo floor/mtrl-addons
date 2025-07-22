@@ -361,6 +361,34 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       scrollToPosition(targetPosition, "scrollToIndex");
     };
 
+    // Scroll to a specific page
+    const scrollToPage = (
+      page: number,
+      limit: number = 20,
+      alignment: "start" | "center" | "end" = "start"
+    ) => {
+      // Validate alignment parameter
+      if (
+        typeof alignment !== "string" ||
+        !["start", "center", "end"].includes(alignment)
+      ) {
+        console.warn(
+          `[Scrolling] Invalid alignment "${alignment}", using "start"`
+        );
+        alignment = "start";
+      }
+
+      // Convert page to index (page 1 = index 0)
+      const index = (page - 1) * limit;
+
+      console.log(
+        `[Scrolling] ScrollToPage: page=${page}, limit=${limit}, targetIndex=${index}, alignment=${alignment}`
+      );
+
+      // Use scrollToIndex with the calculated index
+      scrollToIndex(index, alignment);
+    };
+
     // Update scroll bounds
     const updateScrollBounds = (
       newTotalSize: number,
@@ -389,6 +417,15 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     ) => {
       scrollToIndex(index, alignment);
       originalScrollToIndex?.(index, alignment);
+    };
+
+    // Add scrollToPage to viewport API (new method, no original to preserve)
+    (component.viewport as any).scrollToPage = (
+      page: number,
+      limit?: number,
+      alignment?: "start" | "center" | "end"
+    ) => {
+      scrollToPage(page, limit, alignment);
     };
 
     const originalScrollToPosition = component.viewport.scrollToPosition;
@@ -430,6 +467,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       handleWheel,
       scrollToPosition,
       scrollToIndex,
+      scrollToPage,
       getScrollPosition: () => scrollPosition,
       updateScrollBounds,
       getVelocity: () => speedTracker.velocity,
