@@ -74,6 +74,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
     let containerSize = 0;
     let thumbHeight = 0;
     let isVisible = true;
+    let animationFrameId: number | null = null;
 
     /**
      * Create scrollbar elements
@@ -237,31 +238,49 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
      * Handle mouse move during drag
      */
     const handleMouseMove = (e: MouseEvent) => {
-      if (
-        !isDragging ||
-        !component.viewport ||
-        !scrollbarTrack ||
-        !scrollbarThumb
-      )
-        return;
+      if (!isDragging) return;
 
-      const deltaY = e.clientY - dragStartY;
-      const trackHeight = scrollbarTrack.clientHeight;
-      const thumbHeight = scrollbarThumb.clientHeight;
-      const maxThumbTravel = trackHeight - thumbHeight;
+      // Cancel previous animation frame
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+      }
 
-      if (maxThumbTravel <= 0) return;
+      // Schedule update in next animation frame
+      animationFrameId = requestAnimationFrame(() => {
+        if (
+          !isDragging ||
+          !component.viewport ||
+          !scrollbarTrack ||
+          !scrollbarThumb
+        )
+          return;
 
-      const deltaRatio = deltaY / maxThumbTravel;
-      const dragStartScrollRatio =
-        dragStartScrollPosition / (totalVirtualSize - containerSize);
-      const newScrollRatio = Math.max(
-        0,
-        Math.min(1, dragStartScrollRatio + deltaRatio)
-      );
-      const newPosition = newScrollRatio * (totalVirtualSize - containerSize);
+        const deltaY = e.clientY - dragStartY;
+        const trackHeight = scrollbarTrack.clientHeight;
+        const thumbHeight = scrollbarThumb.clientHeight;
+        const maxThumbTravel = trackHeight - thumbHeight;
 
-      component.viewport.scrollToPosition(newPosition);
+        if (maxThumbTravel <= 0) return;
+
+        // Calculate new thumb position
+        const deltaRatio = deltaY / maxThumbTravel;
+        const dragStartScrollRatio =
+          dragStartScrollPosition / (totalVirtualSize - containerSize);
+        const newScrollRatio = Math.max(
+          0,
+          Math.min(1, dragStartScrollRatio + deltaRatio)
+        );
+
+        // Update thumb position directly for smooth visual feedback
+        const thumbPosition = newScrollRatio * maxThumbTravel;
+        scrollbarThumb.style.transform = `translateY(${thumbPosition}px)`;
+
+        // Calculate and apply the new scroll position
+        const newPosition = newScrollRatio * (totalVirtualSize - containerSize);
+        component.viewport.scrollToPosition(newPosition);
+
+        animationFrameId = null;
+      });
     };
 
     /**
@@ -269,6 +288,12 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
      */
     const handleMouseUp = () => {
       isDragging = false;
+
+      // Cancel any pending animation frame
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+      }
 
       if (scrollbarThumb) {
         scrollbarThumb.classList.remove(
@@ -280,11 +305,6 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
 
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
-
-      // Resume auto-hide
-      if (autoHide) {
-        show();
-      }
     };
 
     // Initialize function
@@ -329,10 +349,14 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
         }
 
         // Show on hover
-        viewportElement.addEventListener("mouseenter", show);
-        viewportElement.addEventListener("mouseleave", () => {
-          if (!isDragging) hide();
-        });
+        viewportElement.addEventListener("mouseenter", show, { passive: true });
+        viewportElement.addEventListener(
+          "mouseleave",
+          () => {
+            if (!isDragging) hide();
+          },
+          { passive: true }
+        );
       }
 
       // Initialize with current viewport state
@@ -349,8 +373,8 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
         // Update position whenever viewport scrolls
         if (!isDragging) {
           updatePosition(data.position);
+          show();
         }
-        show();
       });
 
       // Listen for virtual size changes
