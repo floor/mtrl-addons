@@ -75,6 +75,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
     let thumbHeight = 0;
     let isVisible = true;
     let animationFrameId: number | null = null;
+    let lastRequestedScrollPosition: number | null = null;
 
     /**
      * Create scrollbar elements
@@ -228,6 +229,8 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
 
       if (scrollbarThumb) {
         scrollbarThumb.classList.add("mtrl-vlist__scrollbar-thumb--dragging");
+        // Add will-change for better performance
+        scrollbarThumb.style.willChange = "transform";
       }
 
       document.addEventListener("mousemove", handleMouseMove);
@@ -238,49 +241,42 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
      * Handle mouse move during drag
      */
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDragging || !scrollbarTrack || !scrollbarThumb) return;
 
-      // Cancel previous animation frame
-      if (animationFrameId !== null) {
-        cancelAnimationFrame(animationFrameId);
+      // Update thumb position immediately without waiting for animation frame
+      const deltaY = e.clientY - dragStartY;
+      const trackHeight = scrollbarTrack.clientHeight;
+      const thumbHeight = scrollbarThumb.clientHeight;
+      const maxThumbTravel = trackHeight - thumbHeight;
+
+      if (maxThumbTravel <= 0) return;
+
+      // Calculate new thumb position
+      const deltaRatio = deltaY / maxThumbTravel;
+      const dragStartScrollRatio =
+        dragStartScrollPosition / (totalVirtualSize - containerSize);
+      const newScrollRatio = Math.max(
+        0,
+        Math.min(1, dragStartScrollRatio + deltaRatio)
+      );
+
+      // Update thumb position immediately for instant visual feedback
+      const thumbPosition = newScrollRatio * maxThumbTravel;
+      scrollbarThumb.style.transform = `translateY(${thumbPosition}px)`;
+
+      // Calculate the new scroll position
+      const newPosition = newScrollRatio * (totalVirtualSize - containerSize);
+      lastRequestedScrollPosition = newPosition;
+
+      // Throttle viewport updates using animation frame
+      if (animationFrameId === null && component.viewport) {
+        animationFrameId = requestAnimationFrame(() => {
+          if (lastRequestedScrollPosition !== null && component.viewport) {
+            component.viewport.scrollToPosition(lastRequestedScrollPosition);
+          }
+          animationFrameId = null;
+        });
       }
-
-      // Schedule update in next animation frame
-      animationFrameId = requestAnimationFrame(() => {
-        if (
-          !isDragging ||
-          !component.viewport ||
-          !scrollbarTrack ||
-          !scrollbarThumb
-        )
-          return;
-
-        const deltaY = e.clientY - dragStartY;
-        const trackHeight = scrollbarTrack.clientHeight;
-        const thumbHeight = scrollbarThumb.clientHeight;
-        const maxThumbTravel = trackHeight - thumbHeight;
-
-        if (maxThumbTravel <= 0) return;
-
-        // Calculate new thumb position
-        const deltaRatio = deltaY / maxThumbTravel;
-        const dragStartScrollRatio =
-          dragStartScrollPosition / (totalVirtualSize - containerSize);
-        const newScrollRatio = Math.max(
-          0,
-          Math.min(1, dragStartScrollRatio + deltaRatio)
-        );
-
-        // Update thumb position directly for smooth visual feedback
-        const thumbPosition = newScrollRatio * maxThumbTravel;
-        scrollbarThumb.style.transform = `translateY(${thumbPosition}px)`;
-
-        // Calculate and apply the new scroll position
-        const newPosition = newScrollRatio * (totalVirtualSize - containerSize);
-        component.viewport.scrollToPosition(newPosition);
-
-        animationFrameId = null;
-      });
     };
 
     /**
@@ -295,10 +291,18 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
         animationFrameId = null;
       }
 
+      // Apply any pending scroll position
+      if (lastRequestedScrollPosition !== null && component.viewport) {
+        component.viewport.scrollToPosition(lastRequestedScrollPosition);
+        lastRequestedScrollPosition = null;
+      }
+
       if (scrollbarThumb) {
         scrollbarThumb.classList.remove(
           "mtrl-vlist__scrollbar-thumb--dragging"
         );
+        // Remove will-change
+        scrollbarThumb.style.willChange = "auto";
       }
 
       hide();
