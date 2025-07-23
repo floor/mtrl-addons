@@ -77,10 +77,8 @@ export const VIEWPORT_CONSTANTS = {
     CSS_CLASS: "viewport-item__placeholder",
     MIN_SAMPLE_SIZE: 5,
     MAX_SAMPLE_SIZE: 20,
-    PLACEHOLDER_FLAG: "_placeholder", // From list-manager
-    PLACEHOLDER_TIMEOUT: 100, // ms - delay before showing placeholders
-    EMPTY_RANGE_CACHE_TIME: 5 * 60 * 1000, // 5 minutes
-    RANDOM_LENGTH_VARIANCE: true, // From list-manager
+    PLACEHOLDER_FLAG: "_placeholder",
+    RANDOM_LENGTH_VARIANCE: true,
 
     // Pattern analysis
     PATTERN_ANALYSIS: {
@@ -131,18 +129,6 @@ export const VIEWPORT_CONSTANTS = {
 
   // Scrollbar settings (from list-manager)
   SCROLLBAR: {
-    // Dimensions
-    TRACK_WIDTH: 8,
-    THUMB_MIN_HEIGHT: 20,
-    BORDER_RADIUS: 4,
-
-    // Colors
-    THUMB_COLOR: "#999999",
-    TRACK_COLOR: "#f0f0f0",
-
-    // Behavior
-    FADE_TIMEOUT: 1000,
-
     // CSS classes
     CLASSES: {
       SCROLLBAR: "viewport__scrollbar",
@@ -153,13 +139,6 @@ export const VIEWPORT_CONSTANTS = {
       SCROLLBAR_DRAGGING: "viewport__scrollbar--dragging",
       SCROLLBAR_THUMB_DRAGGING: "viewport__scrollbar-thumb--dragging",
     },
-  },
-
-  // Viewport management (from list-manager)
-  VIEWPORT_MANAGEMENT: {
-    // Intersection observer settings
-    DEFAULT_INTERSECTION_THRESHOLD: 0.1,
-    DEFAULT_INTERSECTION_ROOT_MARGIN: "50px",
   },
 
   // Orientation (from list-manager)

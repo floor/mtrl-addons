@@ -1,23 +1,16 @@
 /**
- * Collection System - Composition-Based Architecture
- *
- * Following the blueprint with functional composition and plugin system
+ * Collection System - Simplified Architecture
+ * Direct feature composition without plugin system
  */
 
 import type { CollectionItem } from "./types";
 
-// New composition-based architecture exports
-export { createCollection, createDataCollection } from "./collection-composer";
-export { createBaseCollection } from "./base-collection";
+// Main collection export
+export { createCollection } from "./collection";
 
-// Plugin exports
-export { withLoading } from "./features/api/loading";
-export { withDataOperations } from "./features/operations/data-operations";
-
-// Core types
+// Types
 export type {
   Collection,
-  BaseCollection,
   CollectionConfig,
   CollectionItem,
   CollectionAdapter,
@@ -25,10 +18,11 @@ export type {
   AdapterResponse,
 } from "./types";
 
-// Events and state
-export { CollectionDataEvents } from "./types";
-export { CollectionEvents, createEventPayload } from "./events";
+export { CollectionEvents } from "./types";
+
+// State and events (for advanced usage)
 export { createCollectionState } from "./state";
+export { createCollectionEventEmitter } from "./events";
 
 // Constants
 export * from "./constants";
@@ -49,11 +43,21 @@ export function createRestAdapter<T extends CollectionItem>(
       const url = new URL(baseUrl);
 
       // Add query parameters
-      if (params.page) url.searchParams.set("page", params.page.toString());
-      if (params.pageSize)
-        url.searchParams.set("limit", params.pageSize.toString());
-      if (params.search) url.searchParams.set("q", params.search);
-      if (params.cursor) url.searchParams.set("cursor", params.cursor);
+      if (params.offset !== undefined) {
+        url.searchParams.set("offset", params.offset.toString());
+      }
+      if (params.limit !== undefined) {
+        url.searchParams.set("limit", params.limit.toString());
+      }
+      if (params.page) {
+        url.searchParams.set("page", params.page.toString());
+      }
+      if (params.pageSize) {
+        url.searchParams.set("pageSize", params.pageSize.toString());
+      }
+      if (params.search) {
+        url.searchParams.set("q", params.search);
+      }
 
       try {
         const response = await fetch(url.toString(), {
@@ -80,12 +84,13 @@ export function createRestAdapter<T extends CollectionItem>(
 
         // Default transform
         return {
-          items: data.items || data.data || [data].flat(),
+          items: data.items || data.data || [],
           meta: {
             total: data.total,
             page: data.page,
-            hasNext: data.hasNext || data.has_next,
-            hasPrev: data.hasPrev || data.has_prev,
+            pageSize: data.pageSize || data.limit,
+            hasNext: data.hasNext,
+            hasPrev: data.hasPrev,
           },
         };
       } catch (error) {
@@ -100,5 +105,3 @@ export function createRestAdapter<T extends CollectionItem>(
     },
   };
 }
-
-// Collection architecture is now complete!
