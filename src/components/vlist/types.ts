@@ -1,106 +1,14 @@
 /**
- * Types for the mtrl-addons vlist component
- *
- * Virtual list with direct viewport integration
+ * VList Types - Virtual List with direct viewport integration
  */
 
-// VList specific types
-export interface VListConfig<T = any> {
-  // Data
-  items?: T[];
-
-  // Container
-  container?: HTMLElement | string;
-  parent?: HTMLElement | string; // Alias for container (backwards compat)
-
-  // Viewport settings
-  orientation?: "vertical" | "horizontal";
-  estimatedItemSize?: number;
-  overscan?: number;
-
-  // Template
-  template?: (item: T, index: number) => string | HTMLElement;
-  renderItem?: any; // Object-based template (backwards compat)
-
-  // Features
-  collection?: any;
-  rendering?: any;
-  scrolling?: any;
-  loading?: any;
-  placeholders?: any;
-
-  // Collection/pagination settings
-  rangeSize?: number;
-  paginationStrategy?: "page" | "offset" | "cursor";
-  enablePlaceholders?: boolean;
-  maskCharacter?: string;
-  maxConcurrentRequests?: number;
-
-  // Data transformation
-  transform?: (item: any) => T;
-  transformItem?: (item: any) => T; // Alias for transform
-
-  // Performance settings
-  performance?: any;
-
-  // Selection settings
-  selection?: any;
-
-  // Scroll settings
-  scroll?: any;
-  scrollSensitivity?: number;
-  smoothScrolling?: boolean;
-  enableScrollbar?: boolean;
-  autoHideScrollbar?: boolean;
-
-  // Styling
-  className?: string;
-  class?: string; // Alias for className (backwards compat)
-  ariaLabel?: string;
-  prefix?: string;
-
-  // Debug
-  debug?: boolean;
-}
-
-export interface VListComponent<T = any>
-  extends BaseComponent,
-    ElementComponent {
-  viewport: any; // Viewport API
-
-  // Data operations
-  setItems(items: T[]): void;
-  getItems(): T[];
-
-  // Scrolling
-  scrollToIndex(index: number, alignment?: "start" | "center" | "end"): void;
-  scrollToTop(): void;
-  scrollToBottom(): void;
-
-  // State
-  getState(): any;
-
-  // Lifecycle
-  destroy(): void;
-}
-
-// Re-export existing types with V prefix
-export type VListItem = ListItem;
-export type VListState = ListState;
-export type VListEvents<T = any> = ListEvents<T>;
-export type VListAPI<T = any> = ListAPI<T>;
-
-import type {
-  CollectionItem,
-  CollectionConfig,
-  Collection,
-  TemplateDefinition,
-} from "../../core/collection";
 import type { BaseComponent, ElementComponent } from "mtrl/src/core/compose";
 import type {
-  ListManager,
-  ListManagerConfig,
-} from "../../core/list-manager/types";
+  Collection,
+  CollectionItem,
+  CollectionConfig,
+} from "../../core/collection";
+import type { ViewportComponent } from "../../core/viewport/types";
 
 /**
  * List item interface - extends collection item
@@ -157,7 +65,7 @@ export interface ListAdapterResponse<T extends ListItem = ListItem> {
 /**
  * List template definition
  */
-export type ListTemplate = TemplateDefinition;
+export type ListTemplate = (item: any, index: number) => string | HTMLElement;
 
 /**
  * List item template function

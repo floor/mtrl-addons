@@ -1,19 +1,15 @@
-// src/core/viewport/viewport.ts
-
 /**
- * Viewport System - High-performance virtual scrolling
- * Implements GPU-accelerated rendering with feature composition
+ * Viewport - Core virtual scrolling engine
  */
 
-import { pipe } from "../compose";
 import type {
   ViewportConfig,
-  ViewportComponent,
   ViewportContext,
-  ItemRange,
-  ViewportInfo,
+  ViewportComponent,
 } from "./types";
+import { pipe } from "mtrl/src/core/compose/pipe";
 import { withBase } from "./features/base";
+import { withTemplate } from "./features/template";
 import { withVirtual } from "./features/virtual";
 import { withScrolling } from "./features/scrolling";
 import { withScrollbar } from "./features/scrollbar";

@@ -5,7 +5,7 @@
  */
 
 import type { CollectionItem, CollectionConfig, Collection } from "./types";
-import { pipe } from "../compose/pipe";
+import { pipe } from "mtrl/src/core/compose/pipe";
 import { withAPI } from "./features/api";
 import { withLoading } from "./features/loading";
 import { withOperations } from "./features/operations";
