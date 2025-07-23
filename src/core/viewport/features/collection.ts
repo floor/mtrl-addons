@@ -7,9 +7,15 @@
 
 import type { ViewportContext, ViewportComponent } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
+import {
+  createCollection,
+  type Collection,
+  type CollectionConfig as BaseCollectionConfig,
+} from "../../collection";
 
-export interface CollectionConfig {
-  collection?: any; // Collection adapter
+export interface ViewportCollectionConfig {
+  collection?: Collection | BaseCollectionConfig; // Can pass existing collection or config to create one
+  adapter?: any; // Legacy adapter support
   strategy?: "offset" | "page";
   rangeSize?: number;
   transform?: (item: any) => any;
@@ -21,27 +27,19 @@ export interface CollectionConfig {
 }
 
 export interface CollectionComponent {
-  collection: {
-    loadRange: (offset: number, limit: number) => Promise<any[]>;
-    loadMissingRanges: (range: { start: number; end: number }) => Promise<void>;
-    getLoadedRanges: () => Set<number>;
-    getPendingRanges: () => Set<number>;
-    clearFailedRanges: () => void;
-    retryFailedRange: (rangeId: number) => Promise<any[]>;
-    setTotalItems: (total: number) => void;
-    getTotalItems: () => number;
-  };
+  collection: Collection;
 }
 
 /**
  * Adds collection functionality to viewport component
  */
-export function withCollection(config: CollectionConfig = {}) {
+export function withCollection(config: ViewportCollectionConfig = {}) {
   return <T extends ViewportContext & ViewportComponent>(
     component: T
   ): T & CollectionComponent => {
     const {
-      collection,
+      collection: collectionOrConfig,
+      adapter,
       rangeSize = VIEWPORT_CONSTANTS.LOADING.DEFAULT_RANGE_SIZE,
       strategy = "offset",
       transform,
@@ -51,6 +49,35 @@ export function withCollection(config: CollectionConfig = {}) {
       enableRequestQueue = VIEWPORT_CONSTANTS.REQUEST_QUEUE.ENABLED,
       maxQueueSize = VIEWPORT_CONSTANTS.REQUEST_QUEUE.MAX_QUEUE_SIZE,
     } = config;
+
+    // Create or use existing collection
+    let collection: Collection;
+
+    if (collectionOrConfig && "loadRange" in collectionOrConfig) {
+      // Already a collection instance
+      collection = collectionOrConfig as Collection;
+    } else if (adapter) {
+      // Legacy adapter support - create collection with adapter
+      collection = createCollection({
+        adapter,
+        pageSize: rangeSize,
+        transform,
+        ...((collectionOrConfig as BaseCollectionConfig) || {}),
+      });
+    } else if (collectionOrConfig) {
+      // Collection config provided
+      collection = createCollection({
+        pageSize: rangeSize,
+        transform,
+        ...(collectionOrConfig as BaseCollectionConfig),
+      });
+    } else {
+      // No collection or adapter - create empty collection
+      collection = createCollection({
+        pageSize: rangeSize,
+        transform,
+      });
+    }
 
     // Loading manager state
     interface QueuedRequest {

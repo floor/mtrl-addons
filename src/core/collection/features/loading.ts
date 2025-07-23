@@ -30,6 +30,7 @@ export interface LoadingFeature<T extends CollectionItem> {
   getPendingRanges(): Set<number>;
   clearFailedRanges(): void;
   retryFailedRange(rangeId: number): Promise<T[]>;
+  setAdapter(adapter: CollectionAdapter): void;
 }
 
 /**
@@ -41,7 +42,7 @@ export function withLoading<
   return <TBase extends CollectionContext>(
     base: TBase
   ): TBase & LoadingFeature<T> => {
-    const adapter = base._config.adapter;
+    let adapter = base._config.adapter;
     const transform = base._config.transform;
     const pageSize = config?.pageSize || base._config.pageSize || 20;
     const rangeSize = config?.rangeSize || base._config.rangeSize || 50;
@@ -251,6 +252,10 @@ export function withLoading<
         state.failedRanges.delete(rangeId);
         const offset = rangeId * rangeSize;
         return loadRange(offset, rangeSize);
+      },
+      setAdapter: (newAdapter: CollectionAdapter) => {
+        adapter = newAdapter;
+        base._config.adapter = newAdapter;
       },
     });
   };

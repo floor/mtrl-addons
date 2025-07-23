@@ -27,6 +27,16 @@ export { createCollectionEventEmitter } from "./events";
 // Constants
 export * from "./constants";
 
+// Route Adapter feature
+export {
+  createRouteAdapter,
+  withRouteAdapter,
+  OPERATORS,
+  type RouteAdapterConfig,
+  type PaginationStrategy,
+  type PaginationConfig,
+} from "./features/adapter";
+
 /**
  * Quick start utility for creating a simple REST adapter
  */
