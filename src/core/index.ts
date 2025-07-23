@@ -31,7 +31,7 @@ export type {
 } from "./collection";
 
 // Viewport system
-export { createViewport } from "./viewport";
+export { createViewport, createCollectionBridge } from "./viewport";
 export type {
   ViewportConfig,
   ViewportComponent,

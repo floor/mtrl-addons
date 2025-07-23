@@ -52,6 +52,8 @@ export function withCollection(config: CollectionConfig = {}) {
       maxQueueSize = VIEWPORT_CONSTANTS.REQUEST_QUEUE.MAX_QUEUE_SIZE,
     } = config;
 
+    // console.log("[Viewport Collection] Initialized with strategy:", strategy);
+
     // Loading manager state
     interface QueuedRequest {
       range: { start: number; end: number };
@@ -167,27 +169,42 @@ export function withCollection(config: CollectionConfig = {}) {
      * Load a range of data
      */
     const loadRange = async (offset: number, limit: number): Promise<any[]> => {
+      console.log(
+        `[Collection] loadRange called: offset=${offset}, limit=${limit}`
+      );
+
       if (!collection) {
         console.warn("[Collection] No collection adapter configured");
         return [];
       }
 
       const rangeId = getRangeId(offset, limit);
+      console.log(`[Collection] Range ID: ${rangeId}`);
 
       // Check if already loaded
       if (loadedRanges.has(rangeId)) {
+        console.log(
+          `[Collection] Range ${rangeId} already loaded, returning cached data`
+        );
         return items.slice(offset, offset + limit);
       }
 
       // Check if already pending
       if (pendingRanges.has(rangeId)) {
+        console.log(`[Collection] Range ${rangeId} already pending`);
         const existingRequest = activeRequests.get(rangeId);
         if (existingRequest) {
+          console.log(
+            `[Collection] Returning existing request for range ${rangeId}`
+          );
           return existingRequest;
         }
       }
 
       // Mark as pending
+      console.log(
+        `[Collection] Marking range ${rangeId} as pending and loading...`
+      );
       pendingRanges.add(rangeId);
 
       // // Check if this range overlaps with the current visible range
@@ -216,13 +233,12 @@ export function withCollection(config: CollectionConfig = {}) {
       const requestPromise = (async () => {
         try {
           // Call collection adapter with appropriate parameters
+          const page = Math.floor(offset / limit) + 1;
           const params =
-            strategy === "page"
-              ? { page: Math.floor(offset / limit) + 1, limit: limit }
-              : { offset, limit };
+            strategy === "page" ? { page, limit: limit } : { offset, limit };
 
           // console.log(
-          //   `[Viewport Collection] Loading data with params:`,
+          //   `[Viewport Collection] Loading range offset=${offset}, limit=${limit}, strategy=${strategy}, calculated page=${page}, params:`,
           //   JSON.stringify(params)
           // );
 
@@ -268,6 +284,10 @@ export function withCollection(config: CollectionConfig = {}) {
           loadedRanges.add(rangeId);
           pendingRanges.delete(rangeId);
           failedRanges.delete(rangeId);
+
+          console.log(
+            `[Collection] Range ${rangeId} loaded successfully with ${transformedItems.length} items`
+          );
 
           // Emit events
           component.emit?.("viewport:range-loaded", {

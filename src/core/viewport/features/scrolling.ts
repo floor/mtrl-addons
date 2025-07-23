@@ -321,7 +321,13 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       index: number,
       alignment: "start" | "center" | "end" = "start"
     ) => {
-      if (!viewportState) return;
+      console.log(
+        `[Scrolling] scrollToIndex called: index=${index}, alignment=${alignment}`
+      );
+      if (!viewportState) {
+        console.log(`[Scrolling] scrollToIndex aborted: no viewport state`);
+        return;
+      }
 
       const itemSize = viewportState.estimatedItemSize || 50;
       const totalItems = viewportState.totalItems || 0;
@@ -351,6 +357,10 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           break;
       }
 
+      console.log(
+        `[Scrolling] Target position: ${targetPosition}, isCompressed: ${isCompressed}`
+      );
+
       // console.log(
       //   `[Scrolling] ScrollToIndex: index=${index}, position=${targetPosition}, alignment=${alignment}`
       // );
@@ -378,12 +388,33 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       // Convert page to index (page 1 = index 0)
       const index = (page - 1) * limit;
 
-      // console.log(
-      //   `[Scrolling] ScrollToPage: page=${page}, limit=${limit}, targetIndex=${index}, alignment=${alignment}`
-      // );
+      console.log(
+        `[Scrolling] ScrollToPage START: page=${page}, limit=${limit}, targetIndex=${index}, alignment=${alignment}`
+      );
 
-      // Use scrollToIndex with the calculated index
-      scrollToIndex(index, alignment);
+      // If we have a collection, ensure the page is loaded first
+      const viewportCollection = (component.viewport as any).collection;
+      if (viewportCollection && viewportCollection.loadRange) {
+        console.log(`[Scrolling] Has collection, loading page data first`);
+        // Load the page data before scrolling
+        const offset = (page - 1) * limit;
+        console.log(
+          `[Scrolling] Calling loadRange with offset=${offset}, limit=${limit}`
+        );
+        viewportCollection.loadRange(offset, limit).then(() => {
+          console.log(
+            `[Scrolling] Page data loaded, now scrolling to index ${index}`
+          );
+          // After data is loaded, scroll to the index
+          scrollToIndex(index, alignment);
+        });
+      } else {
+        console.log(
+          `[Scrolling] No collection, scrolling directly to index ${index}`
+        );
+        // No collection, just scroll
+        scrollToIndex(index, alignment);
+      }
     };
 
     // Update scroll bounds

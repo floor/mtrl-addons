@@ -15,6 +15,13 @@ export { withScrolling } from "./features/scrolling";
 export { withScrollbar } from "./features/scrollbar";
 export { withRendering } from "./features/rendering";
 export { withCollection } from "./features/collection";
+export {
+  createCollectionBridge,
+  isCollectionBridge,
+  migrateAdapter,
+  type CollectionBridge,
+  type BridgeOptions,
+} from "./features/collection-bridge";
 export { withPlaceholders } from "./features/placeholders";
 export { withEvents } from "./features/events";
 
