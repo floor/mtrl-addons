@@ -1,6 +1,6 @@
 {
   "name": "mtrl-addons",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Additional components and utilities for the mtrl system, featuring forms, specialized elements, and extended functionality for modern applications",
   "type": "module",
   "main": "index.ts",
@@ -10,8 +10,14 @@
     "dev": "bun run ./build.js --watch",
     "test": "bun test",
     "prepublishOnly": "bun run build",
-    "debug:list": "bun run ../mtrl-app/scripts/debug/list-addons.ts",
-    "debug:list:interactive": "bun run ../mtrl-app/scripts/debug/list-addons.ts --interactive"
+    "server:start": "pm2 start ../mtrl-app/ecosystem.config.js",
+    "server:stop": "pm2 stop mtrl-app",
+    "server:reload": "pm2 restart mtrl-app",
+    "server:logs": "pm2 logs mtrl-app",
+    "debug:list": "bun run ../mtrl-app/scripts/debug/list examples/list-addons",
+    "debug:vlist": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist-addons",
+    "debug:list:interactive": "bun run ../mtrl-app/scripts/debug/list examples/list-addons --interactive",
+    "debug:vlist:interactive": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist-addons --interactive"
   },
   "repository": {
     "type": "git",
@@ -30,8 +36,10 @@
     "mtrl": "^0.2.8"
   },
   "devDependencies": {
+    "@types/jsdom": "^21.1.7",
     "@types/node": "^20.0.0",
     "bun-types": "^1.0.0",
+    "jsdom": "^26.1.0",
     "madge": "^8.0.0",
     "mtrl": "^0.2.8",
     "standard": "^17.0.0",
