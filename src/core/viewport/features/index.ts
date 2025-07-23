@@ -1,11 +1,20 @@
 // src/core/list-manager/features/viewport/index.ts
 
-/**
- * Viewport features export
- */
+export { withBase } from "./base";
+export { withCollection } from "./collection";
+export { withEvents } from "./events";
+export { withPlaceholders } from "./placeholders";
+export { withRendering } from "./rendering";
+export { withScrollbar } from "./scrollbar";
+export { withScrolling } from "./scrolling";
+export { withVirtual } from "./virtual";
+export { withPerformance } from "./performance";
+export { withMomentum } from "./momentum";
 
-export { createViewportManager } from "./manager";
-export { createPlaceholderFeature } from "./placeholders";
+// Utility exports
+export { createItemSizeManager } from "./item-size";
+export { createLoadingManager } from "./loading";
+export { createElementFromTemplate } from "./template";
 
 // Types
-export type { PlaceholderFeature, PlaceholderConfig } from "./placeholders";
+export type { PlaceholderComponent, PlaceholderConfig } from "./placeholders";

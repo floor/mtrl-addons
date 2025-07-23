@@ -1,6 +1,6 @@
 /**
  * Scrolling Feature - Virtual scrolling with integrated velocity tracking
- * Handles wheel events, scroll position management, and velocity measurement
+ * Handles wheel events, touch/mouse events, scroll position management, velocity measurement, and momentum scrolling
  */
 
 import type { ViewportContext, ViewportComponent } from "../types";
@@ -250,7 +250,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         // Update speed tracker
         speedTracker = updateSpeedTracker(
           speedTracker,
-          newPosition,
+          scrollPosition,
           previousPosition
         );
 
@@ -443,7 +443,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     if ("destroy" in component && typeof component.destroy === "function") {
       const originalDestroy = component.destroy;
       component.destroy = () => {
-        // Remove wheel event listener
+        // Remove event listeners
         const viewportElement = (component as any)._scrollingViewportElement;
         if (viewportElement) {
           viewportElement.removeEventListener("wheel", handleWheel);
@@ -459,12 +459,64 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       };
     }
 
+    // Add scrollBy method
+    const scrollBy = (delta: number) => {
+      const previousPosition = scrollPosition;
+      const maxScroll = Math.max(0, totalVirtualSize - containerSize);
+      const newPosition = clamp(scrollPosition + delta, 0, maxScroll);
+
+      if (newPosition !== previousPosition) {
+        scrollPosition = newPosition;
+
+        // Update speed tracker
+        speedTracker = updateSpeedTracker(
+          speedTracker,
+          scrollPosition,
+          previousPosition
+        );
+
+        // Update viewport state
+        if (viewportState) {
+          viewportState.scrollPosition = scrollPosition;
+          viewportState.velocity = speedTracker.velocity;
+        }
+
+        // Emit scroll event
+        component.emit?.("viewport:scroll", {
+          position: scrollPosition,
+          velocity: speedTracker.velocity,
+          direction: speedTracker.direction,
+        });
+
+        // Trigger render
+        component.viewport.renderItems?.();
+
+        // Start idle detection if not scrolling
+        if (!isScrolling) {
+          isScrolling = true;
+          startIdleDetection();
+        }
+        lastScrollTime = Date.now();
+        resetIdleTimeout();
+      }
+    };
+
+    // Expose scrolling state for other features
+    (component.viewport as any).scrollingState = {
+      setVelocityToZero,
+    };
+
+    // Add scrollBy to viewport API
+    component.viewport.scrollBy = scrollBy;
+    component.viewport.getVelocity = () => speedTracker.velocity;
+
     // Expose scrolling API
     (component as any).scrolling = {
       handleWheel,
       scrollToPosition,
       scrollToIndex,
       scrollToPage,
+      scrollBy,
       getScrollPosition: () => scrollPosition,
       updateScrollBounds,
       getVelocity: () => speedTracker.velocity,

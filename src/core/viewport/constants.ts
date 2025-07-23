@@ -105,6 +105,16 @@ export const VIEWPORT_CONSTANTS = {
     MOMENTUM_DECAY_TIME: 1000, // ms - time for momentum to decay
   },
 
+  // Momentum settings
+  MOMENTUM: {
+    ENABLED: true, // Enable momentum by default
+    DECELERATION_FACTOR: 0.85, // How quickly velocity decreases per frame
+    MIN_VELOCITY: 0.1, // Minimum velocity before stopping (px/ms)
+    MIN_DURATION: 300, // Maximum gesture duration to trigger momentum (ms)
+    MIN_VELOCITY_THRESHOLD: 0.5, // Minimum velocity to trigger momentum (px/ms)
+    FRAME_TIME: 16, // Assumed frame time for calculations (ms)
+  },
+
   // Initial load configuration (from list-manager)
   INITIAL_LOAD: {
     STRATEGY: "placeholders", // "placeholders" | "direct" | "progressive"
