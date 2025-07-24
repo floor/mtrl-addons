@@ -71,6 +71,9 @@ $placeholder-animation-speed: 1.5s !default;
   contain: layout style paint;
   transform: translateZ(0);
   backface-visibility: hidden;
+  &--selection { 
+    cursor: pointer;
+  }
 }
 
 // VIEWPORT CONTAINER (the scrollable area)
@@ -581,6 +584,7 @@ $prefix: "mtrl" !default;
     &-items {
       position: relative;
       width: 100%;
+      padding: 8px 0;
       will-change: transform;
     }
 

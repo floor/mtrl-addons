@@ -13,7 +13,7 @@ export const VIEWPORT_CONSTANTS = {
     OVERSCAN_BUFFER: 2, // Updated from list-manager (was 3)
     MIN_ITEM_SIZE: 20,
     MAX_ITEM_SIZE: 1000,
-    SCROLL_SENSITIVITY: 1.0,
+    SCROLL_SENSITIVITY: 0.2,
     MAX_VIRTUAL_SIZE: 10 * 1000 * 1000, // 10M pixels - well within browser limits
   },
 
@@ -45,7 +45,7 @@ export const VIEWPORT_CONSTANTS = {
   // Loading settings
   LOADING: {
     CANCEL_THRESHOLD: 1, // px/ms - velocity above which loads are cancelled
-    MAX_CONCURRENT_REQUESTS: 1,
+    MAX_CONCURRENT_REQUESTS: 3,
     DEFAULT_RANGE_SIZE: 20,
     DEBOUNCE_LOADING: 150, // ms - from list-manager
 

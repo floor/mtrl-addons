@@ -139,6 +139,8 @@ export interface ListSelectionConfig {
   selectedIndices?: number[];
   /** Selection change callback */
   onSelectionChange?: (selectedItems: any[], selectedIndices: number[]) => void;
+  /** Require keyboard modifiers for multi-select (default: false) */
+  requireModifiers?: boolean;
 }
 
 /**
@@ -505,3 +507,37 @@ export interface ListFeatures {
   styling?: boolean;
   performance?: boolean;
 }
+
+/**
+ * VList specific type aliases for better naming consistency
+ */
+export type VListConfig<T = any> = ListConfig<T> & {
+  // VList specific configuration
+  estimatedItemSize?: number;
+  overscan?: number;
+  orientation?: "vertical" | "horizontal";
+
+  // Collection configuration for VList
+  collection?: any;
+  rangeSize?: number;
+  paginationStrategy?: "page" | "cursor";
+  enablePlaceholders?: boolean;
+
+  // Transform function
+  transform?: (item: any) => any;
+
+  // Performance settings
+  performance?: any;
+
+  // Parent container (legacy support)
+  parent?: HTMLElement | string;
+};
+
+export type VListComponent<T = any> = ListComponent<T> & {
+  viewport: ViewportComponent["viewport"];
+};
+
+export type VListItem = ListItem;
+export type VListAPI<T = any> = ListAPI<T>;
+export type VListState = ListState;
+export type VListEvents<T = any> = ListEvents<T>;

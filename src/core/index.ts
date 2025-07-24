@@ -4,6 +4,7 @@
  * Central export point for all core functionality
  */
 
+// Layout system
 export {
   createLayout,
   applyLayoutClasses,
@@ -11,27 +12,8 @@ export {
 } from "./layout";
 export type { Layout, LayoutConfig } from "./layout";
 
-// Collection system
-export {
-  createCollection,
-  createRestAdapter,
-  createCollectionState,
-  createCollectionEventEmitter,
-  CollectionEvents,
-  COLLECTION_DEFAULTS,
-} from "./collection";
-
-export type {
-  Collection,
-  CollectionConfig,
-  CollectionItem,
-  CollectionAdapter,
-  AdapterParams,
-  AdapterResponse,
-} from "./collection";
-
 // Viewport system
-export { createViewport, createCollectionBridge } from "./viewport";
+export { createViewport } from "./viewport";
 export type {
   ViewportConfig,
   ViewportComponent,

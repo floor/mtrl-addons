@@ -17,6 +17,7 @@ import { withEvents, withLifecycle } from "mtrl/src/core/compose/features";
 // Import viewport feature
 import { withViewport } from "./features/viewport";
 import { withAPI } from "./features/api";
+import { withSelection } from "./features/selection";
 
 /**
  * Converts object-based template to function template
@@ -180,7 +181,7 @@ export const createVList = <T = any>(
     // VList should not intercept collection reads as it bypasses the loading manager
 
     // Create the component through functional composition
-    const component = pipe(
+    const enhancers = [
       // 1. Foundation layer
       createBase,
       withEvents(),
@@ -200,8 +201,15 @@ export const createVList = <T = any>(
       withLifecycle(),
 
       // 4. Public API layer
-      withAPI(vlistConfig)
-    )({
+      withAPI(vlistConfig),
+    ];
+
+    // 4.5. Selection capabilities (if enabled) - must be after API
+    if (vlistConfig.selection?.enabled) {
+      enhancers.push(withSelection(vlistConfig));
+    }
+
+    const component = pipe(...enhancers)({
       ...vlistConfig,
       componentName: "vlist",
       prefix: vlistConfig.prefix || "mtrl",

@@ -44,8 +44,9 @@ export const withAPI = <T = any>(config: VListConfig<T>) => {
       },
 
       getItems(): T[] {
-        if (component.viewport?.collection) {
-          return component.viewport.collection.getItems();
+        // Collection is added directly to component, not to viewport.collection
+        if ((component as any).collection?.getItems) {
+          return (component as any).collection.getItems();
         }
         return component.items || [];
       },
@@ -136,28 +137,62 @@ export const withAPI = <T = any>(config: VListConfig<T>) => {
         return false;
       },
 
-      // Selection operations
+      // Note: Selection operations are handled by the withSelection feature
+      // These are kept for backward compatibility but delegate to selection feature if available
       getSelectedIds(): (string | number)[] {
+        if (typeof component.getSelectedIndices === "function") {
+          // Use selection feature if available
+          const items = this.getItems();
+          const indices = component.getSelectedIndices();
+          return indices.map((idx: number) => (items[idx] as any)?.id || idx);
+        }
+        // Fallback to local tracking
         return Array.from(selectedIds);
       },
 
       selectItem(id: string | number) {
-        selectedIds.add(id);
-        component.emit?.("selection:change", {
-          selected: this.getSelectedIds(),
-        });
+        if (typeof component.selectItems === "function") {
+          // Use selection feature if available
+          const items = this.getItems();
+          const index = items.findIndex((item: any) => item.id === id);
+          if (index >= 0) {
+            component.selectItems([index]);
+          }
+        } else {
+          // Fallback to local tracking
+          selectedIds.add(id);
+          component.emit?.("selection:change", {
+            selected: this.getSelectedIds(),
+          });
+        }
       },
 
       deselectItem(id: string | number) {
-        selectedIds.delete(id);
-        component.emit?.("selection:change", {
-          selected: this.getSelectedIds(),
-        });
+        if (typeof component.deselectItems === "function") {
+          // Use selection feature if available
+          const items = this.getItems();
+          const index = items.findIndex((item: any) => item.id === id);
+          if (index >= 0) {
+            component.deselectItems([index]);
+          }
+        } else {
+          // Fallback to local tracking
+          selectedIds.delete(id);
+          component.emit?.("selection:change", {
+            selected: this.getSelectedIds(),
+          });
+        }
       },
 
       clearSelection() {
-        selectedIds.clear();
-        component.emit?.("selection:change", { selected: [] });
+        if (typeof component.clearSelection === "function") {
+          // Use selection feature if available
+          component.clearSelection();
+        } else {
+          // Fallback to local tracking
+          selectedIds.clear();
+          component.emit?.("selection:change", { selected: [] });
+        }
       },
 
       // Scrolling methods
