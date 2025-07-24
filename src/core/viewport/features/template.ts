@@ -20,7 +20,7 @@ export const getDefaultTemplate = <T = any>(): ((
       typeof item === "object" &&
       (item as any)[VIEWPORT_CONSTANTS.PLACEHOLDER.PLACEHOLDER_FLAG];
     const placeholderClass = isPlaceholder
-      ? ` ${VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS}`
+      ? ` ${VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS}`
       : "";
 
     if (typeof item === "string") {

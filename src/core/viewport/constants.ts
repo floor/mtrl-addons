@@ -9,10 +9,10 @@
 export const VIEWPORT_CONSTANTS = {
   // Virtual scrolling defaults
   VIRTUAL_SCROLL: {
-    DEFAULT_ITEM_SIZE: 84, // Updated from list-manager (was 50)
-    OVERSCAN_BUFFER: 2, // Updated from list-manager (was 3)
+    DEFAULT_ITEM_SIZE: 84,
+    OVERSCAN_BUFFER: 2,
     SCROLL_SENSITIVITY: 0.2,
-    MAX_VIRTUAL_SIZE: 10 * 1000 * 2000, // 10M pixels - well within browser limits
+    MAX_VIRTUAL_SIZE: 10 * 1000 * 1000, // 10M pixels - well within browser limits
   },
 
   // Scrolling settings
@@ -29,7 +29,7 @@ export const VIEWPORT_CONSTANTS = {
   // Loading settings
   LOADING: {
     CANCEL_THRESHOLD: 20, // px/ms - velocity above which loads are cancelled
-    MAX_CONCURRENT_REQUESTS: 3,
+    MAX_CONCURRENT_REQUESTS: 1,
     DEFAULT_RANGE_SIZE: 20,
   },
 
@@ -83,8 +83,7 @@ export const VIEWPORT_CONSTANTS = {
       SCROLLBAR: "viewport__scrollbar",
       SCROLLBAR_TRACK: "viewport__scrollbar-track",
       SCROLLBAR_THUMB: "viewport__scrollbar-thumb",
-      SCROLLBAR_ENABLED: "viewport__scrollbar-enabled",
-      SCROLLBAR_SCROLLING: "viewport__scrollbar--scrolling",
+      SCROLLBAR_VISIBLE: "viewport__scrollbar--visible",
       SCROLLBAR_DRAGGING: "viewport__scrollbar--dragging",
       SCROLLBAR_THUMB_DRAGGING: "viewport__scrollbar-thumb--dragging",
     },

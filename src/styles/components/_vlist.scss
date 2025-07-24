@@ -5,687 +5,193 @@
 @use "../../../../mtrl/src/styles/abstract/mixins" as m;
 @use "../../../../mtrl/src/styles/abstract/theme" as t;
 
-// Component variables
-$component: "#{base.$prefix}-vlist";
-$viewport: "#{base.$prefix}-vlist__viewport";
-$viewport-items: "#{base.$prefix}-vlist__viewport-items";
-$list-item: "#{base.$prefix}-list-item";
-$list-item-height: 48px !default;
-$list-item-dense-height: 40px !default;
-$list-padding: 8px !default;
-$list-item-padding: 16px !default;
-$list-section-padding: 16px !default;
-$list-container-min-height: 200px !default;
+// ===========================
+// Variables & Configuration
+// ===========================
 
-// Transition variables
-$state-transition-duration: v.motion("duration-medium1") !default;
-$state-transition-easing: v.motion("easing-standard") !default;
-$quick-transition: v.motion("duration-short4")
-  v.motion("easing-standard-accelerate");
+// Component prefixes
+$prefix: base.$prefix;
+$component: "#{$prefix}-vlist";
+$viewport: "#{$prefix}-viewport";
+$viewport-item: "#{$prefix}-viewport-item";
 
-// Reusable transitions
-$color-transition: color $state-transition-duration $state-transition-easing;
-$bg-transition: background-color $state-transition-duration
-  $state-transition-easing;
-$opacity-transition: opacity $state-transition-duration $state-transition-easing;
+// Transitions
+$transition-duration: v.motion("duration-medium1");
+$transition-easing: v.motion("easing-standard");
 
-// Placeholder styling variables
-$placeholder-opacity: 0.6 !default;
-$placeholder-opacity-skeleton: 0.8 !default;
-$placeholder-opacity-masked: 0.7 !default;
-$placeholder-opacity-subtle: 0.4 !default;
-$placeholder-background-alpha: 0.4 !default;
-$placeholder-shimmer-alpha: 0.2 !default;
-$placeholder-animation-speed: 1.5s !default;
+// Common transitions
+$bg-transition: background-color $transition-duration $transition-easing;
+$opacity-transition: opacity $transition-duration $transition-easing;
 
-// Component-specific mixins
-@mixin list-item-state-layer($state: "hover", $color: "on-surface") {
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-color: t.color($color);
-    opacity: f.get-state-opacity($state);
-    pointer-events: none;
-    border-radius: inherit;
-    transition: $opacity-transition;
+// ===========================
+// Animations
+// ===========================
+
+@keyframes placeholder-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.5;
   }
 }
 
-@mixin list-section-title {
-  @include m.typography("label-large");
-  color: t.color("primary");
-  padding: $list-section-padding $list-item-padding 8px;
+@keyframes fade-in {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-// VLIST CONTAINER (the main component)
+// ===========================
+// Main VList Container
+// ===========================
+
 .#{$component} {
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: $list-container-min-height;
+  min-height: 100px;
   background-color: t.color("surface");
-  transition: $bg-transition;
-
   border: 2px solid var(--mtrl-sys-color-outline-variant);
   border-radius: 3px;
+  transition: $bg-transition;
 
   // Performance optimizations
   contain: layout style paint;
   transform: translateZ(0);
   backface-visibility: hidden;
-  &--selection { 
+
+  // Selection mode
+  &--selection {
     cursor: pointer;
-  }
-}
-
-// VIEWPORT CONTAINER (the scrollable area)
-.#{$viewport} {
-  position: relative;
-  overflow-y: auto;
-  overflow-x: hidden;
-  height: 100%;
-  width: 100%;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-
-  // Performance optimizations
-  will-change: scroll-position;
-
-  // Scrollbar styling
-  &::-webkit-scrollbar {
-    width: 8px;
-
-    &-track {
-      background: transparent;
-    }
-
-    &-thumb {
-      background-color: t.color("outline-variant");
-      border-radius: 4px;
-      transition: $bg-transition;
-
-      &:hover {
-        background-color: t.alpha("outline", 0.38);
-      }
-    }
-  }
-
-  // Loading state
-  &--loading::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(
-      to right,
-      transparent,
-      t.color("primary"),
-      transparent
-    );
-    animation: loading-shimmer 1.5s infinite v.motion("easing-standard");
-  }
-}
-
-// VIEWPORT ITEMS CONTAINER
-.#{$viewport-items} {
-  position: relative;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: $list-padding 0;
-}
-
-// LIST ITEMS
-.#{$list-item} {
-  display: flex;
-  align-items: center;
-  min-height: $list-item-height;
-  padding: $list-padding $list-item-padding;
-  position: relative;
-  width: 100%;
-  gap: 16px;
-  color: t.color("on-surface");
-  cursor: pointer;
-  box-sizing: border-box;
-  overflow: hidden;
-  transition: $bg-transition, $color-transition, opacity 0.2s ease-in-out;
-
-  // Performance optimizations
-  contain: layout style;
-  transform: translateZ(0);
-  will-change: transform;
-
-  // State layer base
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background-color: t.color("on-surface");
-    opacity: 0;
-    pointer-events: none;
-    border-radius: inherit;
-    transition: $opacity-transition;
-  }
-
-  // State interactions
-  &:hover::before {
-    opacity: f.get-state-opacity("hover");
-  }
-
-  &:focus-visible {
-    outline: none;
-
-    &::before {
-      opacity: f.get-state-opacity("focus");
-    }
-
-    &::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      box-shadow: inset 0 0 0 2px t.color("primary");
-      pointer-events: none;
-      transition: box-shadow $state-transition-duration $state-transition-easing;
-    }
-  }
-
-  &:active::before {
-    opacity: f.get-state-opacity("pressed");
-    transition: opacity $quick-transition;
-  }
-
-  // Content elements
-  &-content {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    transition: $opacity-transition;
-  }
-
-  &-text {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  // Text elements with shared properties
-  &-overline,
-  &-supporting,
-  &-meta {
-    color: t.color("on-surface-variant");
-    transition: $color-transition;
-  }
-
-  &-overline {
-    @include m.typography("label-small");
-  }
-
-  &-headline {
-    @include m.typography("body-large");
-    color: t.color("on-surface");
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    transition: $color-transition;
-  }
-
-  &-supporting {
-    @include m.typography("body-medium");
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  &-meta {
-    @include m.typography("label-small");
-    margin-top: 4px;
-  }
-
-  // Leading/trailing elements
-  &-leading,
-  &-trailing {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    color: t.color("on-surface-variant");
-    transition: $color-transition, $opacity-transition;
-  }
-
-  &-leading {
-    width: 24px;
-    height: 24px;
-
-    svg {
-      width: 100%;
-      height: 100%;
-      transition: fill $state-transition-duration $state-transition-easing,
-        stroke $state-transition-duration $state-transition-easing;
-    }
-  }
-
-  // Selected state
-  &--selected {
-    background-color: t.color("secondary-container");
-    color: t.color("on-secondary-container");
-    transition: $bg-transition, $color-transition;
-
-    // Update state layer color for selected state
-    &::before {
-      background-color: t.color("on-secondary-container");
-    }
-
-    // Update text and icon colors for selected state
-    &-leading,
-    &-trailing,
-    &-supporting,
-    &-overline,
-    &-meta {
-      color: t.color("on-secondary-container");
-      transition: $color-transition;
+    .#{$viewport-item}:hover {
+      background-color: t.alpha(t.color("on-surface-variant"), 0.04);
     }
   }
 
   // Disabled state
   &--disabled {
+    pointer-events: none;
     opacity: 0.38;
-    pointer-events: none;
-    transition: $opacity-transition;
-  }
-
-  // Placeholder loading state
-  &.#{base.$prefix}-list-item__placeholder {
-    opacity: $placeholder-opacity;
-    pointer-events: none;
-    position: relative;
-    height: 84px;
-    transition: opacity 0.3s ease-in-out,
-      background-color $state-transition-duration $state-transition-easing;
-
-    // Performance optimizations for placeholders
-    contain: strict;
-    will-change: contents;
-
-    // Background tint for visibility
-    background-color: t.alpha("surface-variant", $placeholder-background-alpha);
-
-    // Text styling for placeholder visibility
-    .#{$list-item}-headline,
-    .#{$list-item}-supporting,
-    .#{$list-item}-meta {
-      transition: color 0.3s ease-in-out, opacity 0.3s ease-in-out;
-      opacity: 1;
-    }
-
-    // Placeholder mode variants
-    &--skeleton {
-      opacity: $placeholder-opacity-skeleton;
-
-      .#{$list-item}-headline,
-      .#{$list-item}-supporting {
-        background-color: t.color("surface-variant");
-        border-radius: 4px;
-        color: transparent;
-        animation: skeleton-pulse 1.5s infinite;
-      }
-    }
-
-    &--masked {
-      opacity: $placeholder-opacity-masked;
-    }
-
-    &--subtle {
-      opacity: $placeholder-opacity-subtle;
-    }
-
-    // High contrast mode
-    @include m.high-contrast {
-      outline: 2px dashed currentColor;
-      outline-offset: -2px;
-    }
-  }
-
-  // Recycled element optimizations
-  &.#{base.$prefix}-item-recycled {
-    will-change: contents;
-  }
-}
-
-// Dense variant
-.#{$component}--dense {
-  .#{$list-item} {
-    min-height: $list-item-dense-height;
-  }
-}
-
-// Disabled state for entire list
-.#{$component}--disabled {
-  pointer-events: none;
-  opacity: 0.38;
-  transition: $opacity-transition;
-}
-
-// High contrast mode
-@include m.high-contrast {
-  .#{$component} {
-    border: 1px solid currentColor;
-  }
-
-  .#{$list-item}--selected {
-    outline: 2px solid currentColor;
-    outline-offset: -2px;
-  }
-}
-
-// VIRTUAL LIST SPECIFIC ELEMENTS
-
-// Virtual list spacer
-.#{$viewport}-spacer {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 1px;
-  visibility: hidden;
-  pointer-events: none;
-
-  // Performance optimizations for spacer
-  contain: strict;
-  will-change: height;
-  transform: translateZ(0);
-  overflow: hidden;
-}
-
-// Sentinel elements for intersection observer
-.#{$viewport}-sentinel {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-  contain: layout;
-
-  &--top {
-    top: 0;
-  }
-
-  &--bottom {
-    bottom: 0;
-  }
-}
-
-// Empty state
-.#{$component}-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 16px;
-  text-align: center;
-  color: t.color("on-surface-variant");
-  transition: $color-transition, $opacity-transition;
-
-  &-icon {
-    font-size: 48px;
-    margin-bottom: 16px;
-    opacity: 0.6;
-    transition: $opacity-transition;
-  }
-
-  &-text {
-    @include m.typography("body-large");
-    transition: $color-transition;
-  }
-
-  &-action {
-    margin-top: 16px;
     transition: $opacity-transition;
   }
 }
 
-// Loading indicator
-.#{$component}-loading-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 48px;
-  width: 100%;
-  color: t.color("on-surface-variant");
-  transition: $color-transition;
+// ===========================
+// Viewport Structure
+// ===========================
 
-  &::after {
-    content: "";
-    width: 24px;
-    height: 24px;
-    border: 2px solid currentColor;
-    border-bottom-color: transparent;
-    border-radius: 50%;
-    animation: rotation 0.8s infinite linear;
-  }
-}
-
-// ANIMATIONS
-@keyframes loading-shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  50% {
-    transform: translateX(100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-@keyframes rotation {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes skeleton-pulse {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-// PERFORMANCE UTILITIES
-.#{$component} {
-  // Performance mode for slower devices
-  &--performance-mode {
-    .#{$list-item} {
-      will-change: auto;
-      transform: none;
-      contain: none; // Reduce containment on slower devices
-    }
-  }
-
-  // Debug mode for development
-  &--debug {
-    .#{$list-item} {
-      outline: 1px solid rgba(255, 0, 0, 0.3);
-
-      &.#{base.$prefix}-item-placeholder {
-        outline-color: rgba(0, 255, 0, 0.3);
-      }
-
-      &.#{base.$prefix}-item-recycled {
-        outline-color: rgba(0, 0, 255, 0.3);
-      }
-    }
-  }
-}
-
-// Dark mode optimizations
-@media (prefers-color-scheme: dark) {
-  .#{$list-item}.#{base.$prefix}-item-placeholder {
-    background-color: t.alpha("surface-variant", 0.2);
-  }
-}
-
-// Responsive performance optimizations
-@media (max-width: 768px) {
-  .#{$list-item} {
-    // Optimize for touch on mobile
-    touch-action: pan-y;
-  }
-}
-
-// High-density display optimizations
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-  .#{$list-item} {
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-}
-
-// Print optimizations
-@media print {
-  .#{$list-item} {
-    will-change: auto !important;
-    transform: none !important;
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
-// VList Component Styles
-// Virtual list with high-performance scrolling
-
-// Import prefix variable
-$prefix: "mtrl" !default;
-
-.#{$prefix}-vlist {
+.#{$viewport} {
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
 
-  // Viewport container
-  .#{$prefix}-viewport {
+  // Items container
+  &-items {
     position: relative;
     width: 100%;
     height: 100%;
-    overflow: hidden;
-
-    // Items container
-    &-items {
-      position: relative;
-      width: 100%;
-      padding: 8px 0;
-      will-change: transform;
-    }
-
-    // Custom scrollbar
-    &-scrollbar {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 8px;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.05);
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      cursor: pointer;
-      z-index: 10;
-
-      &-thumb {
-        position: absolute;
-        top: 0;
-        width: 100%;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 4px;
-        min-height: 20px;
-        cursor: grab;
-        transition: background 0.2s ease;
-
-        &:hover {
-          background: rgba(0, 0, 0, 0.5);
-        }
-
-        &:active {
-          cursor: grabbing;
-          background: rgba(0, 0, 0, 0.6);
-        }
-      }
-    }
-
-    // Show scrollbar on hover
-    &:hover .#{$prefix}-viewport-scrollbar {
-      opacity: 1;
-    }
-  }
-
-  // List items
-  .#{$prefix}-list-item {
-    position: absolute;
-    left: 0;
-    right: 0;
-    box-sizing: border-box;
-    padding: 12px 16px;
-    transition: background-color 0.2s ease;
-
-    &:hover {
-      background-color: t.alpha(--mtrl-sys-color-outline-variant, .5);
-      // background-color: rgba(0, 0, 0, 0.02);
-    }
-
-    &:active {
-      background-color: rgba(0, 0, 0, 0.04);
-    }
+    padding: 8px 0;
+    will-change: transform;
   }
 }
 
-// Viewport scrollbar styles
-.#{$prefix}-vlist__scrollbar {
+.#{$viewport-item} {
+  opacity: 1;
+  transition: $opacity-transition;
+  will-change: transform;
+  // Apply fade-in animation to items that replace placeholders
+  &--replaced {
+    animation: fade-in 0.3s ease-out;
+  }
+}
+
+// ===========================
+// Placeholder Styling
+// ===========================
+
+.#{$viewport-item}__placeholder {
+  opacity: 0.6; // Match the animation start/end opacity
+  animation: placeholder-pulse 2s ease-in-out infinite;
+  // Placeholder content blocks
+  .user-name,
+  .user-email,
+  .user-role {
+    position: relative;
+    display: inline-block;
+    font-size: 0.8em;
+    color: transparent;
+    background-color: var(--mtrl-sys-color-on-surface);
+    border-radius: 0.1em;
+    opacity: 0.9;
+    text-decoration: none;
+    line-height: 1;
+    padding: 0 0 0.05em;
+    vertical-align: middle;
+  }
+
+  // Layout adjustments
+  .user-email,
+  .user-role {
+    margin-top: 0.2em;
+  }
+
+  .user-name,
+  .user-role {
+    text-transform: capitalize;
+  }
+
+  // Avatar placeholder
+  .user-avatar {
+    background-color: var(--mtrl-sys-color-primary-container);
+    color: var(--mtrl-sys-color-primary-container);
+    opacity: 1;
+  }
+}
+
+// ===========================
+// Custom Scrollbar
+// ===========================
+
+.#{$viewport}__scrollbar {
   position: absolute;
   top: 0;
   right: 0;
   width: 8px;
   height: 100%;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 0;
+  background: rgba(0, 0, 0, 0.05);
   opacity: 0;
-  transition: opacity 0.3s ease, width 0.3s ease;
+  transition: opacity 0.3s ease;
   cursor: pointer;
   z-index: 10;
 
-  &--visible {
+  // Visibility states
+  &--visible,
+  &--dragging,
+  &:hover {
     opacity: 1;
   }
 
+  // Scrollbar thumb
   &-thumb {
     position: absolute;
     top: 0;
     width: 100%;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 4px;
-    min-height: 20px;
+    min-height: 15px;
+    will-change: transform;
     cursor: grab;
     transition: background 0.2s ease;
 
-
     &:hover {
-      // width: 12px;
-      // transition: opacity 0.3s ease, width 0.3s ease;
       background: rgba(0, 0, 0, 0.5);
     }
-
 
     &:active,
     &--dragging {
@@ -695,12 +201,15 @@ $prefix: "mtrl" !default;
   }
 }
 
-// Dark theme support for scrollbar
+// ===========================
+// Dark Theme Support
+// ===========================
+
 @media (prefers-color-scheme: dark) {
-  .#{$prefix}-vlist__scrollbar {
+  .#{$viewport}__scrollbar {
     background: rgba(255, 255, 255, 0.1);
 
-    .#{$prefix}-vlist__scrollbar-thumb {
+    &-thumb {
       background: rgba(255, 255, 255, 0.3);
 
       &:hover {
@@ -708,105 +217,22 @@ $prefix: "mtrl" !default;
       }
 
       &:active,
-      &.#{$prefix}-vlist__scrollbar-thumb--dragging {
+      &--dragging {
         background: rgba(255, 255, 255, 0.6);
       }
     }
   }
 }
 
-// Show scrollbar on viewport hover
-.#{$prefix}-viewport:hover .#{$prefix}-vlist__scrollbar {
-  opacity: 1;
-}
+// ===========================
+// Performance Optimizations
+// ===========================
 
-// Placeholder styling (following _list.scss pattern)
-// .#{$prefix}-list-item__placeholder {
-//   opacity: 0.4;
-//   transition: opacity 0.2s ease;
-
-//   // Create solid blocks for placeholder content
-//   .user-name,
-//   .user-email,
-//   .user-role,
-//   [class*="__primary"],
-//   [class*="__secondary"],
-//   .#{$list-item}-headline,
-//   .#{$list-item}-supporting {
-//     position: relative;
-//     display: inline-block; // Make width based on content
-
-//     // Hide the actual text but keep it for width calculation
-//     color: transparent;
-//     background-color: t.color("on-surface");
-//     border-radius: 4px;
-//     overflow: hidden;
-
-//     // Shimmer animation
-//     &::after {
-//       content: "";
-//       position: absolute;
-//       top: 0;
-//       left: -100%;
-//       width: 100%;
-//       height: 100%;
-//       background: linear-gradient(
-//         90deg,
-//         transparent 0%,
-//         rgba(255, 255, 255, 0.2) 50%,
-//         transparent 100%
-//       );
-//       animation: shimmer 1.5s infinite;
-//     }
-//   }
-// }
-
-// Also apply to list-item__placeholder for consistency
-// Placeholder styling
-.#{base.$prefix}-viewport-item__placeholder {
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-
-  // Create solid blocks for placeholder content
-  .user-name,
-  .user-email,
-  .user-role {
-    font-size: .8em;
-    position: relative;
-    display: inline-block; // Make width based on content
-
-    // Hide the actual text but keep it for width calculation
-    color: transparent;
-    background-color: var(--mtrl-sys-color-on-surface);
-    border-radius: 0.1em; // Smaller radius for thinner appearance
-    opacity: .9; // Adjust opacity for the blocks
-
-    // Remove any text decoration
-    text-decoration: none;
-
-    // Thinner blocks - adjust line height and padding
-    line-height: 1;
-    padding: 0 0 .05em; // Much less padding for thinner blocks
-
-    // Ensure proper vertical alignment
-    vertical-align: middle;
-  }
-
-  // Ensure email and role are on separate lines
-  .user-email,
-  .user-role {
-    // display: block; // Force block display to ensure new lines
-    margin-top: 0.2em; // Small spacing between lines
-  }
-  .user-name,
-  .user-role {
-    text-transform: capitalize;
-  }
-
-  // For avatar placeholder
-  .user-avatar {
-    background-color: var(--mtrl-sys-color-primary-container);
-    color: var(--mtrl-sys-color-primary-container);
-    opacity: 1;
+// High-density displays
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .#{$viewport-item} {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
