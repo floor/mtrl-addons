@@ -5,6 +5,7 @@
 
 import type { ViewportContext, ViewportComponent } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
+import { wrapInitialize, getViewportState, clamp } from "./utils";
 
 export interface ScrollingConfig {
   orientation?: "vertical" | "horizontal";
@@ -101,11 +102,10 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
 
     // Get viewport state
     let viewportState: any;
-    // Override initialize to set up DOM
-    const originalInitialize = component.viewport.initialize;
-    component.viewport.initialize = () => {
-      originalInitialize();
-      viewportState = (component.viewport as any).state;
+
+    // Use shared initialization wrapper
+    wrapInitialize(component, () => {
+      viewportState = getViewportState(component);
 
       // Initialize state values
       if (viewportState) {
@@ -144,12 +144,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       } else {
         console.warn(`[Scrolling] No viewport element found for wheel events`);
       }
-    };
+    });
 
-    // Helper functions
-    const clamp = (value: number, min: number, max: number) => {
-      return Math.max(min, Math.min(max, value));
-    };
+    // Use clamp from utils
 
     // Start idle detection
     const startIdleDetection = () => {

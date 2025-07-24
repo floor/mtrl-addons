@@ -11,57 +11,26 @@ export const VIEWPORT_CONSTANTS = {
   VIRTUAL_SCROLL: {
     DEFAULT_ITEM_SIZE: 84, // Updated from list-manager (was 50)
     OVERSCAN_BUFFER: 2, // Updated from list-manager (was 3)
-    MIN_ITEM_SIZE: 20,
-    MAX_ITEM_SIZE: 1000,
     SCROLL_SENSITIVITY: 0.2,
-    MAX_VIRTUAL_SIZE: 10 * 1000 * 1000, // 10M pixels - well within browser limits
+    MAX_VIRTUAL_SIZE: 10 * 1000 * 2000, // 10M pixels - well within browser limits
   },
 
   // Scrolling settings
   SCROLLING: {
-    OVERSCAN: 2, // From features/constants
-    WHEEL_MULTIPLIER: 1,
-    TOUCH_MULTIPLIER: 1,
-    THROTTLE_SCROLL: 8, // ms - from list-manager
-
-    // Scroll behavior
-    DEFAULT_BEHAVIOR: "smooth",
-    DEFAULT_EASING: "ease-in-out",
-    DEFAULT_EASING_DURATION: 300,
+    OVERSCAN: 1, // From features/constants
   },
 
   // Rendering settings
   RENDERING: {
-    BATCH_SIZE: 100,
-    MIN_RENDER_INTERVAL: 16, // ~60fps
-    MIN_ITEM_HEIGHT: 20, // From features/constants
-
     // Element recycling
     DEFAULT_MAX_POOL_SIZE: 100,
-    DEFAULT_MIN_POOL_SIZE: 10,
-    DEFAULT_STRATEGY: "lru",
   },
 
   // Loading settings
   LOADING: {
-    CANCEL_THRESHOLD: 1, // px/ms - velocity above which loads are cancelled
+    CANCEL_THRESHOLD: 20, // px/ms - velocity above which loads are cancelled
     MAX_CONCURRENT_REQUESTS: 3,
     DEFAULT_RANGE_SIZE: 20,
-    DEBOUNCE_LOADING: 150, // ms - from list-manager
-
-    // Range loading (from list-manager)
-    MIN_RANGE_SIZE: 10,
-    MAX_RANGE_SIZE: 100,
-    BUFFER_SIZE: 3, // extra items to maintain
-    PREFETCH_RANGES: 0, // ranges to load ahead
-    PREFETCH_THRESHOLD: 0.8, // start prefetch when 80% through current range
-    PRELOAD_DIRECTION_BIAS: 0.7, // 70% in scroll direction, 30% opposite
-    REQUEST_TIMEOUT: 5000, // 5 seconds
-    RETRY_ATTEMPTS: 2,
-    RETRY_DELAY: 1000, // 1 second
-    RANGE_OVERLAP: 0.1, // 10% overlap between ranges
-    DYNAMIC_RANGE_SIZING: true,
-    VIEWPORT_SIZE_MULTIPLIER: 2, // range size = viewport * multiplier
   },
 
   // Request queue configuration (from features/constants)
@@ -73,36 +42,17 @@ export const VIEWPORT_CONSTANTS = {
 
   // Placeholder settings
   PLACEHOLDER: {
-    MASK_CHARACTER: "x", // Updated from list-manager
-    CSS_CLASS: "viewport-item__placeholder",
-    MIN_SAMPLE_SIZE: 5,
+    MASK_CHARACTER: "X", // Updated from list-manager
+    CLASS: "viewport-item__placeholder",
     MAX_SAMPLE_SIZE: 20,
     PLACEHOLDER_FLAG: "_placeholder",
     RANDOM_LENGTH_VARIANCE: true,
-
-    // Pattern analysis
-    PATTERN_ANALYSIS: {
-      SAMPLE_SIZE: 50, // analyze first N items
-    },
   },
 
   // Speed tracking (from list-manager)
   SPEED_TRACKING: {
     // Velocity calculation
     DECELERATION_FACTOR: 0.85, // velocity decay per frame
-    MEASUREMENT_WINDOW: 100, // ms - window for speed calculation
-    MIN_MEASUREMENT_INTERVAL: 16, // ms - minimum time between measurements
-
-    // Smoothing
-    VELOCITY_SMOOTHING: true,
-    SMOOTHING_FACTOR: 0.3, // weight of new velocity vs smoothed
-
-    // Direction detection
-    ACCELERATION_THRESHOLD: 0.5, // px/ms² - detect acceleration
-    DIRECTION_CHANGE_THRESHOLD: 0.1, // px/ms - minimum velocity to detect direction change
-
-    // Momentum
-    MOMENTUM_DECAY_TIME: 1000, // ms - time for momentum to decay
   },
 
   // Momentum settings
@@ -124,17 +74,6 @@ export const VIEWPORT_CONSTANTS = {
     PLACEHOLDER_COUNT: 20, // default placeholder count
     SHOW_LOADING_STATE: true,
     LOADING_DELAY: 100, // ms - delay before showing loading state
-  },
-
-  // Boundary handling (from list-manager)
-  BOUNDARIES: {
-    PREVENT_OVERSCROLL: true,
-    MAINTAIN_EDGE_RANGES: true,
-    BOUNDARY_RESISTANCE: 0.3,
-    BOUNCE_BACK_DURATION: 300,
-    EDGE_TOLERANCE: 5,
-    MIN_SCROLL_POSITION: 0,
-    MAX_SCROLL_BUFFER: 100, // px - extra scroll at bottom
   },
 
   // Scrollbar settings (from list-manager)

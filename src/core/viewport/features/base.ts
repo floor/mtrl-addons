@@ -6,6 +6,7 @@
  */
 
 import type { ViewportContext, ViewportComponent } from "../types";
+import { wrapInitialize, getViewportState } from "./utils";
 
 export interface BaseConfig {
   className?: string;
@@ -20,12 +21,8 @@ export const withBase = (config: BaseConfig = {}) => {
   return <T extends ViewportContext & ViewportComponent>(component: T): T => {
     const { className = "mtrl-viewport", orientation = "vertical" } = config;
 
-    // Override initialize to set up DOM
-    const originalInitialize = component.viewport.initialize;
-    component.viewport.initialize = () => {
-      // Call original first
-      originalInitialize();
-
+    // Use the shared wrapper utility
+    wrapInitialize(component, () => {
       const element = component.element;
       if (!element) return;
 
@@ -58,35 +55,18 @@ export const withBase = (config: BaseConfig = {}) => {
         viewportElement.appendChild(itemsContainer);
         element.appendChild(viewportElement);
 
-        // Update viewport state with containers
-        const state = (component.viewport as any).state;
+        // Update viewport state with containers using utility
+        const state = getViewportState(component);
         if (state) {
           state.viewportElement = viewportElement;
           state.itemsContainer = itemsContainer;
-
-          // Update container size after DOM is ready
-          const size =
-            orientation === "horizontal"
-              ? viewportElement.offsetWidth
-              : viewportElement.offsetHeight;
-
-          if (size > 0) {
-            state.containerSize = size;
-            console.log("[Base] Updated container size:", size);
-          }
         }
 
-        // Store reference to viewport element for other features
+        // Store references on component
         (component as any).viewportElement = viewportElement;
+        (component as any).itemsContainer = itemsContainer;
       }
-
-      // Emit initialized event
-      component.emit?.("viewport:initialized", {
-        element,
-        viewportElement,
-        orientation,
-      });
-    };
+    });
 
     return component;
   };

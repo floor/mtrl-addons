@@ -6,6 +6,7 @@
 import { addClass, removeClass, hasClass } from "mtrl";
 import type { ViewportContext, ViewportComponent } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
+import { isPlaceholder, getViewportState, wrapInitialize } from "./utils";
 
 export interface RenderingConfig {
   template?: (item: any, index: number) => string | HTMLElement;
@@ -138,17 +139,14 @@ export const withRendering = (config: RenderingConfig = {}) => {
                 const newElement = renderItem(data.items[i], index);
                 if (newElement) {
                   // Ensure the new element doesn't have placeholder classes
-                  removeClass(
-                    newElement,
-                    VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS
-                  );
+                  removeClass(newElement, VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS);
                   const itemElement = newElement.querySelector(
                     ".list-item, .user-item"
                   );
                   if (itemElement) {
                     removeClass(
                       itemElement as HTMLElement,
-                      "list-item__placeholder"
+                      VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS
                     );
                   }
 
@@ -225,15 +223,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
       return div;
     };
 
-    // Helper to check if item is placeholder
-    const isPlaceholder = (item: any): boolean => {
-      return (
-        item &&
-        typeof item === "object" &&
-        (item._placeholder === true ||
-          item[VIEWPORT_CONSTANTS.PLACEHOLDER.PLACEHOLDER_FLAG] === true)
-      );
-    };
+    // Use shared isPlaceholder utility from utils
 
     /**
      * Calculate position for a single item
@@ -337,11 +327,14 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
         // Add placeholder class if needed
         if (isPlaceholder(item)) {
-          addClass(element, VIEWPORT_CONSTANTS.PLACEHOLDER.CSS_CLASS);
+          addClass(element, VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS);
           // Also add to any child element that might be the actual item
           const itemElement = element.querySelector(".list-item, .user-item");
           if (itemElement) {
-            addClass(itemElement as HTMLElement, "list-item__placeholder");
+            addClass(
+              itemElement as HTMLElement,
+              VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS
+            );
           }
         }
 
