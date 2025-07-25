@@ -199,6 +199,12 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
         );
       }
 
+      // Emit drag start event to notify viewport
+      component.emit?.("viewport:drag-start", {
+        source: "scrollbar",
+        startPosition: dragStartScrollPosition,
+      });
+
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
     };
@@ -259,6 +265,12 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
           VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR_DRAGGING
         );
       }
+
+      // Emit drag end event
+      component.emit?.("viewport:drag-end", {
+        source: "scrollbar",
+        endPosition: component.viewport?.getScrollPosition() || 0,
+      });
 
       hide();
 

@@ -63,13 +63,16 @@ export function withCollection(config: CollectionConfig = {}) {
       reject: (error: any) => void;
     }
 
+    // State tracking
     let currentVelocity = 0;
     let activeLoadCount = 0;
-    const activeLoadRanges = new Set<string>();
-    const loadRequestQueue: QueuedRequest[] = [];
     let completedLoads = 0;
     let failedLoads = 0;
     let cancelledLoads = 0;
+    let isDragging = false; // Track drag state
+
+    const activeLoadRanges = new Set<string>();
+    const loadRequestQueue: QueuedRequest[] = [];
 
     // State
     let items: any[] = [];
@@ -427,6 +430,13 @@ export function withCollection(config: CollectionConfig = {}) {
           return;
         }
 
+        // Skip if we just started dragging (initial movement)
+        if (isDragging && currentVelocity < 0.1) {
+          // console.log("[Collection] Load skipped - drag just started");
+          resolve();
+          return;
+        }
+
         // Check velocity - if too high, cancel the request entirely
         if (!canLoad()) {
           // console.log(
@@ -508,9 +518,25 @@ export function withCollection(config: CollectionConfig = {}) {
         totalItems = component.totalItems;
       }
 
+      // Listen for drag events
+      component.on?.("viewport:drag-start", () => {
+        isDragging = true;
+      });
+
+      component.on?.("viewport:drag-end", () => {
+        isDragging = false;
+        // Process any queued requests after drag ends
+        processQueue();
+      });
+
       // Subscribe to events
       component.on?.("viewport:range-changed", async (data: any) => {
         // Don't load during fast scrolling - loadMissingRanges will handle velocity check
+
+        // Skip initial load if we just started dragging
+        if (isDragging && currentVelocity === 0) {
+          return;
+        }
 
         // Check velocity before attempting to load
         const viewportState = (component.viewport as any).state;
