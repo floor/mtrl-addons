@@ -242,9 +242,9 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
       const viewportItems = container.querySelectorAll(
         ".mtrl-viewport-item[data-index]"
       );
-      console.log(
-        `🎯 [Selection] Updating ${viewportItems.length} visible elements`
-      );
+      // console.log(
+      //   `🎯 [Selection] Updating ${viewportItems.length} visible elements`
+      // );
 
       const enhancedComponent = component as any;
       const items = enhancedComponent.getItems?.();

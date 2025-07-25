@@ -152,6 +152,13 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     // Start idle detection
     const startIdleDetection = () => {
       console.log("[Scrolling] Starting idle detection");
+
+      // Stop any existing idle detection first
+      if (idleCheckFrame !== null) {
+        cancelAnimationFrame(idleCheckFrame);
+        idleCheckFrame = null;
+      }
+
       hasEmittedIdle = false; // Reset idle emission flag
       const checkIdle = () => {
         if (scrollPosition === lastIdleCheckPosition) {
@@ -182,9 +189,13 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       }
     };
 
-    // Set velocity to zero
+    // Set velocity to zero and emit idle event
     const setVelocityToZero = () => {
       console.log("[Scrolling] Setting velocity to zero and emitting idle");
+
+      // Stop idle detection since we're now idle
+      stopIdleDetection();
+
       speedTracker = createSpeedTracker();
       isScrolling = false; // Reset scrolling state
 
@@ -210,8 +221,14 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       console.log(`[Scrolling] Resetting idle timeout (${idleTimeout}ms)`);
       idleTimeoutId = window.setTimeout(() => {
         console.log("[Scrolling] Idle timeout fired");
-        isScrolling = false;
-        setVelocityToZero();
+
+        // Only set velocity to zero if we're still scrolling
+        if (isScrolling) {
+          isScrolling = false;
+          setVelocityToZero();
+        }
+
+        // Always stop idle detection
         stopIdleDetection();
       }, idleTimeout);
     };
@@ -255,6 +272,8 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         // Update scroll state
         if (!isScrolling) {
           isScrolling = true;
+          // Stop any existing idle detection before starting new one
+          stopIdleDetection();
           startIdleDetection();
         }
         lastScrollTime = now;

@@ -445,11 +445,11 @@ export function withCollection(config: CollectionConfig = {}) {
 
         // Check velocity - if too high, cancel the request entirely
         if (!canLoad()) {
-          console.log(
-            `[Collection] Load cancelled - velocity ${currentVelocity.toFixed(
-              2
-            )} exceeds threshold ${cancelLoadThreshold}`
-          );
+          // console.log(
+          //   `[Collection] Load cancelled - velocity ${currentVelocity.toFixed(
+          //     2
+          //   )} exceeds threshold ${cancelLoadThreshold}`
+          // );
           cancelledLoads++;
           resolve();
           return;
