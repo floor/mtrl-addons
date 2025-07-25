@@ -5,7 +5,6 @@
 // These styles only add truly addons-specific features that don't exist in mtrl base.
 
 // Import component styles (only addons-specific enhancements)
-@forward "./components/list";
 @forward "./components/vlist";
 
 // Future addons-specific component styles will be added here
