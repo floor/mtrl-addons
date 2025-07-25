@@ -15,6 +15,7 @@ export const getDefaultTemplate = <T = any>(): ((
 ) => string) => {
   return (item: T, index: number) => {
     // Check if this is a placeholder item
+    console.log("getDefaultTemplate");
     const isPlaceholder =
       item &&
       typeof item === "object" &&

@@ -386,32 +386,11 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       const index = (page - 1) * limit;
 
       console.log(
-        `[Scrolling] ScrollToPage START: page=${page}, limit=${limit}, targetIndex=${index}, alignment=${alignment}`
+        `[Scrolling] ScrollToPage: page=${page}, limit=${limit}, targetIndex=${index}, alignment=${alignment}`
       );
 
-      // If we have a collection, ensure the page is loaded first
-      const viewportCollection = (component.viewport as any).collection;
-      if (viewportCollection && viewportCollection.loadRange) {
-        console.log(`[Scrolling] Has collection, loading page data first`);
-        // Load the page data before scrolling
-        const offset = (page - 1) * limit;
-        console.log(
-          `[Scrolling] Calling loadRange with offset=${offset}, limit=${limit}`
-        );
-        viewportCollection.loadRange(offset, limit).then(() => {
-          console.log(
-            `[Scrolling] Page data loaded, now scrolling to index ${index}`
-          );
-          // After data is loaded, scroll to the index
-          scrollToIndex(index, alignment);
-        });
-      } else {
-        console.log(
-          `[Scrolling] No collection, scrolling directly to index ${index}`
-        );
-        // No collection, just scroll
-        scrollToIndex(index, alignment);
-      }
+      // Just scroll to the index - let the normal rendering flow handle data loading and placeholders
+      scrollToIndex(index, alignment);
     };
 
     // Update scroll bounds
