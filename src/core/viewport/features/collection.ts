@@ -10,14 +10,14 @@ import { VIEWPORT_CONSTANTS } from "../constants";
 
 export interface CollectionConfig {
   collection?: any; // Collection adapter
-  strategy?: "offset" | "page";
-  rangeSize?: number;
-  transform?: (item: any) => any;
-  // Loading manager settings
-  cancelLoadThreshold?: number; // Velocity (px/ms) above which loads are cancelled
+  rangeSize?: number; // Default range size for loading
+  strategy?: "offset" | "page"; // Loading strategy
+  transform?: (item: any) => any; // Item transformation function
+  cancelLoadThreshold?: number; // Velocity threshold for cancelling loads
   maxConcurrentRequests?: number;
   enableRequestQueue?: boolean;
   maxQueueSize?: number;
+  loadOnDragEnd?: boolean; // Enable loading when drag ends (safety measure)
 }
 
 export interface CollectionComponent {
@@ -50,6 +50,7 @@ export function withCollection(config: CollectionConfig = {}) {
         .MAX_CONCURRENT_REQUESTS,
       enableRequestQueue = VIEWPORT_CONSTANTS.REQUEST_QUEUE.ENABLED,
       maxQueueSize = VIEWPORT_CONSTANTS.REQUEST_QUEUE.MAX_QUEUE_SIZE,
+      loadOnDragEnd = true, // Default to true as safety measure
     } = config;
 
     // console.log("[Viewport Collection] Initialized with strategy:", strategy);
@@ -423,27 +424,32 @@ export function withCollection(config: CollectionConfig = {}) {
     }): Promise<void> => {
       return new Promise((resolve, reject) => {
         const rangeKey = getRangeKey(range);
+        // console.log(`[Collection] loadMissingRanges called for range ${range.start}-${range.end}, rangeKey: ${rangeKey}`);
 
         // Check if already loading
         if (activeLoadRanges.has(rangeKey)) {
+          // console.log("[Collection] Range already being loaded");
           resolve();
           return;
         }
 
-        // Skip if we just started dragging (initial movement)
-        if (isDragging && currentVelocity < 0.1) {
-          // console.log("[Collection] Load skipped - drag just started");
+        // Skip if dragging with low velocity (but not if we're idle)
+        if (isDragging && currentVelocity < 0.5 && currentVelocity > 0) {
+          console.log(
+            "[Collection] Load skipped - actively dragging with low velocity"
+          );
+          cancelledLoads++;
           resolve();
           return;
         }
 
         // Check velocity - if too high, cancel the request entirely
         if (!canLoad()) {
-          // console.log(
-          //   `[LoadingManager] Load cancelled - velocity ${currentVelocity.toFixed(
-          //     2
-          //   )} exceeds threshold ${cancelLoadThreshold}`
-          // );
+          console.log(
+            `[Collection] Load cancelled - velocity ${currentVelocity.toFixed(
+              2
+            )} exceeds threshold ${cancelLoadThreshold}`
+          );
           cancelledLoads++;
           resolve();
           return;
@@ -525,30 +531,29 @@ export function withCollection(config: CollectionConfig = {}) {
 
       component.on?.("viewport:drag-end", () => {
         isDragging = false;
-        // Process any queued requests after drag ends
-        processQueue();
+        // Process any queued requests after drag ends (safety measure)
+        // This ensures placeholders are replaced even if idle detection fails
+        if (loadOnDragEnd) {
+          processQueue();
+        }
       });
 
-      // Subscribe to events
+      // Listen for range changes
       component.on?.("viewport:range-changed", async (data: any) => {
         // Don't load during fast scrolling - loadMissingRanges will handle velocity check
 
-        // Skip initial load if we just started dragging
-        if (isDragging && currentVelocity === 0) {
+        // Skip initial load if we're dragging and velocity is low (drag just started)
+        if (isDragging && currentVelocity < 0.5) {
+          console.log(
+            "[Collection] Skipping range-changed load during drag start"
+          );
           return;
         }
 
-        // Check velocity before attempting to load
-        const viewportState = (component.viewport as any).state;
-        const velocity = Math.abs(viewportState?.velocity || 0);
-        if (velocity > 1) {
-          // Using same threshold as loading manager
-          return;
-        }
+        const { start, end } = data;
 
-        if (data.range) {
-          await loadMissingRanges(data.range);
-        }
+        // Load missing ranges if needed
+        await loadMissingRanges({ start, end });
       });
 
       // Listen for velocity changes
@@ -567,13 +572,23 @@ export function withCollection(config: CollectionConfig = {}) {
 
       // Listen for idle state to process queue
       component.on?.("viewport:idle", async (data: any) => {
+        console.log("[Collection] Idle event received, velocity=0");
         currentVelocity = 0;
+
+        // Reset dragging state on idle since user has stopped moving
+        if (isDragging) {
+          console.log("[Collection] Resetting drag state on idle");
+          isDragging = false;
+        }
 
         // Get current visible range from viewport
         const viewportState = (component.viewport as any).state;
         const visibleRange = viewportState?.visibleRange;
 
         if (visibleRange) {
+          console.log(
+            `[Collection] Loading visible range on idle: ${visibleRange.start}-${visibleRange.end}`
+          );
           // Load the current visible range if needed
           await loadMissingRanges(visibleRange);
         }

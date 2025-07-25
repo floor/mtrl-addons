@@ -97,6 +97,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     let idleTimeoutId: number | null = null;
     let idleCheckFrame: number | null = null;
     let lastIdleCheckPosition = 0;
+    let hasEmittedIdle = false; // Track if we've already emitted idle
 
     // console.log(`[Scrolling] Initial state - position: ${scrollPosition}`);
 
@@ -150,12 +151,21 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
 
     // Start idle detection
     const startIdleDetection = () => {
+      console.log("[Scrolling] Starting idle detection");
+      hasEmittedIdle = false; // Reset idle emission flag
       const checkIdle = () => {
-        if (
-          scrollPosition === lastIdleCheckPosition &&
-          speedTracker.velocity > 0
-        ) {
-          setVelocityToZero();
+        if (scrollPosition === lastIdleCheckPosition) {
+          // Position hasn't changed - we're idle
+          if (!hasEmittedIdle && (speedTracker.velocity > 0 || isScrolling)) {
+            console.log(
+              "[Scrolling] Idle detected - position stable, setting velocity to zero"
+            );
+            hasEmittedIdle = true; // Mark that we've emitted idle
+            setVelocityToZero();
+          }
+        } else {
+          // Position changed, reset the flag
+          hasEmittedIdle = false;
         }
         lastIdleCheckPosition = scrollPosition;
         idleCheckFrame = requestAnimationFrame(checkIdle);
@@ -166,6 +176,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     // Stop idle detection
     const stopIdleDetection = () => {
       if (idleCheckFrame) {
+        console.log("[Scrolling] Stopping idle detection");
         cancelAnimationFrame(idleCheckFrame);
         idleCheckFrame = null;
       }
@@ -173,7 +184,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
 
     // Set velocity to zero
     const setVelocityToZero = () => {
+      console.log("[Scrolling] Setting velocity to zero and emitting idle");
       speedTracker = createSpeedTracker();
+      isScrolling = false; // Reset scrolling state
 
       // Emit velocity change
       component.emit?.("viewport:velocity-changed", {
@@ -194,7 +207,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         clearTimeout(idleTimeoutId);
       }
 
+      console.log(`[Scrolling] Resetting idle timeout (${idleTimeout}ms)`);
       idleTimeoutId = window.setTimeout(() => {
+        console.log("[Scrolling] Idle timeout fired");
         isScrolling = false;
         setVelocityToZero();
         stopIdleDetection();
@@ -283,9 +298,11 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       const maxScroll = Math.max(0, totalVirtualSize - containerSize);
       const clampedPosition = clamp(position, 0, maxScroll);
 
-      // console.log(
-      //   `[Scrolling] scrollToPosition: ${position} -> ${clampedPosition} (max: ${maxScroll}, source: ${source})`
-      // );
+      console.log(
+        `[Scrolling] scrollToPosition: pos=${position} -> ${clampedPosition}, source=${source}, currentPos=${scrollPosition}, velocity=${speedTracker.velocity.toFixed(
+          3
+        )}`
+      );
 
       if (clampedPosition !== scrollPosition) {
         const previousPosition = scrollPosition;
@@ -327,12 +344,17 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           startIdleDetection();
         }
         lastScrollTime = Date.now();
+
+        // Reset idle timeout
         resetIdleTimeout();
 
         // Trigger render
         component.viewport.renderItems();
       } else {
         // console.log(`[Scrolling] Position unchanged: ${scrollPosition}`);
+        console.log(
+          `[Scrolling] Position unchanged: ${scrollPosition}, not resetting idle timeout`
+        );
       }
     };
 
@@ -527,6 +549,8 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           startIdleDetection();
         }
         lastScrollTime = Date.now();
+
+        // Reset idle timeout
         resetIdleTimeout();
       }
     };
