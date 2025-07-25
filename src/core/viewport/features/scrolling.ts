@@ -291,9 +291,18 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         const previousPosition = scrollPosition;
         scrollPosition = clampedPosition;
 
+        // Update speed tracker to calculate velocity
+        speedTracker = updateSpeedTracker(
+          speedTracker,
+          scrollPosition,
+          previousPosition
+        );
+
         // Update viewport state
         if (viewportState) {
           viewportState.scrollPosition = scrollPosition;
+          viewportState.velocity = speedTracker.velocity;
+          viewportState.scrollDirection = speedTracker.direction;
         }
 
         const direction =
@@ -305,6 +314,20 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           previousPosition,
           source,
         });
+
+        // Emit velocity change event so collection can track it
+        component.emit?.("viewport:velocity-changed", {
+          velocity: speedTracker.velocity,
+          direction: speedTracker.direction,
+        });
+
+        // Update scroll state and idle detection
+        if (!isScrolling) {
+          isScrolling = true;
+          startIdleDetection();
+        }
+        lastScrollTime = Date.now();
+        resetIdleTimeout();
 
         // Trigger render
         component.viewport.renderItems();
