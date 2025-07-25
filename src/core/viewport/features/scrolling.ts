@@ -84,7 +84,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       orientation = "vertical",
       sensitivity = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.SCROLL_SENSITIVITY,
       smoothing = false,
-      idleTimeout = 500, // Default idle timeout in ms
+      idleTimeout = 100, // Default idle timeout in ms
     } = config;
 
     // State

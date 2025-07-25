@@ -73,7 +73,7 @@ export function withCollection(config: CollectionConfig = {}) {
     let isDragging = false; // Track drag state
 
     const activeLoadRanges = new Set<string>();
-    const loadRequestQueue: QueuedRequest[] = [];
+    let loadRequestQueue: QueuedRequest[] = [];
 
     // State
     let items: any[] = [];
@@ -365,7 +365,17 @@ export function withCollection(config: CollectionConfig = {}) {
         }
       }
 
-      if (rangesToLoad.length === 0) return;
+      if (rangesToLoad.length === 0) {
+        // All ranges are already loaded or pending
+        // Check if there are queued requests we should process
+        if (
+          loadRequestQueue.length > 0 &&
+          activeLoadCount < maxConcurrentRequests
+        ) {
+          processQueue();
+        }
+        return;
+      }
 
       // Check if we can merge consecutive ranges for page strategy
       const shouldMerge =
@@ -589,6 +599,25 @@ export function withCollection(config: CollectionConfig = {}) {
           console.log(
             `[Collection] Loading visible range on idle: ${visibleRange.start}-${visibleRange.end}`
           );
+
+          // Clear stale requests from queue that are far from current visible range
+          const buffer = rangeSize * 2; // Allow some buffer
+          loadRequestQueue = loadRequestQueue.filter((request) => {
+            const requestEnd = request.range.end;
+            const requestStart = request.range.start;
+            const isRelevant =
+              requestEnd >= visibleRange.start - buffer &&
+              requestStart <= visibleRange.end + buffer;
+
+            if (!isRelevant) {
+              console.log(
+                `[Collection] Removing stale queued request: ${requestStart}-${requestEnd}`
+              );
+              request.resolve(); // Resolve to avoid hanging promises
+            }
+            return isRelevant;
+          });
+
           // Load the current visible range if needed
           await loadMissingRanges(visibleRange);
         }
