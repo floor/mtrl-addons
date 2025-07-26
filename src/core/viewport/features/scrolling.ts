@@ -151,7 +151,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
 
     // Start idle detection
     const startIdleDetection = () => {
-      console.log("[Scrolling] Starting idle detection");
+      // console.log("[Scrolling] Starting idle detection");
 
       // Stop any existing idle detection first
       if (idleCheckFrame !== null) {
@@ -164,9 +164,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         if (scrollPosition === lastIdleCheckPosition) {
           // Position hasn't changed - we're idle
           if (!hasEmittedIdle && (speedTracker.velocity > 0 || isScrolling)) {
-            console.log(
-              "[Scrolling] Idle detected - position stable, setting velocity to zero"
-            );
+            // console.log(
+            //   "[Scrolling] Idle detected - position stable, setting velocity to zero"
+            // );
             hasEmittedIdle = true; // Mark that we've emitted idle
             setVelocityToZero();
           }
@@ -183,7 +183,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     // Stop idle detection
     const stopIdleDetection = () => {
       if (idleCheckFrame) {
-        console.log("[Scrolling] Stopping idle detection");
+        // console.log("[Scrolling] Stopping idle detection");
         cancelAnimationFrame(idleCheckFrame);
         idleCheckFrame = null;
       }
@@ -191,7 +191,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
 
     // Set velocity to zero and emit idle event
     const setVelocityToZero = () => {
-      console.log("[Scrolling] Setting velocity to zero and emitting idle");
+      // console.log("[Scrolling] Setting velocity to zero and emitting idle");
 
       // Stop idle detection since we're now idle
       stopIdleDetection();
@@ -211,28 +211,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         lastScrollTime,
       });
     };
-
-    // Handle idle timeout
-    const resetIdleTimeout = () => {
-      if (idleTimeoutId) {
-        clearTimeout(idleTimeoutId);
-      }
-
-      console.log(`[Scrolling] Resetting idle timeout (${idleTimeout}ms)`);
-      idleTimeoutId = window.setTimeout(() => {
-        console.log("[Scrolling] Idle timeout fired");
-
-        // Only set velocity to zero if we're still scrolling
-        if (isScrolling) {
-          isScrolling = false;
-          setVelocityToZero();
-        }
-
-        // Always stop idle detection
-        stopIdleDetection();
-      }, idleTimeout);
-    };
-
     // Update container position
     const updateContainerPosition = () => {
       if (!viewportState || !viewportState.itemsContainer) return;
@@ -306,9 +284,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
 
         // Trigger render
         component.viewport.renderItems();
-
-        // Reset idle timeout
-        resetIdleTimeout();
       }
     };
 
@@ -317,11 +292,11 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       const maxScroll = Math.max(0, totalVirtualSize - containerSize);
       const clampedPosition = clamp(position, 0, maxScroll);
 
-      console.log(
-        `[Scrolling] scrollToPosition: pos=${position} -> ${clampedPosition}, source=${source}, currentPos=${scrollPosition}, velocity=${speedTracker.velocity.toFixed(
-          3
-        )}`
-      );
+      // console.log(
+      //   `[Scrolling] scrollToPosition: pos=${position} -> ${clampedPosition}, source=${source}, currentPos=${scrollPosition}, velocity=${speedTracker.velocity.toFixed(
+      //     3
+      //   )}`
+      // );
 
       if (clampedPosition !== scrollPosition) {
         const previousPosition = scrollPosition;
@@ -364,16 +339,13 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         }
         lastScrollTime = Date.now();
 
-        // Reset idle timeout
-        resetIdleTimeout();
-
         // Trigger render
         component.viewport.renderItems();
       } else {
         // console.log(`[Scrolling] Position unchanged: ${scrollPosition}`);
-        console.log(
-          `[Scrolling] Position unchanged: ${scrollPosition}, not resetting idle timeout`
-        );
+        // console.log(
+        //   `[Scrolling] Position unchanged: ${scrollPosition}, not resetting idle timeout`
+        // );
       }
     };
 
@@ -382,11 +354,11 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       index: number,
       alignment: "start" | "center" | "end" = "start"
     ) => {
-      console.log(
-        `[Scrolling] scrollToIndex called: index=${index}, alignment=${alignment}`
-      );
+      // console.log(
+      //   `[Scrolling] scrollToIndex called: index=${index}, alignment=${alignment}`
+      // );
       if (!viewportState) {
-        console.log(`[Scrolling] scrollToIndex aborted: no viewport state`);
+        //console.log(`[Scrolling] scrollToIndex aborted: no viewport state`);
         return;
       }
 
@@ -418,9 +390,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           break;
       }
 
-      console.log(
-        `[Scrolling] Target position: ${targetPosition}, isCompressed: ${isCompressed}`
-      );
+      // console.log(
+      //   `[Scrolling] Target position: ${targetPosition}, isCompressed: ${isCompressed}`
+      // );
 
       // console.log(
       //   `[Scrolling] ScrollToIndex: index=${index}, position=${targetPosition}, alignment=${alignment}`
@@ -449,9 +421,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       // Convert page to index (page 1 = index 0)
       const index = (page - 1) * limit;
 
-      console.log(
-        `[Scrolling] ScrollToPage: page=${page}, limit=${limit}, targetIndex=${index}, alignment=${alignment}`
-      );
+      // console.log(
+      //   `[Scrolling] ScrollToPage: page=${page}, limit=${limit}, targetIndex=${index}, alignment=${alignment}`
+      // );
 
       // Just scroll to the index - let the normal rendering flow handle data loading and placeholders
       scrollToIndex(index, alignment);
@@ -568,9 +540,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           startIdleDetection();
         }
         lastScrollTime = Date.now();
-
-        // Reset idle timeout
-        resetIdleTimeout();
       }
     };
 

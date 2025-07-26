@@ -13,7 +13,6 @@ import { PREFIX, addClass, removeClass } from "mtrl";
 export interface ScrollbarConfig {
   enabled?: boolean;
   autoHide?: boolean;
-  trackWidth?: number;
   thumbMinHeight?: number;
   thumbColor?: string;
   trackColor?: string;
@@ -40,8 +39,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
     const {
       enabled = true,
       autoHide = true,
-      trackWidth = 8,
-      thumbMinHeight = 15,
+      thumbMinHeight = 25,
       borderRadius = 4,
       fadeTimeout = 1000,
     } = config;
@@ -84,7 +82,6 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
         position: absolute;
         top: 0;
         right: 0;
-        width: ${trackWidth}px;
         height: 100%;
         z-index: 10;
       `;

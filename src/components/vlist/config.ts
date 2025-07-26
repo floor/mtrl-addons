@@ -9,15 +9,9 @@ import {
   createComponentConfig,
   createElementConfig as coreCreateElementConfig,
 } from "mtrl/src/core/config/component";
-import { LIST_DEFAULTS, LIST_CLASSES } from "./constants";
+import { VLIST_CLASSES } from "./constants";
 import type { ListConfig, ListItem } from "./types";
 import type { ListComponent } from "./types";
-import { DATA_PAGINATION } from "../../core/collection/constants";
-import { VIRTUAL_SCROLLING } from "../../core/list-manager/constants";
-import {
-  convertRenderItemToTemplate,
-  getDefaultTemplate,
-} from "../../core/list-manager/features/viewport/template";
 
 /**
  * Default configuration for the mtrl-addons List component
@@ -49,7 +43,7 @@ export const defaultConfig: Partial<ListConfig> = {
   },
 
   // Component settings
-  className: LIST_CLASSES.BASE,
+  className: VLIST_CLASSES.LIST,
   prefix: "mtrl",
   componentName: "list",
   ariaLabel: "List",
@@ -117,7 +111,7 @@ export function getElementConfig<T extends ListItem = ListItem>(
   return coreCreateElementConfig(config, {
     tag: "div",
     attributes,
-    className: [LIST_CLASSES.BASE, LIST_CLASSES.ADDONS], // Clean: list list-addons
+    className: VLIST_CLASSES.LIST,
   });
 }
 
@@ -273,7 +267,6 @@ export const validateConfig = (config: ListConfig): void => {
 export const getCollectionConfig = (config: ListConfig) => ({
   adapter: config.adapter,
   items: config.items,
-  pageSize: config.collection?.limit || DATA_PAGINATION.DEFAULT_PAGE_SIZE,
   cache: config.collection?.cache || {
     enabled: true,
     maxSize: 1000,

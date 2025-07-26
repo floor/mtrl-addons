@@ -173,9 +173,9 @@ export function withCollection(config: CollectionConfig = {}) {
      * Load a range of data
      */
     const loadRange = async (offset: number, limit: number): Promise<any[]> => {
-      console.log(
-        `[Collection] loadRange called: offset=${offset}, limit=${limit}`
-      );
+      // console.log(
+      //   `[Collection] loadRange called: offset=${offset}, limit=${limit}`
+      // );
 
       if (!collection) {
         console.warn("[Collection] No collection adapter configured");
@@ -183,32 +183,32 @@ export function withCollection(config: CollectionConfig = {}) {
       }
 
       const rangeId = getRangeId(offset, limit);
-      console.log(`[Collection] Range ID: ${rangeId}`);
+      //console.log(`[Collection] Range ID: ${rangeId}`);
 
       // Check if already loaded
       if (loadedRanges.has(rangeId)) {
-        console.log(
-          `[Collection] Range ${rangeId} already loaded, returning cached data`
-        );
+        // console.log(
+        //   `[Collection] Range ${rangeId} already loaded, returning cached data`
+        // );
         return items.slice(offset, offset + limit);
       }
 
       // Check if already pending
       if (pendingRanges.has(rangeId)) {
-        console.log(`[Collection] Range ${rangeId} already pending`);
+        // console.log(`[Collection] Range ${rangeId} already pending`);
         const existingRequest = activeRequests.get(rangeId);
         if (existingRequest) {
-          console.log(
-            `[Collection] Returning existing request for range ${rangeId}`
-          );
+          // console.log(
+          //   `[Collection] Returning existing request for range ${rangeId}`
+          // );
           return existingRequest;
         }
       }
 
       // Mark as pending
-      console.log(
-        `[Collection] Marking range ${rangeId} as pending and loading...`
-      );
+      // console.log(
+      //   `[Collection] Marking range ${rangeId} as pending and loading...`
+      // );
       pendingRanges.add(rangeId);
 
       // // Check if this range overlaps with the current visible range
@@ -289,9 +289,9 @@ export function withCollection(config: CollectionConfig = {}) {
           pendingRanges.delete(rangeId);
           failedRanges.delete(rangeId);
 
-          console.log(
-            `[Collection] Range ${rangeId} loaded successfully with ${transformedItems.length} items`
-          );
+          // console.log(
+          //   `[Collection] Range ${rangeId} loaded successfully with ${transformedItems.length} items`
+          // );
 
           // Emit events
           component.emit?.("viewport:range-loaded", {
@@ -554,9 +554,9 @@ export function withCollection(config: CollectionConfig = {}) {
 
         // Skip initial load if we're dragging and velocity is low (drag just started)
         if (isDragging && currentVelocity < 0.5) {
-          console.log(
-            "[Collection] Skipping range-changed load during drag start"
-          );
+          // console.log(
+          //   "[Collection] Skipping range-changed load during drag start"
+          // );
           return;
         }
 
@@ -582,12 +582,12 @@ export function withCollection(config: CollectionConfig = {}) {
 
       // Listen for idle state to process queue
       component.on?.("viewport:idle", async (data: any) => {
-        console.log("[Collection] Idle event received, velocity=0");
+        //console.log("[Collection] Idle event received, velocity=0");
         currentVelocity = 0;
 
         // Reset dragging state on idle since user has stopped moving
         if (isDragging) {
-          console.log("[Collection] Resetting drag state on idle");
+          // console.log("[Collection] Resetting drag state on idle");
           isDragging = false;
         }
 
@@ -596,9 +596,9 @@ export function withCollection(config: CollectionConfig = {}) {
         const visibleRange = viewportState?.visibleRange;
 
         if (visibleRange) {
-          console.log(
-            `[Collection] Loading visible range on idle: ${visibleRange.start}-${visibleRange.end}`
-          );
+          // console.log(
+          //   `[Collection] Loading visible range on idle: ${visibleRange.start}-${visibleRange.end}`
+          // );
 
           // Clear stale requests from queue that are far from current visible range
           const buffer = rangeSize * 2; // Allow some buffer
@@ -610,9 +610,9 @@ export function withCollection(config: CollectionConfig = {}) {
               requestStart <= visibleRange.end + buffer;
 
             if (!isRelevant) {
-              console.log(
-                `[Collection] Removing stale queued request: ${requestStart}-${requestEnd}`
-              );
+              // console.log(
+              //   `[Collection] Removing stale queued request: ${requestStart}-${requestEnd}`
+              // );
               request.resolve(); // Resolve to avoid hanging promises
             }
             return isRelevant;

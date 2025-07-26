@@ -1,8 +1,8 @@
 // src/components/vlist/features/selection.ts
 
 import type { VListConfig, VListComponent } from "../types";
-import { LIST_CLASSES, LIST_EVENTS } from "mtrl/src/components/list/constants";
-import { addClass, hasClass, removeClass } from "mtrl/src/core/dom";
+import { VLIST_CLASSES } from "../constants";
+import { PREFIX, addClass, removeClass } from "mtrl";
 
 /**
  * Selection state interface
@@ -47,9 +47,9 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
     const addContainerModifier = () => {
       if (component.element) {
         // Add selection mode modifier class following BEM convention
-        addClass(component.element, `mtrl-vlist--selection`);
+        addClass(component.element, `vlist--selection`);
         // Also add specific mode modifier
-        addClass(component.element, `mtrl-vlist--selection-${state.mode}`);
+        addClass(component.element, `vlist--selection-${state.mode}`);
       }
     };
 
@@ -71,9 +71,9 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
      */
     const applySelectionClass = (element: HTMLElement, isSelected: boolean) => {
       if (isSelected) {
-        addClass(element, LIST_CLASSES.SELECTED);
+        addClass(element, VLIST_CLASSES.SELECTED);
       } else {
-        removeClass(element, LIST_CLASSES.SELECTED);
+        removeClass(element, VLIST_CLASSES.SELECTED);
       }
     };
 
@@ -94,7 +94,7 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
 
       // Find the clicked viewport item element (wrapper)
       const viewportItem = (e.target as HTMLElement).closest(
-        ".mtrl-viewport-item[data-index]"
+        `.${PREFIX}-viewport-item[data-index]`
       ) as HTMLElement;
       if (!viewportItem) {
         console.log("🎯 [Selection] No viewport item found for click");
@@ -232,7 +232,7 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
      */
     const updateVisibleElements = () => {
       const container = component.element?.querySelector(
-        ".mtrl-viewport-items"
+        `.${PREFIX}-viewport-items`
       );
       if (!container) {
         console.warn("🎯 [Selection] No viewport items container found");
@@ -240,7 +240,7 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
       }
 
       const viewportItems = container.querySelectorAll(
-        ".mtrl-viewport-item[data-index]"
+        `.${PREFIX}-viewport-item[data-index]`
       );
       // console.log(
       //   `🎯 [Selection] Updating ${viewportItems.length} visible elements`
@@ -263,13 +263,9 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
 
         const isSelected = state.selectedIds.has(itemId);
 
-        // Apply selection class to the inner list item, not the viewport wrapper
-        const listItem = viewportItem.querySelector(
-          ".list-item, .user-item"
-        ) as HTMLElement;
-        if (listItem) {
-          applySelectionClass(listItem, isSelected);
-        }
+        // Apply selection class to the viewport item itself
+        // The new layout system doesn't have a separate inner item
+        applySelectionClass(viewportItem as HTMLElement, isSelected);
       });
     };
 
@@ -307,7 +303,7 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
           // Test if handler works
           setTimeout(() => {
             const testItem = component.element?.querySelector(
-              ".mtrl-viewport-item"
+              `.${PREFIX}-viewport-item`
             );
             console.log("🎯 [Selection] Test item found:", !!testItem);
           }, 500);
