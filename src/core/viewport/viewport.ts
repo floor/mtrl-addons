@@ -169,6 +169,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
         itemSize: config.virtual?.itemSize,
         overscan: config.virtual?.overscan,
         orientation: config.scrolling?.orientation,
+        autoDetectItemSize: config.virtual?.autoDetectItemSize,
       })
     );
 

@@ -68,6 +68,7 @@ export interface ViewportConfig {
   virtual?: {
     itemSize?: number;
     overscan?: number; // Extra items to render outside viewport
+    autoDetectItemSize?: boolean; // Auto-detect item size from first render
   };
 
   // Scrolling configuration

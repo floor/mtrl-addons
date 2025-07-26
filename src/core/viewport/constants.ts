@@ -13,6 +13,7 @@ export const VIEWPORT_CONSTANTS = {
     OVERSCAN_BUFFER: 2,
     SCROLL_SENSITIVITY: 0.2,
     MAX_VIRTUAL_SIZE: 10 * 1000 * 1000, // 10M pixels - well within browser limits
+    AUTO_DETECT_ITEM_SIZE: true, // Enable automatic item size detection
   },
 
   // Scrolling settings

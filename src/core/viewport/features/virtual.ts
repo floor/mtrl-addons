@@ -11,6 +11,7 @@ export interface VirtualConfig {
   itemSize?: number;
   overscan?: number;
   orientation?: "vertical" | "horizontal";
+  autoDetectItemSize?: boolean;
   debug?: boolean;
 }
 
@@ -21,11 +22,18 @@ export interface VirtualConfig {
 export const withVirtual = (config: VirtualConfig = {}) => {
   return <T extends ViewportContext & ViewportComponent>(component: T): T => {
     const {
-      itemSize = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.DEFAULT_ITEM_SIZE,
+      itemSize,
       overscan = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER,
       orientation = "vertical",
+      autoDetectItemSize = itemSize === undefined
+        ? VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.AUTO_DETECT_ITEM_SIZE
+        : false,
       debug = false,
     } = config;
+
+    // Use provided itemSize or default, but mark if we should auto-detect
+    const initialItemSize =
+      itemSize || VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.DEFAULT_ITEM_SIZE;
 
     const MAX_VIRTUAL_SIZE = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.MAX_VIRTUAL_SIZE;
     let viewportState: any;
@@ -37,7 +45,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       if (!viewportState) return;
 
       Object.assign(viewportState, {
-        itemSize,
+        itemSize: initialItemSize,
         overscan,
         containerSize:
           component.element?.[
@@ -215,36 +223,33 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       component.viewport?.renderItems?.();
     });
 
-    // Listen for first items rendered to calculate item size
-    component.on?.("viewport:items-rendered", (data: any) => {
-      if (
-        !hasCalculatedItemSize &&
-        data.elements?.length > 0 &&
-        viewportState
-      ) {
-        // Calculate average item size from first rendered batch
-        const sizes: number[] = [];
-        const sizeProperty =
-          orientation === "horizontal" ? "offsetWidth" : "offsetHeight";
+    // Listen for first items rendered to calculate item size (if auto-detection is enabled)
+    if (autoDetectItemSize) {
+      component.on?.("viewport:items-rendered", (data: any) => {
+        if (
+          !hasCalculatedItemSize &&
+          data.elements?.length > 0 &&
+          viewportState
+        ) {
+          // Calculate average item size from first rendered batch
+          const sizes: number[] = [];
+          const sizeProperty =
+            orientation === "horizontal" ? "offsetWidth" : "offsetHeight";
 
-        data.elements.forEach((element: HTMLElement) => {
-          const size = element[sizeProperty];
-          if (size > 0) {
-            sizes.push(size);
-          }
-        });
+          data.elements.forEach((element: HTMLElement) => {
+            const size = element[sizeProperty];
+            if (size > 0) {
+              sizes.push(size);
+            }
+          });
 
-        if (sizes.length > 0) {
-          const avgSize = Math.round(
-            sizes.reduce((sum, size) => sum + size, 0) / sizes.length
-          );
+          if (sizes.length > 0) {
+            const avgSize = Math.round(
+              sizes.reduce((sum, size) => sum + size, 0) / sizes.length
+            );
 
-          // Only update if significantly different (>10% change)
-          const percentChange =
-            Math.abs(avgSize - viewportState.itemSize) / viewportState.itemSize;
-          if (percentChange > 0.1) {
             log(
-              `Updating item size from ${viewportState.itemSize} to ${avgSize} based on first render`
+              `Auto-detected item size: ${avgSize}px (was ${viewportState.itemSize}px)`
             );
             viewportState.itemSize = avgSize;
 
@@ -254,12 +259,18 @@ export const withVirtual = (config: VirtualConfig = {}) => {
 
             // Re-render to adjust positions
             component.viewport?.renderItems?.();
-          }
 
-          hasCalculatedItemSize = true;
+            // Emit event for size change
+            component.emit?.("viewport:item-size-detected", {
+              previousSize: initialItemSize,
+              detectedSize: avgSize,
+            });
+
+            hasCalculatedItemSize = true;
+          }
         }
-      }
-    });
+      });
+    }
 
     // Expose virtual API
     const compressionRatio = getCompressionRatio();
@@ -274,13 +285,14 @@ export const withVirtual = (config: VirtualConfig = {}) => {
           updateVisibleRange(viewportState.scrollPosition || 0);
         }
       },
-      getItemSize: () => viewportState?.itemSize || itemSize,
+      getItemSize: () => viewportState?.itemSize || initialItemSize,
       calculateIndexFromPosition: (position: number) =>
         Math.floor(
-          position / ((viewportState?.itemSize || itemSize) * compressionRatio)
+          position /
+            ((viewportState?.itemSize || initialItemSize) * compressionRatio)
         ),
       calculatePositionForIndex: (index: number) =>
-        index * (viewportState?.itemSize || itemSize) * compressionRatio,
+        index * (viewportState?.itemSize || initialItemSize) * compressionRatio,
     };
 
     return component;
