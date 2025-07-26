@@ -46,8 +46,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
     const state: ViewportState = {
       scrollPosition: 0,
       totalItems: component.totalItems || 0,
-      estimatedItemSize:
-        config.virtual?.estimatedItemSize || config.estimatedItemSize || 50,
+      estimatedItemSize: config.virtual?.estimatedItemSize || 50,
       containerSize: 0,
       virtualTotalSize: 0,
       visibleRange: { start: 0, end: 0 },
@@ -69,8 +68,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
         // Initialize container size
         if (component.element) {
           state.containerSize =
-            (config.scrolling?.orientation || config.orientation) ===
-            "horizontal"
+            config.scrolling?.orientation === "horizontal"
               ? component.element.offsetWidth
               : component.element.offsetHeight;
 
@@ -161,24 +159,23 @@ export const createViewport = (config: ViewportConfig = {}) => {
     enhancers.push(
       withBase({
         className: config.className,
-        orientation: config.scrolling?.orientation || config.orientation,
+        orientation: config.scrolling?.orientation,
       })
     );
 
     // Virtual scrolling (required for most features)
     enhancers.push(
       withVirtual({
-        estimatedItemSize:
-          config.virtual?.estimatedItemSize || config.estimatedItemSize,
-        overscan: config.virtual?.overscan ?? config.overscan,
-        orientation: config.scrolling?.orientation || config.orientation,
+        estimatedItemSize: config.virtual?.estimatedItemSize,
+        overscan: config.virtual?.overscan,
+        orientation: config.scrolling?.orientation,
       })
     );
 
     // Scrolling behavior
     enhancers.push(
       withScrolling({
-        orientation: config.scrolling?.orientation || config.orientation,
+        orientation: config.scrolling?.orientation,
         sensitivity: config.scrolling?.sensitivity,
         smoothing: config.scrolling?.animation,
       })
@@ -195,22 +192,16 @@ export const createViewport = (config: ViewportConfig = {}) => {
     }
 
     // Add collection if configured
-    if (config.collection?.adapter || config.adapter) {
+    if (config.collection?.adapter) {
       enhancers.push(
         withCollection({
-          collection: config.collection?.adapter || config.adapter,
-          rangeSize: config.pagination?.limit || config.rangeSize,
+          collection: config.collection.adapter,
+          rangeSize: config.pagination?.limit,
           strategy:
             config.pagination?.strategy === "cursor"
               ? "page"
-              : ((config.pagination?.strategy || config.paginationStrategy) as
-                  | "offset"
-                  | "page"
-                  | undefined),
-          transform:
-            config.collection?.transform ||
-            config.transform ||
-            config.transformItem,
+              : (config.pagination?.strategy as "offset" | "page" | undefined),
+          transform: config.collection?.transform,
           cancelLoadThreshold: config.performance?.cancelLoadThreshold,
           maxConcurrentRequests: config.performance?.maxConcurrentRequests,
           enableRequestQueue: config.performance?.enableRequestQueue !== false,
@@ -219,10 +210,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
     }
 
     // Placeholders (optional, requires collection)
-    if (
-      (config.collection?.adapter || config.adapter) &&
-      config.placeholders?.enabled !== false
-    ) {
+    if (config.collection?.adapter && config.placeholders?.enabled !== false) {
       enhancers.push(
         withPlaceholders({
           enabled: true,
@@ -236,7 +224,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
     enhancers.push(
       withRendering({
         template: config.template,
-        overscan: config.virtual?.overscan ?? config.overscan,
+        overscan: config.virtual?.overscan,
       })
     );
 

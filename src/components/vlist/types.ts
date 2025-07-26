@@ -570,10 +570,6 @@ export interface VListConfig<T = any> {
 
   // Event handlers
   on?: ListEventHandlers<T>;
-
-  // Legacy flat format support (deprecated)
-  adapter?: ListAdapter<T>;
-  transform?: (item: T) => T;
 }
 
 export type VListComponent<T = any> = ListComponent<T> & {

@@ -100,16 +100,6 @@ export interface ViewportConfig {
     maskCharacter?: string;
     analyzeFirstLoad?: boolean;
   };
-
-  // Legacy flat format support (deprecated - will be removed in v2.0)
-  adapter?: any;
-  transform?: (item: any) => any;
-  orientation?: "vertical" | "horizontal";
-  estimatedItemSize?: number;
-  overscan?: number;
-  rangeSize?: number;
-  paginationStrategy?: "page" | "offset" | "cursor";
-  transformItem?: (item: any) => any;
 }
 
 /**
