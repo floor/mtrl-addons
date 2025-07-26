@@ -14,7 +14,7 @@ export { withMomentum } from "./momentum";
 // Utility exports
 export { createItemSizeManager } from "./item-size";
 export { createLoadingManager } from "./loading";
-export { createElementFromTemplate } from "./template";
+export { createElementFromTemplate } from "./template.ts";
 
 // Types
 export type { PlaceholderComponent, PlaceholderConfig } from "./placeholders";

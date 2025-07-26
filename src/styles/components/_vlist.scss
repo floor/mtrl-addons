@@ -33,7 +33,7 @@ $opacity-transition: opacity $transition-duration $transition-easing;
     opacity: 0.6;
   }
   50% {
-    opacity: 0.5;
+    opacity: 0.4;
   }
 }
 
@@ -111,24 +111,81 @@ $opacity-transition: opacity $transition-duration $transition-easing;
   }
 }
 
+.#{$viewport-item} {
+  padding: 12px 16px;
+  display: flex;
+  align-items: start;
+  transition: background-color 0.2s ease;
+  align-items: center;
+  min-height: 48px;
+  padding: 8px 16px;
+  left: 0;
+  right: 0;
+  width: 100%;
+  will-change: transform;
+  contain: layout style;
+  gap: 16px;
+  color: var(--mtrl-sys-color-on-surface);
+  overflow: hidden;
+}
+
+.#{$viewport-item}__avatar,
+.#{$viewport-item}__image {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--mtrl-sys-color-primary-container);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.#{$viewport-item}__details {
+  flex: 1;
+  min-width: 0;
+  margin-left: 12px;
+}
+
+.#{$viewport-item}__headline {
+  font-weight: 500;
+}
+
+.#{$viewport-item}__text {
+  // color: #666;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.#{$viewport-item}__meta {
+  color: var(--mtrl-sys-color-on-surface-variant);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
 // ===========================
 // Placeholder Styling
 // ===========================
 
-.#{$viewport-item}__placeholder {
+.#{$viewport-item}--placeholder {
   opacity: 0.6; // Match the animation start/end opacity
   animation: placeholder-pulse 2s ease-in-out infinite;
-  // Placeholder content blocks
-  .user-name,
-  .user-email,
-  .user-role {
+
+  // Placeholder content blocks - style any text elements within
+  .#{$viewport-item}__headline,
+  .#{$viewport-item}__text,
+  .#{$viewport-item}__meta {
     position: relative;
     display: inline-block;
     font-size: 0.8em;
     color: transparent;
     background-color: var(--mtrl-sys-color-on-surface);
     border-radius: 0.1em;
-    opacity: 0.9;
+    opacity: 0.6;
     text-decoration: none;
     line-height: 1;
     padding: 0 0 0.05em;
@@ -136,18 +193,19 @@ $opacity-transition: opacity $transition-duration $transition-easing;
   }
 
   // Layout adjustments
-  .user-email,
-  .user-role {
+  .#{$viewport-item}__text,
+  .#{$viewport-item}__meta {
     margin-top: 0.2em;
   }
 
-  .user-name,
-  .user-role {
+  // User-specific placeholder elements
+  .#{$viewport-item}__user-headline,
+  .#{$viewport-item}__user-text {
     text-transform: capitalize;
   }
 
   // Avatar placeholder
-  .user-avatar {
+  .#{$viewport-item}__avatar {
     background-color: var(--mtrl-sys-color-primary-container);
     color: var(--mtrl-sys-color-primary-container);
     opacity: 1;

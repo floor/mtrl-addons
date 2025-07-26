@@ -9,7 +9,6 @@ import type {
 } from "./types";
 import { pipe } from "mtrl/src/core/compose/pipe";
 import { withBase } from "./features/base";
-import { withTemplate } from "./features/template";
 import { withVirtual } from "./features/virtual";
 import { withScrolling } from "./features/scrolling";
 import { withScrollbar } from "./features/scrollbar";

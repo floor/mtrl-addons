@@ -12,9 +12,13 @@ import {
   wrapInitialize,
   wrapDestroy,
 } from "./utils";
+import { createLayout } from "../../layout";
 
 export interface RenderingConfig {
-  template?: (item: any, index: number) => string | HTMLElement;
+  template?: (
+    item: any,
+    index: number
+  ) => string | HTMLElement | any[] | Record<string, any>;
   overscan?: number;
   measureItems?: boolean;
   enableRecycling?: boolean;
@@ -117,14 +121,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
               if (newElement) {
                 // Remove placeholder classes
                 removeClass(newElement, VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS);
-                const itemEl = newElement.querySelector(
-                  ".list-item, .user-item"
-                );
-                if (itemEl)
-                  removeClass(
-                    itemEl as HTMLElement,
-                    VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS
-                  );
 
                 // Add replaced class for fade-in animation
                 addClass(newElement, "viewport-item--replaced");
@@ -182,10 +178,53 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
     // Template helpers
     const getDefaultTemplate = () => (item: any, index: number) => {
-      const div = document.createElement("div");
-      div.className = "mtrl-viewport-item";
-      div.textContent = `Item ${index}`;
-      return div;
+      // Use layout system for default template
+      return [
+        {
+          tag: "div",
+          class: "viewport-item",
+          text:
+            typeof item === "object"
+              ? item.name || item.label || item.text || `Item ${index}`
+              : String(item),
+        },
+      ];
+    };
+
+    // Process layout schema with item data substitution
+    const processLayoutSchema = (
+      schema: any,
+      item: any,
+      index: number
+    ): any => {
+      if (typeof schema === "string") {
+        // Handle variable substitution like {{name}}, {{index}}
+        return schema.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+          if (key === "index") return String(index);
+          if (key === "item") return String(item);
+
+          // Handle nested properties like {{user.name}}
+          const value = key.split(".").reduce((obj: any, prop: string) => {
+            return obj?.[prop.trim()];
+          }, item);
+
+          return value !== undefined ? String(value) : match;
+        });
+      }
+
+      if (Array.isArray(schema)) {
+        return schema.map((child) => processLayoutSchema(child, item, index));
+      }
+
+      if (typeof schema === "object" && schema !== null) {
+        const processed: any = {};
+        for (const [key, value] of Object.entries(schema)) {
+          processed[key] = processLayoutSchema(value, item, index);
+        }
+        return processed;
+      }
+
+      return schema;
     };
 
     // Position calculation
@@ -244,7 +283,31 @@ export const withRendering = (config: RenderingConfig = {}) => {
         const result = itemTemplate(item, index);
         let element: HTMLElement;
 
-        if (typeof result === "string") {
+        // Check if result is a layout schema (array or object)
+        if (
+          Array.isArray(result) ||
+          (typeof result === "object" &&
+            result !== null &&
+            !(result instanceof HTMLElement))
+        ) {
+          // Process schema to substitute variables
+          const processedSchema = processLayoutSchema(result, item, index);
+
+          // Use layout system to create element
+          const layoutResult = createLayout(processedSchema);
+          element = layoutResult.element;
+
+          // If the layout created a wrapper, use it directly
+          if (element && element.nodeType === 1) {
+            // Element is already created by layout system
+          } else {
+            // Fallback if layout didn't create a proper element
+            element = getPooledElement();
+            if (layoutResult.element) {
+              element.appendChild(layoutResult.element);
+            }
+          }
+        } else if (typeof result === "string") {
           element = getPooledElement();
           element.innerHTML = result;
           if (element.children.length === 1) {
@@ -263,12 +326,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
           addClass(element, "viewport-item");
         if (isPlaceholder(item)) {
           addClass(element, VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS);
-          const itemEl = element.querySelector(".list-item, .user-item");
-          if (itemEl)
-            addClass(
-              itemEl as HTMLElement,
-              VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS
-            );
         }
 
         element.dataset.index = String(index);

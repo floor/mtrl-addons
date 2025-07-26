@@ -24,6 +24,9 @@ export const VIEWPORT_CONSTANTS = {
   RENDERING: {
     // Element recycling
     DEFAULT_MAX_POOL_SIZE: 100,
+    CLASSES: {
+      ITEM: "viewport-item",
+    },
   },
 
   // Loading settings
@@ -43,7 +46,7 @@ export const VIEWPORT_CONSTANTS = {
   // Placeholder settings
   PLACEHOLDER: {
     MASK_CHARACTER: "X", // Updated from list-manager
-    CLASS: "viewport-item__placeholder",
+    CLASS: "viewport-item--placeholder",
     MAX_SAMPLE_SIZE: 20,
     PLACEHOLDER_FLAG: "_placeholder",
     RANDOM_LENGTH_VARIANCE: true,

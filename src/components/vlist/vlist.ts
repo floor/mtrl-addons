@@ -20,64 +20,6 @@ import { withAPI } from "./features/api";
 import { withSelection } from "./features/selection";
 
 /**
- * Converts object-based template to function template
- */
-function convertObjectTemplate(
-  renderItem: any
-): (item: any, index: number) => HTMLElement {
-  return (item: any, index: number) => {
-    // Create element from template definition
-    const createElement = (def: any): HTMLElement => {
-      const el = document.createElement(def.tag || "div");
-
-      // Set className
-      if (def.className) {
-        el.className = def.className;
-      }
-
-      // Set attributes
-      if (def.attributes) {
-        Object.entries(def.attributes).forEach(([key, value]) => {
-          if (typeof value === "string") {
-            // Replace template variables
-            const processedValue = value.replace(
-              /\{\{(\w+)\}\}/g,
-              (match: string, prop: string) => {
-                if (prop === "index") return String(index);
-                return String(item[prop] || "");
-              }
-            );
-            el.setAttribute(key, processedValue);
-          }
-        });
-      }
-
-      // Set text content
-      if (def.textContent) {
-        el.textContent = def.textContent.replace(
-          /\{\{(\w+)\}\}/g,
-          (match, prop) => {
-            if (prop === "index") return String(index);
-            return String(item[prop] || "");
-          }
-        );
-      }
-
-      // Process children
-      if (def.children && Array.isArray(def.children)) {
-        def.children.forEach((childDef: any) => {
-          el.appendChild(createElement(childDef));
-        });
-      }
-
-      return el;
-    };
-
-    return createElement(renderItem);
-  };
-}
-
-/**
  * Transforms old list config to VList config
  */
 function transformConfig<T = any>(
@@ -105,10 +47,8 @@ function transformConfig<T = any>(
     // Template/rendering
     template:
       oldConfig.template ||
-      ((oldConfig as any).renderItem &&
-      typeof (oldConfig as any).renderItem === "object"
-        ? convertObjectTemplate((oldConfig as any).renderItem)
-        : (oldConfig as any).renderItem),
+      (oldConfig as any).renderItem ||
+      (oldConfig as any).template,
 
     // Scroll configuration
     estimatedItemSize:
@@ -122,7 +62,8 @@ function transformConfig<T = any>(
     // Collection/adapter configuration
     collection: oldConfig.adapter,
     rangeSize: oldConfig.pagination?.limit || 20,
-    paginationStrategy: oldConfig.pagination?.strategy || "page",
+    paginationStrategy:
+      oldConfig.pagination?.strategy === "cursor" ? "cursor" : "page",
     enablePlaceholders:
       (oldConfig.collection as any)?.enablePlaceholders !== false,
 
