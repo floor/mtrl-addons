@@ -112,13 +112,12 @@ $opacity-transition: opacity $transition-duration $transition-easing;
 }
 
 .#{$viewport-item} {
-  padding: 12px 16px;
+  padding: 12px 16px 20px;
   display: flex;
   align-items: start;
   transition: background-color 0.2s ease;
   align-items: center;
   min-height: 48px;
-  padding: 8px 16px;
   left: 0;
   right: 0;
   width: 100%;
@@ -185,7 +184,7 @@ $opacity-transition: opacity $transition-duration $transition-easing;
     color: transparent;
     background-color: var(--mtrl-sys-color-on-surface);
     border-radius: 0.1em;
-    opacity: 0.6;
+    opacity: 0.4;
     text-decoration: none;
     line-height: 1;
     padding: 0 0 0.05em;

@@ -29,6 +29,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
 
     const MAX_VIRTUAL_SIZE = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.MAX_VIRTUAL_SIZE;
     let viewportState: any;
+    let hasCalculatedItemSize = false;
 
     // Initialize using shared wrapper
     wrapInitialize(component, () => {
@@ -51,7 +52,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
     // Helper functions
     const getCompressionRatio = (): number => {
       if (!viewportState?.virtualTotalSize) return 1;
-      const actualSize = viewportState.totalItems * itemSize;
+      const actualSize = viewportState.totalItems * viewportState.itemSize;
       return actualSize <= MAX_VIRTUAL_SIZE ? 1 : MAX_VIRTUAL_SIZE / actualSize;
     };
 
@@ -82,8 +83,8 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       }
 
       const virtualSize =
-        viewportState.virtualTotalSize || totalItems * itemSize;
-      const visibleCount = Math.ceil(containerSize / itemSize);
+        viewportState.virtualTotalSize || totalItems * viewportState.itemSize;
+      const visibleCount = Math.ceil(containerSize / viewportState.itemSize);
       const compressionRatio = getCompressionRatio();
 
       let start: number, end: number;
@@ -100,7 +101,9 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         const distanceFromBottom = maxScroll - scrollPosition;
 
         if (distanceFromBottom <= containerSize && distanceFromBottom >= -1) {
-          const itemsAtBottom = Math.floor(containerSize / itemSize);
+          const itemsAtBottom = Math.floor(
+            containerSize / viewportState.itemSize
+          );
           const firstVisibleAtBottom = Math.max(0, totalItems - itemsAtBottom);
           const interpolation = Math.max(
             0,
@@ -130,7 +133,10 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         end = Math.min(totalItems - 1, end + overscan);
       } else {
         // Direct calculation
-        start = Math.max(0, Math.floor(scrollPosition / itemSize) - overscan);
+        start = Math.max(
+          0,
+          Math.floor(scrollPosition / viewportState.itemSize) - overscan
+        );
         end = Math.min(totalItems - 1, start + visibleCount + overscan * 2);
       }
 
@@ -140,7 +146,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
           scrollPosition,
           containerSize,
           totalItems,
-          itemSize,
+          itemSize: viewportState.itemSize,
           compressionRatio,
         });
         return { start: 0, end: 0 };
@@ -164,7 +170,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       if (!viewportState) return;
 
       viewportState.totalItems = newTotalItems;
-      const actualSize = newTotalItems * itemSize;
+      const actualSize = newTotalItems * viewportState.itemSize;
       viewportState.virtualTotalSize = Math.min(actualSize, MAX_VIRTUAL_SIZE);
 
       log("Total size updated:", {
@@ -209,6 +215,52 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       component.viewport?.renderItems?.();
     });
 
+    // Listen for first items rendered to calculate item size
+    component.on?.("viewport:items-rendered", (data: any) => {
+      if (
+        !hasCalculatedItemSize &&
+        data.elements?.length > 0 &&
+        viewportState
+      ) {
+        // Calculate average item size from first rendered batch
+        const sizes: number[] = [];
+        const sizeProperty =
+          orientation === "horizontal" ? "offsetWidth" : "offsetHeight";
+
+        data.elements.forEach((element: HTMLElement) => {
+          const size = element[sizeProperty];
+          if (size > 0) {
+            sizes.push(size);
+          }
+        });
+
+        if (sizes.length > 0) {
+          const avgSize = Math.round(
+            sizes.reduce((sum, size) => sum + size, 0) / sizes.length
+          );
+
+          // Only update if significantly different (>10% change)
+          const percentChange =
+            Math.abs(avgSize - viewportState.itemSize) / viewportState.itemSize;
+          if (percentChange > 0.1) {
+            log(
+              `Updating item size from ${viewportState.itemSize} to ${avgSize} based on first render`
+            );
+            viewportState.itemSize = avgSize;
+
+            // Recalculate everything with new size
+            updateTotalVirtualSize(viewportState.totalItems);
+            updateVisibleRange(viewportState.scrollPosition || 0);
+
+            // Re-render to adjust positions
+            component.viewport?.renderItems?.();
+          }
+
+          hasCalculatedItemSize = true;
+        }
+      }
+    });
+
     // Expose virtual API
     const compressionRatio = getCompressionRatio();
     (component as any).virtual = {
@@ -222,11 +274,13 @@ export const withVirtual = (config: VirtualConfig = {}) => {
           updateVisibleRange(viewportState.scrollPosition || 0);
         }
       },
-      getItemSize: () => itemSize,
+      getItemSize: () => viewportState?.itemSize || itemSize,
       calculateIndexFromPosition: (position: number) =>
-        Math.floor(position / (itemSize * compressionRatio)),
+        Math.floor(
+          position / ((viewportState?.itemSize || itemSize) * compressionRatio)
+        ),
       calculatePositionForIndex: (index: number) =>
-        index * itemSize * compressionRatio,
+        index * (viewportState?.itemSize || itemSize) * compressionRatio,
     };
 
     return component;

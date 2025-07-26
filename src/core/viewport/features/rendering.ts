@@ -507,6 +507,14 @@ export const withRendering = (config: RenderingConfig = {}) => {
       }
 
       currentVisibleRange = visibleRange;
+
+      // Emit items rendered event with elements for size calculation
+      const renderedElementsArray = Array.from(renderedElements.values());
+      component.emit?.("viewport:items-rendered", {
+        elements: renderedElementsArray,
+        range: visibleRange,
+      });
+
       component.emit?.("viewport:rendered", {
         range: visibleRange,
         renderedCount: renderedElements.size,
