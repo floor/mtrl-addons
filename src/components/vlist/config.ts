@@ -42,8 +42,7 @@ export const defaultConfig: Partial<ListConfig> = {
   // Scroll settings
   scroll: {
     virtual: true,
-    itemSize: "auto",
-    estimatedItemSize: 50,
+    itemSize: 50,
     overscan: 5,
     animation: false,
     restorePosition: false,

@@ -66,7 +66,7 @@ export interface ViewportConfig {
 
   // Virtual scrolling configuration
   virtual?: {
-    estimatedItemSize?: number;
+    itemSize?: number;
     overscan?: number; // Extra items to render outside viewport
   };
 

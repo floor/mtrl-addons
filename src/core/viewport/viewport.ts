@@ -23,7 +23,7 @@ import { withEvents } from "./features/events";
 interface ViewportState {
   scrollPosition: number;
   totalItems: number;
-  estimatedItemSize: number;
+  itemSize: number;
   containerSize: number;
   virtualTotalSize: number;
   visibleRange: ItemRange;
@@ -46,7 +46,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
     const state: ViewportState = {
       scrollPosition: 0,
       totalItems: component.totalItems || 0,
-      estimatedItemSize: config.virtual?.estimatedItemSize || 50,
+      itemSize: config.virtual?.itemSize || 50,
       containerSize: 0,
       virtualTotalSize: 0,
       visibleRange: { start: 0, end: 0 },
@@ -62,7 +62,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
         // console.log("[Viewport] Initializing with state:", {
         //   element: !!component.element,
         //   totalItems: component.totalItems,
-        //   estimatedItemSize: config.estimatedItemSize,
+        //   itemSize: config.virtual?.itemSize,
         // });
 
         // Initialize container size
@@ -76,7 +76,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
         }
 
         // Calculate initial virtual size
-        state.virtualTotalSize = state.totalItems * state.estimatedItemSize;
+        state.virtualTotalSize = state.totalItems * state.itemSize;
 
         // Calculate initial visible range
         state.visibleRange = calculateVisibleRange(state.scrollPosition);
@@ -131,7 +131,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
 
     // Helper function to calculate visible range
     const calculateVisibleRange = (scrollPos: number): ItemRange => {
-      const itemSize = state.estimatedItemSize;
+      const itemSize = state.itemSize;
       const start = Math.floor(scrollPos / itemSize);
       const visibleCount = Math.ceil(state.containerSize / itemSize);
       const end = Math.min(start + visibleCount, state.totalItems - 1);
@@ -166,7 +166,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
     // Virtual scrolling (required for most features)
     enhancers.push(
       withVirtual({
-        estimatedItemSize: config.virtual?.estimatedItemSize,
+        itemSize: config.virtual?.itemSize,
         overscan: config.virtual?.overscan,
         orientation: config.scrolling?.orientation,
       })

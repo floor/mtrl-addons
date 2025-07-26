@@ -20,8 +20,8 @@ export interface ItemSizeManager {
   clearCache(): void;
 
   // Size estimation
-  getEstimatedItemSize(): number;
-  updateEstimatedSize(): void;
+  getItemSize(): number;
+  updateItemSize(): void;
 
   // Additional utilities
   calculateTotalSize(totalItems?: number): number;
@@ -29,7 +29,7 @@ export interface ItemSizeManager {
 
   // Callbacks
   onSizeUpdated?: (totalSize: number) => void;
-  onEstimatedSizeChanged?: (newEstimate: number) => void;
+  onItemSizeChanged?: (newEstimate: number) => void;
 }
 
 export interface ItemSizeConfig {
@@ -37,7 +37,7 @@ export interface ItemSizeConfig {
   orientation?: "vertical" | "horizontal";
   cacheSize?: number;
   onSizeUpdated?: (totalSize: number) => void;
-  onEstimatedSizeChanged?: (newEstimate: number) => void;
+  onItemSizeChanged?: (newEstimate: number) => void;
 }
 
 /**
@@ -51,12 +51,12 @@ export const createItemSizeManager = (
     orientation = "vertical",
     cacheSize = 1000,
     onSizeUpdated,
-    onEstimatedSizeChanged,
+    onItemSizeChanged,
   } = config;
 
   // Size cache - stores actual measured sizes
   const measuredSizes = new Map<number, number>();
-  let currentEstimatedItemSize = initialEstimate;
+  let currentItemSize = initialEstimate;
 
   // Batching state for performance optimization
   let batchUpdateTimeout: number | null = null;
@@ -82,7 +82,7 @@ export const createItemSizeManager = (
    */
   const triggerBatchedUpdates = (): void => {
     // Update estimated size based on all measurements
-    updateEstimatedSize();
+    updateItemSize();
 
     // Notify about total size update
     if (onSizeUpdated) {
@@ -119,7 +119,7 @@ export const createItemSizeManager = (
     measureOrientation?: "vertical" | "horizontal"
   ): number => {
     if (!element || index < 0) {
-      return currentEstimatedItemSize;
+      return currentItemSize;
     }
 
     const actualOrientation = measureOrientation || orientation;
@@ -144,13 +144,13 @@ export const createItemSizeManager = (
       return size;
     }
 
-    return currentEstimatedItemSize;
+    return currentItemSize;
   };
 
   /**
    * Update estimated item size based on measured sizes (with change threshold)
    */
-  const updateEstimatedSize = (): void => {
+  const updateItemSize = (): void => {
     if (measuredSizes.size === 0) return;
 
     const sizes = Array.from(measuredSizes.values());
@@ -158,22 +158,19 @@ export const createItemSizeManager = (
     const newEstimate = Math.max(1, Math.round(average));
 
     // Only update if the change is significant (>2px or >5% change)
-    const changeThreshold = Math.max(
-      2,
-      Math.round(currentEstimatedItemSize * 0.05)
-    );
-    const absoluteChange = Math.abs(newEstimate - currentEstimatedItemSize);
+    const changeThreshold = Math.max(2, Math.round(currentItemSize * 0.05));
+    const absoluteChange = Math.abs(newEstimate - currentItemSize);
 
     if (absoluteChange >= changeThreshold) {
-      const previousEstimate = currentEstimatedItemSize;
-      currentEstimatedItemSize = newEstimate;
+      const previousEstimate = currentItemSize;
+      currentItemSize = newEstimate;
 
-      if (onEstimatedSizeChanged) {
-        onEstimatedSizeChanged(newEstimate);
+      if (onItemSizeChanged) {
+        onItemSizeChanged(newEstimate);
       }
     } else if (absoluteChange > 0) {
       // Silent update for small changes
-      currentEstimatedItemSize = newEstimate;
+      currentItemSize = newEstimate;
     }
   };
 
@@ -191,7 +188,7 @@ export const createItemSizeManager = (
 
     let totalSize = 0;
     for (let i = 0; i < totalItems; i++) {
-      totalSize += measuredSizes.get(i) || currentEstimatedItemSize;
+      totalSize += measuredSizes.get(i) || currentItemSize;
     }
     return totalSize;
   };
@@ -200,7 +197,7 @@ export const createItemSizeManager = (
    * Get size for a specific item (measured or estimated)
    */
   const getMeasuredSize = (index: number): number => {
-    return measuredSizes.get(index) || currentEstimatedItemSize;
+    return measuredSizes.get(index) || currentItemSize;
   };
 
   /**
@@ -221,8 +218,8 @@ export const createItemSizeManager = (
   /**
    * Get current estimated item size
    */
-  const getEstimatedItemSize = (): number => {
-    return currentEstimatedItemSize;
+  const getItemSize = (): number => {
+    return currentItemSize;
   };
 
   /**
@@ -238,16 +235,16 @@ export const createItemSizeManager = (
   const getStats = () => {
     return {
       cachedItems: measuredSizes.size,
-      estimatedSize: currentEstimatedItemSize,
+      estimatedSize: currentItemSize,
       cacheSize: cacheSize,
       minSize:
         measuredSizes.size > 0
           ? Math.min(...measuredSizes.values())
-          : currentEstimatedItemSize,
+          : currentItemSize,
       maxSize:
         measuredSizes.size > 0
           ? Math.max(...measuredSizes.values())
-          : currentEstimatedItemSize,
+          : currentItemSize,
       orientation: orientation,
     };
   };
@@ -259,8 +256,8 @@ export const createItemSizeManager = (
     getMeasuredSize,
     getMeasuredSizes,
     clearCache,
-    getEstimatedItemSize,
-    updateEstimatedSize,
+    getItemSize,
+    updateItemSize,
     cacheItemSize,
 
     // Additional utilities
@@ -269,6 +266,6 @@ export const createItemSizeManager = (
 
     // Callbacks
     onSizeUpdated,
-    onEstimatedSizeChanged,
+    onItemSizeChanged,
   };
 };

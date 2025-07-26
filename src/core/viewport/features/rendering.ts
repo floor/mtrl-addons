@@ -28,7 +28,7 @@ export interface RenderingConfig {
 interface ViewportState {
   scrollPosition: number;
   totalItems: number;
-  estimatedItemSize: number;
+  itemSize: number;
   containerSize: number;
   virtualTotalSize: number;
   visibleRange: { start: number; end: number };
@@ -342,7 +342,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
       const {
         scrollPosition,
-        estimatedItemSize: itemSize,
+        itemSize: itemSize,
         totalItems,
         virtualTotalSize,
         containerSize,
@@ -405,7 +405,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
         visibleRange,
         itemsContainer,
         totalItems,
-        estimatedItemSize,
+        itemSize,
         scrollPosition,
         containerSize,
         virtualTotalSize,
@@ -479,7 +479,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
             i,
             scrollPosition,
             totalItems,
-            estimatedItemSize,
+            itemSize,
             virtualTotalSize,
             containerSize
           );

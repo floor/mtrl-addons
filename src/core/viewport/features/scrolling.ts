@@ -390,7 +390,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         return;
       }
 
-      const itemSize = viewportState.estimatedItemSize || 50;
+      const itemSize = viewportState.itemSize || 50;
       const totalItems = viewportState.totalItems || 0;
       const actualTotalSize = totalItems * itemSize;
       const MAX_VIRTUAL_SIZE =

@@ -83,8 +83,6 @@ export interface ListScrollConfig {
   virtual?: boolean;
   /** Item size (fixed) or 'auto' for dynamic - height for vertical, width for horizontal */
   itemSize?: number | "auto";
-  /** Estimated item size for dynamic sizing */
-  estimatedItemSize?: number;
   /** Number of items to render outside viewport */
   overscan?: number;
   /** Enable scroll animations */
@@ -546,7 +544,7 @@ export interface VListConfig<T = any> {
 
   // Virtual scrolling configuration
   virtual?: {
-    estimatedItemSize?: number;
+    itemSize?: number;
     overscan?: number;
   };
 

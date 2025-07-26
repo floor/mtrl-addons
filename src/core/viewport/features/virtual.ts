@@ -8,7 +8,7 @@ import { VIEWPORT_CONSTANTS } from "../constants";
 import { wrapInitialize, getViewportState } from "./utils";
 
 export interface VirtualConfig {
-  estimatedItemSize?: number;
+  itemSize?: number;
   overscan?: number;
   orientation?: "vertical" | "horizontal";
   debug?: boolean;
@@ -21,7 +21,7 @@ export interface VirtualConfig {
 export const withVirtual = (config: VirtualConfig = {}) => {
   return <T extends ViewportContext & ViewportComponent>(component: T): T => {
     const {
-      estimatedItemSize = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.DEFAULT_ITEM_SIZE,
+      itemSize = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.DEFAULT_ITEM_SIZE,
       overscan = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.OVERSCAN_BUFFER,
       orientation = "vertical",
       debug = false,
@@ -36,7 +36,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       if (!viewportState) return;
 
       Object.assign(viewportState, {
-        estimatedItemSize,
+        itemSize,
         overscan,
         containerSize:
           component.element?.[
@@ -51,7 +51,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
     // Helper functions
     const getCompressionRatio = (): number => {
       if (!viewportState?.virtualTotalSize) return 1;
-      const actualSize = viewportState.totalItems * estimatedItemSize;
+      const actualSize = viewportState.totalItems * itemSize;
       return actualSize <= MAX_VIRTUAL_SIZE ? 1 : MAX_VIRTUAL_SIZE / actualSize;
     };
 
@@ -82,8 +82,8 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       }
 
       const virtualSize =
-        viewportState.virtualTotalSize || totalItems * estimatedItemSize;
-      const visibleCount = Math.ceil(containerSize / estimatedItemSize);
+        viewportState.virtualTotalSize || totalItems * itemSize;
+      const visibleCount = Math.ceil(containerSize / itemSize);
       const compressionRatio = getCompressionRatio();
 
       let start: number, end: number;
@@ -100,7 +100,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         const distanceFromBottom = maxScroll - scrollPosition;
 
         if (distanceFromBottom <= containerSize && distanceFromBottom >= -1) {
-          const itemsAtBottom = Math.floor(containerSize / estimatedItemSize);
+          const itemsAtBottom = Math.floor(containerSize / itemSize);
           const firstVisibleAtBottom = Math.max(0, totalItems - itemsAtBottom);
           const interpolation = Math.max(
             0,
@@ -130,10 +130,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         end = Math.min(totalItems - 1, end + overscan);
       } else {
         // Direct calculation
-        start = Math.max(
-          0,
-          Math.floor(scrollPosition / estimatedItemSize) - overscan
-        );
+        start = Math.max(0, Math.floor(scrollPosition / itemSize) - overscan);
         end = Math.min(totalItems - 1, start + visibleCount + overscan * 2);
       }
 
@@ -143,7 +140,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
           scrollPosition,
           containerSize,
           totalItems,
-          estimatedItemSize,
+          itemSize,
           compressionRatio,
         });
         return { start: 0, end: 0 };
@@ -167,7 +164,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       if (!viewportState) return;
 
       viewportState.totalItems = newTotalItems;
-      const actualSize = newTotalItems * estimatedItemSize;
+      const actualSize = newTotalItems * itemSize;
       viewportState.virtualTotalSize = Math.min(actualSize, MAX_VIRTUAL_SIZE);
 
       log("Total size updated:", {
@@ -225,11 +222,11 @@ export const withVirtual = (config: VirtualConfig = {}) => {
           updateVisibleRange(viewportState.scrollPosition || 0);
         }
       },
-      getEstimatedItemSize: () => estimatedItemSize,
+      getItemSize: () => itemSize,
       calculateIndexFromPosition: (position: number) =>
-        Math.floor(position / (estimatedItemSize * compressionRatio)),
+        Math.floor(position / (itemSize * compressionRatio)),
       calculatePositionForIndex: (index: number) =>
-        index * estimatedItemSize * compressionRatio,
+        index * itemSize * compressionRatio,
     };
 
     return component;
