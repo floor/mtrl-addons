@@ -6,6 +6,8 @@ import type {
   ViewportConfig,
   ViewportContext,
   ViewportComponent,
+  ItemRange,
+  ViewportInfo,
 } from "./types";
 import { pipe } from "mtrl/src/core/compose/pipe";
 import { withBase } from "./features/base";
@@ -38,11 +40,14 @@ interface ViewportState {
  */
 export const createViewport = (config: ViewportConfig = {}) => {
   return <T extends ViewportContext>(component: T): T & ViewportComponent => {
+    // No normalization needed - we'll use the nested structure directly
+
     // Create shared viewport state
     const state: ViewportState = {
       scrollPosition: 0,
       totalItems: component.totalItems || 0,
-      estimatedItemSize: config.estimatedItemSize || 50,
+      estimatedItemSize:
+        config.virtual?.estimatedItemSize || config.estimatedItemSize || 50,
       containerSize: 0,
       virtualTotalSize: 0,
       visibleRange: { start: 0, end: 0 },
@@ -64,7 +69,8 @@ export const createViewport = (config: ViewportConfig = {}) => {
         // Initialize container size
         if (component.element) {
           state.containerSize =
-            config.orientation === "horizontal"
+            (config.scrolling?.orientation || config.orientation) ===
+            "horizontal"
               ? component.element.offsetWidth
               : component.element.offsetHeight;
 
@@ -155,60 +161,73 @@ export const createViewport = (config: ViewportConfig = {}) => {
     enhancers.push(
       withBase({
         className: config.className,
-        orientation: config.orientation,
+        orientation: config.scrolling?.orientation || config.orientation,
       })
     );
 
     // Virtual scrolling (required for most features)
     enhancers.push(
       withVirtual({
-        estimatedItemSize: config.estimatedItemSize,
-        overscan: config.overscan,
-        orientation: config.orientation,
+        estimatedItemSize:
+          config.virtual?.estimatedItemSize || config.estimatedItemSize,
+        overscan: config.virtual?.overscan ?? config.overscan,
+        orientation: config.scrolling?.orientation || config.orientation,
       })
     );
 
     // Scrolling behavior
     enhancers.push(
       withScrolling({
-        orientation: config.orientation,
-        sensitivity: config.scrollSensitivity,
-        smoothing: config.smoothScrolling,
+        orientation: config.scrolling?.orientation || config.orientation,
+        sensitivity: config.scrolling?.sensitivity,
+        smoothing: config.scrolling?.animation,
       })
     );
 
     // Scrollbar (optional)
-    if (config.enableScrollbar !== false) {
+    if (config.scrollbar?.enabled !== false) {
       enhancers.push(
         withScrollbar({
           enabled: true,
-          autoHide: config.autoHideScrollbar,
+          autoHide: config.scrollbar?.autoHide,
         })
       );
     }
 
     // Add collection if configured
-    if (config.collection) {
+    if (config.collection?.adapter || config.adapter) {
       enhancers.push(
         withCollection({
-          collection: config.collection,
-          rangeSize: config.rangeSize,
-          strategy: config.paginationStrategy,
-          transform: config.transformItem,
-          cancelLoadThreshold: config.cancelLoadThreshold,
-          maxConcurrentRequests: config.maxConcurrentRequests,
-          enableRequestQueue: config.enableRequestQueue !== false,
+          collection: config.collection?.adapter || config.adapter,
+          rangeSize: config.pagination?.limit || config.rangeSize,
+          strategy:
+            config.pagination?.strategy === "cursor"
+              ? "page"
+              : ((config.pagination?.strategy || config.paginationStrategy) as
+                  | "offset"
+                  | "page"
+                  | undefined),
+          transform:
+            config.collection?.transform ||
+            config.transform ||
+            config.transformItem,
+          cancelLoadThreshold: config.performance?.cancelLoadThreshold,
+          maxConcurrentRequests: config.performance?.maxConcurrentRequests,
+          enableRequestQueue: config.performance?.enableRequestQueue !== false,
         })
       );
     }
 
     // Placeholders (optional, requires collection)
-    if (config.collection && config.enablePlaceholders !== false) {
+    if (
+      (config.collection?.adapter || config.adapter) &&
+      config.placeholders?.enabled !== false
+    ) {
       enhancers.push(
         withPlaceholders({
           enabled: true,
-          analyzeFirstLoad: true,
-          maskCharacter: config.maskCharacter,
+          analyzeFirstLoad: config.placeholders?.analyzeFirstLoad ?? true,
+          maskCharacter: config.placeholders?.maskCharacter,
         })
       );
     }
@@ -217,7 +236,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
     enhancers.push(
       withRendering({
         template: config.template,
-        overscan: config.overscan,
+        overscan: config.virtual?.overscan ?? config.overscan,
       })
     );
 

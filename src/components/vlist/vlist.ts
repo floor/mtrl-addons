@@ -7,7 +7,7 @@
  * without the list-manager abstraction layer.
  */
 
-import type { VListConfig, VListComponent, ListConfig } from "./types";
+import type { VListConfig, VListComponent } from "./types";
 
 // Import mtrl compose system
 import { pipe } from "mtrl/src/core/compose/pipe";
@@ -20,103 +20,31 @@ import { withAPI } from "./features/api";
 import { withSelection } from "./features/selection";
 
 /**
- * Transforms old list config to VList config
- */
-function transformConfig<T = any>(
-  config: ListConfig<T> | VListConfig<T>
-): VListConfig<T> {
-  // If it's already a VListConfig format, return as is
-  if (
-    "estimatedItemSize" in config ||
-    !("scroll" in config || "pagination" in config)
-  ) {
-    return config as VListConfig<T>;
-  }
-
-  // Transform old list config to VList config
-  const oldConfig = config as ListConfig<T>;
-  const vlistConfig: VListConfig<T> = {
-    // Basic properties
-    container: oldConfig.container || (oldConfig as any).parent,
-    items: oldConfig.items,
-    className: oldConfig.className || (oldConfig as any).class,
-    ariaLabel: oldConfig.ariaLabel,
-    prefix: oldConfig.prefix,
-    debug: oldConfig.debug,
-
-    // Template/rendering
-    template:
-      oldConfig.template ||
-      (oldConfig as any).renderItem ||
-      (oldConfig as any).template,
-
-    // Scroll configuration
-    estimatedItemSize:
-      oldConfig.scroll?.estimatedItemSize ||
-      (typeof oldConfig.scroll?.itemSize === "number"
-        ? oldConfig.scroll.itemSize
-        : 84),
-    overscan: oldConfig.scroll?.overscan || 2,
-    orientation: oldConfig.orientation?.orientation || "vertical",
-
-    // Collection/adapter configuration
-    collection: oldConfig.adapter,
-    rangeSize: oldConfig.pagination?.limit || 20,
-    paginationStrategy:
-      oldConfig.pagination?.strategy === "cursor" ? "cursor" : "page",
-    enablePlaceholders:
-      (oldConfig.collection as any)?.enablePlaceholders !== false,
-
-    // Transform function
-    transform: (oldConfig as any).transform,
-
-    // Performance settings
-    performance: (oldConfig as any).performance,
-
-    // Selection settings
-    selection: oldConfig.selection,
-
-    // Scroll settings
-    scroll: oldConfig.scroll,
-  };
-
-  return vlistConfig;
-}
-
-/**
  * Creates a new VList component using direct viewport integration
- * Accepts both old list config and new VList config formats
  *
- * @param {ListConfig | VListConfig} config - List configuration options
+ * @param {VListConfig} config - List configuration options
  * @returns {VListComponent} A fully configured virtual list component
  *
  * @example
  * ```typescript
- * // Old list format (backwards compatible)
- * const list = createVList({
- *   parent: '#my-list',
- *   adapter: myAdapter,
- *   pagination: { strategy: 'page', limit: 20 },
- *   scroll: { animation: true }
- * });
- *
- * // New VList format
  * const vlist = createVList({
  *   container: '#my-list',
  *   collection: myAdapter,
  *   rangeSize: 20,
- *   paginationStrategy: 'page'
+ *   paginationStrategy: 'page',
+ *   template: (item, index) => [
+ *     { class: 'viewport-item', attributes: { 'data-id': item.id }},
+ *     [{ class: 'viewport-item__name', text: item.name }],
+ *     [{ class: 'viewport-item__value', text: item.value }]
+ *   ]
  * });
  * ```
  */
 export const createVList = <T = any>(
-  config: ListConfig<T> | VListConfig<T> = {}
+  config: VListConfig<T> = {}
 ): VListComponent<T> => {
   try {
     console.log(`📋 Creating VList component with direct viewport integration`);
-
-    // Transform config if needed
-    const vlistConfig = transformConfig(config);
 
     // Note: Transform should be applied by the collection feature in viewport
     // VList should not intercept collection reads as it bypasses the loading manager
@@ -128,32 +56,32 @@ export const createVList = <T = any>(
       withEvents(),
       withElement({
         tag: "div",
-        className: vlistConfig.className || "mtrl-vlist",
+        className: config.className || "mtrl-vlist",
         attributes: {
           role: "list",
-          "aria-label": vlistConfig.ariaLabel || "Virtual List",
+          "aria-label": config.ariaLabel || "Virtual List",
         },
       }),
 
       // 2. Viewport integration
-      withViewport(vlistConfig),
+      withViewport(config),
 
       // 3. Component lifecycle
       withLifecycle(),
 
       // 4. Public API layer
-      withAPI(vlistConfig),
+      withAPI(config),
     ];
 
     // 4.5. Selection capabilities (if enabled) - must be after API
-    if (vlistConfig.selection?.enabled) {
-      enhancers.push(withSelection(vlistConfig));
+    if (config.selection?.enabled) {
+      enhancers.push(withSelection(config));
     }
 
     const component = pipe(...enhancers)({
-      ...vlistConfig,
+      ...config,
       componentName: "vlist",
-      prefix: vlistConfig.prefix || "mtrl",
+      prefix: config.prefix || "mtrl",
     });
 
     return component as VListComponent<T>;

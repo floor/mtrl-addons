@@ -38,28 +38,78 @@ export interface ViewportContext {
 }
 
 /**
- * Viewport configuration
+ * Viewport configuration - Feature-oriented structure
  */
 export interface ViewportConfig {
+  // Basic configuration
   element?: HTMLElement;
+  className?: string;
+  debug?: boolean;
+
+  // Template for rendering items
+  template?: (
+    item: any,
+    index: number
+  ) => string | HTMLElement | any[] | Record<string, any>;
+
+  // Collection/data source configuration
+  collection?: {
+    adapter?: any; // Data adapter
+    transform?: (item: any) => any; // Transform items before rendering
+  };
+
+  // Pagination configuration
+  pagination?: {
+    strategy?: "page" | "offset" | "cursor";
+    limit?: number; // Items per page/range
+  };
+
+  // Virtual scrolling configuration
+  virtual?: {
+    estimatedItemSize?: number;
+    overscan?: number; // Extra items to render outside viewport
+  };
+
+  // Scrolling configuration
+  scrolling?: {
+    orientation?: "vertical" | "horizontal";
+    animation?: boolean; // Smooth scrolling
+    sensitivity?: number; // Scroll sensitivity
+  };
+
+  // Scrollbar configuration
+  scrollbar?: {
+    enabled?: boolean;
+    autoHide?: boolean;
+  };
+
+  // Performance configuration
+  performance?: {
+    maxConcurrentRequests?: number;
+    cancelLoadThreshold?: number; // Velocity threshold for cancelling loads
+    enableRequestQueue?: boolean;
+    recycleElements?: boolean;
+    bufferSize?: number;
+    renderDebounce?: number;
+  };
+
+  // Placeholder configuration
+  placeholders?: {
+    enabled?: boolean;
+    template?: (index: number) => string | HTMLElement;
+    maskCharacter?: string;
+    analyzeFirstLoad?: boolean;
+  };
+
+  // Legacy flat format support (deprecated - will be removed in v2.0)
+  adapter?: any;
+  transform?: (item: any) => any;
   orientation?: "vertical" | "horizontal";
   estimatedItemSize?: number;
   overscan?: number;
-  enableScrollbar?: boolean;
-  autoHideScrollbar?: boolean;
-  scrollSensitivity?: number;
-  smoothScrolling?: boolean;
-  collection?: any;
   rangeSize?: number;
   paginationStrategy?: "page" | "offset" | "cursor";
   transformItem?: (item: any) => any;
-  maxConcurrentRequests?: number;
-  cancelLoadThreshold?: number;
-  enableRequestQueue?: boolean;
-  enablePlaceholders?: boolean;
-  placeholderTemplate?: (index: number) => string | HTMLElement;
-  className?: string;
-  debug?: boolean;
 }
 
 /**

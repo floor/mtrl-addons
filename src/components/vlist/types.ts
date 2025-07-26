@@ -509,29 +509,72 @@ export interface ListFeatures {
 }
 
 /**
- * VList specific type aliases for better naming consistency
+ * VList configuration interface
  */
-export type VListConfig<T = any> = ListConfig<T> & {
-  // VList specific configuration
-  estimatedItemSize?: number;
-  overscan?: number;
-  orientation?: "vertical" | "horizontal";
+export interface VListConfig<T = any> {
+  // Container
+  parent?: HTMLElement | string;
+  container?: HTMLElement | string; // Also support container
 
-  // Collection configuration for VList
-  collection?: any;
-  rangeSize?: number;
-  paginationStrategy?: "page" | "cursor";
-  enablePlaceholders?: boolean;
+  // Basic properties
+  class?: string;
+  className?: string; // Also support className
+  prefix?: string;
+  ariaLabel?: string;
+  debug?: boolean;
 
-  // Transform function
-  transform?: (item: any) => any;
+  // Data source
+  items?: T[];
+
+  // Template for rendering items
+  template?: (
+    item: T,
+    index: number
+  ) => string | HTMLElement | any[] | Record<string, any>;
+
+  // Collection configuration
+  collection?: {
+    adapter?: ListAdapter<T>;
+    transform?: (item: T) => T;
+  };
+
+  // Pagination configuration
+  pagination?: {
+    strategy?: "page" | "offset" | "cursor";
+    limit?: number;
+  };
+
+  // Virtual scrolling configuration
+  virtual?: {
+    estimatedItemSize?: number;
+    overscan?: number;
+  };
+
+  // Scrolling configuration
+  scrolling?: {
+    orientation?: "vertical" | "horizontal";
+    animation?: boolean;
+    measureItems?: boolean;
+  };
 
   // Performance settings
-  performance?: any;
+  performance?: {
+    recycleElements?: boolean;
+    bufferSize?: number;
+    renderDebounce?: number;
+    maxConcurrentRequests?: number;
+  };
 
-  // Parent container (legacy support)
-  parent?: HTMLElement | string;
-};
+  // Selection configuration
+  selection?: ListSelectionConfig;
+
+  // Event handlers
+  on?: ListEventHandlers<T>;
+
+  // Legacy flat format support (deprecated)
+  adapter?: ListAdapter<T>;
+  transform?: (item: T) => T;
+}
 
 export type VListComponent<T = any> = ListComponent<T> & {
   viewport: ViewportComponent["viewport"];
