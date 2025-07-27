@@ -126,6 +126,7 @@ $opacity-transition: opacity $transition-duration $transition-easing;
 }
 
 .#{$viewport-item} {
+  user-select: none;
   opacity: 1;
   transition: $opacity-transition;
   will-change: transform;
@@ -299,15 +300,15 @@ $opacity-transition: opacity $transition-duration $transition-easing;
     background: transparent;
 
     &-thumb {
-      background: rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.4);
 
       &:hover {
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.6);
       }
 
       &:active,
       &--dragging {
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.4);
       }
     }
   }

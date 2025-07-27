@@ -195,7 +195,7 @@ export const createLoadingManager = (
     const collection = (component as any).collection;
     if (collection && typeof collection.loadMissingRanges === "function") {
       collection
-        .loadMissingRanges(range)
+        .loadMissingRanges(range, "loading:loadRange")
         .then(() => {
           activeRequests--;
           activeRanges.delete(rangeKey);

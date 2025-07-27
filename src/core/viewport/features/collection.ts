@@ -23,7 +23,10 @@ export interface CollectionConfig {
 export interface CollectionComponent {
   collection: {
     loadRange: (offset: number, limit: number) => Promise<any[]>;
-    loadMissingRanges: (range: { start: number; end: number }) => Promise<void>;
+    loadMissingRanges: (
+      range: { start: number; end: number },
+      caller?: string
+    ) => Promise<void>;
     getLoadedRanges: () => Set<number>;
     getPendingRanges: () => Set<number>;
     clearFailedRanges: () => void;
@@ -211,28 +214,6 @@ export function withCollection(config: CollectionConfig = {}) {
       // );
       pendingRanges.add(rangeId);
 
-      // // Check if this range overlaps with the current visible range
-      // // If so, trigger a render to show placeholders
-      // We use this to fix the placeholders issue. But it is not necessary.
-      // const viewportState = (component.viewport as any).state;
-      // if (viewportState && viewportState.visibleRange) {
-      //   const visibleRange = viewportState.visibleRange;
-      //   const requestedStart = offset;
-      //   const requestedEnd = offset + limit - 1;
-
-      //   // Check if requested range overlaps with visible range
-      //   if (
-      //     requestedStart <= visibleRange.end &&
-      //     requestedEnd >= visibleRange.start
-      //   ) {
-      //     console.log(
-      //       `[Collection] Requested range ${requestedStart}-${requestedEnd} overlaps with visible range, triggering render`
-      //     );
-      //     // Trigger viewport render to show placeholders
-      //     component.viewport.renderItems?.();
-      //   }
-      // }
-
       // Create request promise
       const requestPromise = (async () => {
         try {
@@ -241,10 +222,10 @@ export function withCollection(config: CollectionConfig = {}) {
           const params =
             strategy === "page" ? { page, limit: limit } : { offset, limit };
 
-          // console.log(
-          //   `[Viewport Collection] Loading range offset=${offset}, limit=${limit}, strategy=${strategy}, calculated page=${page}, params:`,
-          //   JSON.stringify(params)
-          // );
+          console.log(
+            `[Viewport Collection] Loading range offset=${offset}, limit=${limit}, strategy=${strategy}, calculated page=${page}, params:`,
+            JSON.stringify(params)
+          );
 
           const response = await collection.read(params);
 
@@ -377,68 +358,34 @@ export function withCollection(config: CollectionConfig = {}) {
         return;
       }
 
-      // Check if we can merge consecutive ranges for page strategy
-      const shouldMerge =
-        strategy === "page" &&
-        rangesToLoad.length > 1 &&
-        rangesToLoad.every((r, i) => i === 0 || r === rangesToLoad[i - 1] + 1);
-
-      if (shouldMerge) {
-        // Merge into a single request
-        const offset = rangesToLoad[0] * rangeSize;
-        const limit = rangesToLoad.length * rangeSize;
-
-        // console.log(
-        //   `[Collection] Merging ${rangesToLoad.length} consecutive ranges:`,
-        //   `${rangesToLoad[0]}-${
-        //     rangesToLoad[rangesToLoad.length - 1]
-        //   }, limit=${limit}`
-        // );
-
-        // Mark as pending and load
-        rangesToLoad.forEach((id) => pendingRanges.add(id));
-
-        try {
-          await loadRange(offset, limit);
-          rangesToLoad.forEach((id) => {
-            loadedRanges.add(id);
-            pendingRanges.delete(id);
-          });
-        } catch (error) {
-          rangesToLoad.forEach((id) => {
-            pendingRanges.delete(id);
-            failedRanges.set(id, {
-              attempts: 1,
-              lastError:
-                error instanceof Error ? error : new Error(String(error)),
-              timestamp: Date.now(),
-            });
-          });
-          throw error;
-        }
-      } else {
-        // Load ranges individually
-        const promises = rangesToLoad.map((rangeId) =>
-          loadRange(rangeId * rangeSize, rangeSize)
-        );
-        await Promise.allSettled(promises);
-      }
+      // Load ranges individually - no merging to avoid loading old ranges
+      const promises = rangesToLoad.map((rangeId) =>
+        loadRange(rangeId * rangeSize, rangeSize)
+      );
+      await Promise.allSettled(promises);
     };
 
     /**
      * Velocity-aware wrapper for loadMissingRanges
      */
-    const loadMissingRanges = (range: {
-      start: number;
-      end: number;
-    }): Promise<void> => {
+    const loadMissingRanges = (
+      range: {
+        start: number;
+        end: number;
+      },
+      caller?: string
+    ): Promise<void> => {
       return new Promise((resolve, reject) => {
         const rangeKey = getRangeKey(range);
-        // console.log(`[Collection] loadMissingRanges called for range ${range.start}-${range.end}, rangeKey: ${rangeKey}`);
+        console.log(
+          `[Collection] loadMissingRanges called for range ${range.start}-${
+            range.end
+          }, rangeKey: ${rangeKey}, caller: ${caller || "unknown"}`
+        );
 
         // Check if already loading
         if (activeLoadRanges.has(rangeKey)) {
-          // console.log("[Collection] Range already being loaded");
+          console.log("[Collection] Range already being loaded");
           resolve();
           return;
         }
@@ -455,11 +402,11 @@ export function withCollection(config: CollectionConfig = {}) {
 
         // Check velocity - if too high, cancel the request entirely
         if (!canLoad()) {
-          // console.log(
-          //   `[Collection] Load cancelled - velocity ${currentVelocity.toFixed(
-          //     2
-          //   )} exceeds threshold ${cancelLoadThreshold}`
-          // );
+          console.log(
+            `[Collection] Load cancelled - velocity ${currentVelocity.toFixed(
+              2
+            )} exceeds threshold ${cancelLoadThreshold}`
+          );
           cancelledLoads++;
           resolve();
           return;
@@ -554,16 +501,27 @@ export function withCollection(config: CollectionConfig = {}) {
 
         // Skip initial load if we're dragging and velocity is low (drag just started)
         if (isDragging && currentVelocity < 0.5) {
-          // console.log(
-          //   "[Collection] Skipping range-changed load during drag start"
-          // );
+          console.log(
+            "[Collection] Skipping range-changed load during drag start"
+          );
           return;
         }
 
-        const { start, end } = data;
+        // Extract range from event data - virtual feature emits { range: { start, end }, scrollPosition }
+        const range = data.range || data;
+        const { start, end } = range;
+
+        // Validate range before loading
+        if (typeof start !== "number" || typeof end !== "number") {
+          console.warn(
+            "[Collection] Invalid range in viewport:range-changed event:",
+            data
+          );
+          return;
+        }
 
         // Load missing ranges if needed
-        await loadMissingRanges({ start, end });
+        await loadMissingRanges({ start, end }, "viewport:range-changed");
       });
 
       // Listen for velocity changes
@@ -610,16 +568,16 @@ export function withCollection(config: CollectionConfig = {}) {
               requestStart <= visibleRange.end + buffer;
 
             if (!isRelevant) {
-              // console.log(
-              //   `[Collection] Removing stale queued request: ${requestStart}-${requestEnd}`
-              // );
+              console.log(
+                `[Collection] Removing stale queued request: ${requestStart}-${requestEnd}`
+              );
               request.resolve(); // Resolve to avoid hanging promises
             }
             return isRelevant;
           });
 
           // Load the current visible range if needed
-          await loadMissingRanges(visibleRange);
+          await loadMissingRanges(visibleRange, "viewport:idle");
         }
 
         // Also process any queued requests
@@ -641,8 +599,10 @@ export function withCollection(config: CollectionConfig = {}) {
     // Add collection API to viewport
     component.viewport.collection = {
       loadRange: (offset: number, limit: number) => loadRange(offset, limit),
-      loadMissingRanges: (range: { start: number; end: number }) =>
-        loadMissingRanges(range),
+      loadMissingRanges: (
+        range: { start: number; end: number },
+        caller?: string
+      ) => loadMissingRanges(range, caller || "viewport.collection"),
       getLoadedRanges: () => loadedRanges,
       getPendingRanges: () => pendingRanges,
       clearFailedRanges: () => failedRanges.clear(),
@@ -657,8 +617,10 @@ export function withCollection(config: CollectionConfig = {}) {
       getItems: () => items,
       getItem: (index: number) => items[index],
       loadRange,
-      loadMissingRanges: (range: { start: number; end: number }) =>
-        loadMissingRanges(range),
+      loadMissingRanges: (
+        range: { start: number; end: number },
+        caller?: string
+      ) => loadMissingRanges(range, caller || "component.collection"),
       getLoadingStats: () => ({
         pendingRequests: activeLoadCount,
         completedRequests: completedLoads,
@@ -685,8 +647,10 @@ export function withCollection(config: CollectionConfig = {}) {
       ...component,
       collection: {
         loadRange,
-        loadMissingRanges: (range: { start: number; end: number }) =>
-          loadMissingRanges(range),
+        loadMissingRanges: (
+          range: { start: number; end: number },
+          caller?: string
+        ) => loadMissingRanges(range, caller || "return.collection"),
         getLoadedRanges: () => loadedRanges,
         getPendingRanges: () => pendingRanges,
         clearFailedRanges: () => failedRanges.clear(),

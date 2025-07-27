@@ -500,10 +500,13 @@ export const withRendering = (config: RenderingConfig = {}) => {
         missingItems.length > 0 &&
         component.viewport?.collection?.loadMissingRanges
       ) {
-        component.viewport.collection.loadMissingRanges({
-          start: Math.min(...missingItems),
-          end: Math.max(...missingItems),
-        });
+        component.viewport.collection.loadMissingRanges(
+          {
+            start: Math.min(...missingItems),
+            end: Math.max(...missingItems),
+          },
+          "rendering:missing-items"
+        );
       }
 
       currentVisibleRange = visibleRange;
@@ -527,7 +530,10 @@ export const withRendering = (config: RenderingConfig = {}) => {
         totalItems > 0 &&
         component.viewport?.collection
       ) {
-        component.viewport.collection.loadMissingRanges(visibleRange);
+        component.viewport.collection.loadMissingRanges(
+          visibleRange,
+          "rendering:no-items"
+        );
       }
     };
 
