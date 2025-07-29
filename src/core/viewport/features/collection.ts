@@ -458,6 +458,12 @@ export function withCollection(config: CollectionConfig = {}) {
           const rangeId = page - 1; // Convert to 0-based rangeId
           const offset = rangeId * rangeSize;
 
+          // Skip if already being loaded
+          if (pendingRanges.has(rangeId)) {
+            // Range already being loaded
+            return;
+          }
+
           if (!loadedRanges.has(rangeId) && !pendingRanges.has(rangeId)) {
             // For cursor pagination, we must load sequentially
             // Check if we have all previous pages loaded
@@ -554,15 +560,11 @@ export function withCollection(config: CollectionConfig = {}) {
     ): Promise<void> => {
       return new Promise((resolve, reject) => {
         const rangeKey = getRangeKey(range);
-        console.log(
-          `[Collection] loadMissingRanges called for range ${range.start}-${
-            range.end
-          }, rangeKey: ${rangeKey}, caller: ${caller || "unknown"}`
-        );
+        // Removed noisy log
 
         // Check if already loading
         if (activeLoadRanges.has(rangeKey)) {
-          console.log("[Collection] Range already being loaded");
+          // Range already being loaded
           resolve();
           return;
         }

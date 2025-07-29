@@ -9,10 +9,10 @@
 export const VIEWPORT_CONSTANTS = {
   // Virtual scrolling defaults
   VIRTUAL_SCROLL: {
-    DEFAULT_ITEM_SIZE: 10,
+    DEFAULT_ITEM_SIZE: 48,
     OVERSCAN_BUFFER: 2,
     SCROLL_SENSITIVITY: 0.2,
-    MAX_VIRTUAL_SIZE: 10 * 1000 * 1000, // 10M pixels - well within browser limits
+    MAX_VIRTUAL_SIZE: 100 * 1000 * 1000, // 100M pixels - modern browsers can handle this
     AUTO_DETECT_ITEM_SIZE: true, // Enable automatic item size detection
   },
 

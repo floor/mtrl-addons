@@ -385,6 +385,31 @@ export const withRendering = (config: RenderingConfig = {}) => {
         currentPosition = firstIndex * itemSize - scrollPosition;
       }
 
+      // Special handling for end alignment
+      const maxScrollPosition = virtualTotalSize - containerSize;
+      if (scrollPosition >= maxScrollPosition - 1) {
+        // Near or at the end
+        // When at max scroll, we want the last item's bottom to align with viewport bottom
+        // Last item starts at: (totalItems - 1) * itemSize
+        // When scrolled to max, it should appear at: containerSize - itemSize
+        const lastItemIndex = totalItems - 1;
+        const lastItemNaturalPosition =
+          lastItemIndex * itemSize - scrollPosition;
+        const lastItemDesiredPosition = containerSize - itemSize;
+
+        if (sortedIndices.includes(lastItemIndex)) {
+          const adjustment = lastItemDesiredPosition - lastItemNaturalPosition;
+          currentPosition += adjustment;
+
+          console.log(
+            `[Rendering] End alignment: scroll=${scrollPosition}, max=${maxScrollPosition}, ` +
+              `containerSize=${containerSize}, itemSize=${itemSize}, ` +
+              `lastItemNatural=${lastItemNaturalPosition}, lastItemDesired=${lastItemDesiredPosition}, ` +
+              `adjustment=${adjustment}`
+          );
+        }
+      }
+
       // Position each item
       sortedIndices.forEach((index) => {
         const element = renderedElements.get(index);
@@ -392,6 +417,16 @@ export const withRendering = (config: RenderingConfig = {}) => {
           element.style.transform = `translateY(${Math.round(
             currentPosition
           )}px)`;
+
+          // Strategic log for last items
+          if (index >= totalItems - 5) {
+            console.log(
+              `[Rendering] Last item positioned: index=${index}, position=${Math.round(
+                currentPosition
+              )}px, itemSize=${itemSize}px, totalItems=${totalItems}`
+            );
+          }
+
           currentPosition += itemSize;
         }
       });

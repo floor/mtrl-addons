@@ -134,6 +134,9 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       if (!scrollbarTrack || !scrollbarThumb) return;
 
       const needsScrollbar = totalVirtualSize > containerSize;
+      console.log(
+        `[Scrollbar] updateBounds: totalSize=${totalVirtualSize}, containerSize=${containerSize}, needsScrollbar=${needsScrollbar}`
+      );
       scrollbarTrack.style.display = needsScrollbar ? "block" : "none";
 
       if (needsScrollbar) {

@@ -73,7 +73,8 @@ $opacity-transition: opacity $transition-duration $transition-easing;
       background-color: t.alpha("on-surface-variant", 0.1);
     }
     // Selected state
-    .#{$viewport-item}--selected, .#{$viewport-item}--selected:hover {
+    .#{$viewport-item}--selected,
+    .#{$viewport-item}--selected:hover {
       background-color: t.color("secondary-container");
       color: t.color("on-secondary-container");
       transition: $bg-transition, $color-transition;
@@ -120,7 +121,7 @@ $opacity-transition: opacity $transition-duration $transition-easing;
     position: relative;
     width: 100%;
     height: 100%;
-    padding: 8px 0;
+    padding: 0;
     will-change: transform;
   }
 }
@@ -137,7 +138,7 @@ $opacity-transition: opacity $transition-duration $transition-easing;
 }
 
 .#{$viewport-item} {
-  padding: 8px 12px 14px;
+  padding: 11px 12px;
   display: flex;
   align-items: start;
   transition: background-color 0.2s ease;
