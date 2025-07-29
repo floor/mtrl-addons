@@ -24,14 +24,14 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
   return (component: VListComponent<T>): VListComponent<T> => {
     // Skip if selection is not enabled
     if (!config.selection?.enabled || config.selection?.mode === "none") {
-      console.log("🎯 [Selection] Skipped - not enabled or mode is none");
+      // console.log("🎯 [Selection] Skipped - not enabled or mode is none");
       return component;
     }
 
-    console.log("🎯 [Selection] Initializing selection feature", {
-      enabled: config.selection?.enabled,
-      mode: config.selection?.mode,
-    });
+    // console.log("🎯 [Selection] Initializing selection feature", {
+    //   enabled: config.selection?.enabled,
+    //   mode: config.selection?.mode,
+    // });
 
     // Initialize selection state
     const state: SelectionState = {
@@ -90,7 +90,7 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
      * Handle item click for selection
      */
     const handleItemClick = (e: MouseEvent) => {
-      console.log("🎯 [Selection] Click detected on:", e.target);
+      // console.log("🎯 [Selection] Click detected on:", e.target);
 
       // Find the clicked viewport item element (wrapper)
       const viewportItem = (e.target as HTMLElement).closest(
@@ -117,16 +117,16 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
       // Handle selection based on mode
       const wasSelected = state.selectedIds.has(itemId);
 
-      console.log("🎯 [Selection] Click detected:", {
-        index,
-        itemId,
-        wasSelected,
-        mode: state.mode,
-        shiftKey: e.shiftKey,
-        ctrlKey: e.ctrlKey,
-        metaKey: e.metaKey,
-        lastSelectedIndex: state.lastSelectedIndex,
-      });
+      // console.log("🎯 [Selection] Click detected:", {
+      //   index,
+      //   itemId,
+      //   wasSelected,
+      //   mode: state.mode,
+      //   shiftKey: e.shiftKey,
+      //   ctrlKey: e.ctrlKey,
+      //   metaKey: e.metaKey,
+      //   lastSelectedIndex: state.lastSelectedIndex,
+      // });
 
       if (state.mode === "single") {
         // Clear previous selection
@@ -168,11 +168,11 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
           state.lastSelectedIndex = index;
         } else {
           // Single click without modifiers
-          console.log("🎯 [Selection] Single click without modifiers:", {
-            requireModifiers,
-            wasSelected,
-            willToggle: !requireModifiers,
-          });
+          // console.log("🎯 [Selection] Single click without modifiers:", {
+          //   requireModifiers,
+          //   wasSelected,
+          //   willToggle: !requireModifiers,
+          // });
 
           if (requireModifiers) {
             // If modifiers are required, single click selects only this item
@@ -235,7 +235,7 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
         `.${PREFIX}-viewport-items`
       );
       if (!container) {
-        console.warn("🎯 [Selection] No viewport items container found");
+        // console.warn("🎯 [Selection] No viewport items container found");
         return;
       }
 
@@ -272,7 +272,7 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
     // Setup listeners after component is fully initialized
     // Since selection is applied last, we can just use a timeout
     setTimeout(() => {
-      console.log("🎯 [Selection] Setting up listeners after initialization");
+      // console.log("🎯 [Selection] Setting up listeners after initialization");
 
       // Add BEM modifier classes to the container
       addContainerModifier();
@@ -296,17 +296,17 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
         if (component.element) {
           // Use capture phase to ensure we get the event
           component.element.addEventListener("click", handleItemClick, true);
-          console.log(
-            "🎯 [Selection] Click handler attached to element (capture phase)"
-          );
+          // console.log(
+          //   "🎯 [Selection] Click handler attached to element (capture phase)"
+          // );
 
           // Test if handler works
-          setTimeout(() => {
-            const testItem = component.element?.querySelector(
-              `.${PREFIX}-viewport-item`
-            );
-            console.log("🎯 [Selection] Test item found:", !!testItem);
-          }, 500);
+          // setTimeout(() => {
+          //   const testItem = component.element?.querySelector(
+          //     `.${PREFIX}-viewport-item`
+          //   );
+          //   // console.log("🎯 [Selection] Test item found:", !!testItem);
+          // }, 500);
         }
       }, 100);
     }

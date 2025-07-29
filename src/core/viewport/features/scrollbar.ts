@@ -134,9 +134,9 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       if (!scrollbarTrack || !scrollbarThumb) return;
 
       const needsScrollbar = totalVirtualSize > containerSize;
-      console.log(
-        `[Scrollbar] updateBounds: totalSize=${totalVirtualSize}, containerSize=${containerSize}, needsScrollbar=${needsScrollbar}`
-      );
+      // console.log(
+      //   `[Scrollbar] updateBounds: totalSize=${totalVirtualSize}, containerSize=${containerSize}, needsScrollbar=${needsScrollbar}`
+      // );
       scrollbarTrack.style.display = needsScrollbar ? "block" : "none";
 
       if (needsScrollbar) {
@@ -251,18 +251,18 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       const newPosition = newScrollRatio * (totalVirtualSize - containerSize);
       lastRequestedScrollPosition = newPosition;
 
-      console.log(
-        `[Scrollbar] Mouse move: newPos=${newPosition.toFixed(
-          0
-        )}, animationFrameId=${animationFrameId}`
-      );
+      // console.log(
+      //   `[Scrollbar] Mouse move: newPos=${newPosition.toFixed(
+      //     0
+      //   )}, animationFrameId=${animationFrameId}`
+      // );
 
       // Throttle viewport updates
       if (animationFrameId === null && component.viewport) {
         animationFrameId = requestAnimationFrame(() => {
-          console.log(
-            `[Scrollbar] RAF callback: scrolling to ${lastRequestedScrollPosition}`
-          );
+          // console.log(
+          //   `[Scrollbar] RAF callback: scrolling to ${lastRequestedScrollPosition}`
+          // );
           if (lastRequestedScrollPosition !== null && component.viewport) {
             component.viewport.scrollToPosition(lastRequestedScrollPosition);
           }
@@ -272,7 +272,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
     };
 
     const handleMouseUp = () => {
-      console.log("[Scrollbar] Mouse up - ending drag");
+      // console.log("[Scrollbar] Mouse up - ending drag");
       isDragging = false;
 
       if (animationFrameId !== null) {

@@ -44,7 +44,7 @@ export const createVList = <T = any>(
   config: VListConfig<T> = {}
 ): VListComponent<T> => {
   try {
-    console.log(`📋 Creating VList component with direct viewport integration`);
+    // console.log(`📋 Creating VList component with direct viewport integration`);
 
     // Note: Transform should be applied by the collection feature in viewport
     // VList should not intercept collection reads as it bypasses the loading manager

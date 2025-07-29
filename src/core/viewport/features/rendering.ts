@@ -394,13 +394,13 @@ export const withRendering = (config: RenderingConfig = {}) => {
           )}px)`;
 
           // Strategic log for last items
-          if (index >= totalItems - 5) {
-            console.log(
-              `[Rendering] Last item positioned: index=${index}, position=${Math.round(
-                currentPosition
-              )}px, itemSize=${itemSize}px, totalItems=${totalItems}`
-            );
-          }
+          // if (index >= totalItems - 5) {
+          //   console.log(
+          //     `[Rendering] Last item positioned: index=${index}, position=${Math.round(
+          //       currentPosition
+          //     )}px, itemSize=${itemSize}px, totalItems=${totalItems}`
+          //   );
+          // }
 
           currentPosition += itemSize;
         }

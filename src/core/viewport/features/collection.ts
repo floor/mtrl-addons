@@ -262,10 +262,10 @@ export function withCollection(config: CollectionConfig = {}) {
             params = { offset, limit };
           }
 
-          console.log(
-            `[Viewport Collection] Loading range offset=${offset}, limit=${limit}, strategy=${strategy}, calculated page=${page}, params:`,
-            JSON.stringify(params)
-          );
+          // console.log(
+          //   `[Viewport Collection] Loading range offset=${offset}, limit=${limit}, strategy=${strategy}, calculated page=${page}, params:`,
+          //   JSON.stringify(params)
+          // );
 
           const response = await collection.read(params);
 
@@ -571,9 +571,9 @@ export function withCollection(config: CollectionConfig = {}) {
 
         // Skip if dragging with low velocity (but not if we're idle)
         if (isDragging && currentVelocity < 0.5 && currentVelocity > 0) {
-          console.log(
-            "[Collection] Load skipped - actively dragging with low velocity"
-          );
+          // console.log(
+          //   "[Collection] Load skipped - actively dragging with low velocity"
+          // );
           cancelledLoads++;
           resolve();
           return;
@@ -581,11 +581,11 @@ export function withCollection(config: CollectionConfig = {}) {
 
         // Check velocity - if too high, cancel the request entirely
         if (!canLoad()) {
-          console.log(
-            `[Collection] Load cancelled - velocity ${currentVelocity.toFixed(
-              2
-            )} exceeds threshold ${cancelLoadThreshold}`
-          );
+          // console.log(
+          //   `[Collection] Load cancelled - velocity ${currentVelocity.toFixed(
+          //     2
+          //   )} exceeds threshold ${cancelLoadThreshold}`
+          // );
           cancelledLoads++;
           resolve();
           return;
@@ -686,12 +686,12 @@ export function withCollection(config: CollectionConfig = {}) {
         // Don't load during fast scrolling - loadMissingRanges will handle velocity check
 
         // Skip initial load if we're dragging and velocity is low (drag just started)
-        if (isDragging && currentVelocity < 0.5) {
-          console.log(
-            "[Collection] Skipping range-changed load during drag start"
-          );
-          return;
-        }
+        // if (isDragging && currentVelocity < 0.5) {
+        //   console.log(
+        //     "[Collection] Skipping range-changed load during drag start"
+        //   );
+        //   return;
+        // }
 
         // Extract range from event data - virtual feature emits { range: { start, end }, scrollPosition }
         const range = data.range || data;

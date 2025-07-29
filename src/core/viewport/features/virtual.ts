@@ -165,16 +165,16 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         return { start: 0, end: 0 };
       }
 
-      log(`Range: ${start}-${end} (scroll: ${scrollPosition})`);
+      // log(`Range: ${start}-${end} (scroll: ${scrollPosition})`);
 
       // Strategic log for last range
-      if (end >= totalItems - 10) {
-        console.log(
-          `[Virtual] Near end range: ${start}-${end}, totalItems=${totalItems}, lastItemPos=${
-            end * viewportState.itemSize
-          }px, virtualSize=${viewportState.virtualTotalSize}px`
-        );
-      }
+      // if (end >= totalItems - 10) {
+      //   console.log(
+      //     `[Virtual] Near end range: ${start}-${end}, totalItems=${totalItems}, lastItemPos=${
+      //       end * viewportState.itemSize
+      //     }px, virtualSize=${viewportState.virtualTotalSize}px`
+      //   );
+      // }
 
       return { start, end };
     };
@@ -215,9 +215,9 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       );
 
       // Strategic log for debugging gap issue
-      console.log(
-        `[Virtual] Total size update: items=${totalItems}, itemSize=${viewportState.itemSize}px, padding=${totalPadding}px, virtualSize=${viewportState.virtualTotalSize}px (was ${oldSize}px)`
-      );
+      // console.log(
+      //   `[Virtual] Total size update: items=${totalItems}, itemSize=${viewportState.itemSize}px, padding=${totalPadding}px, virtualSize=${viewportState.virtualTotalSize}px (was ${oldSize}px)`
+      // );
 
       component.emit?.("viewport:virtual-size-changed", {
         totalVirtualSize: viewportState.virtualTotalSize,
@@ -238,9 +238,9 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         ];
 
       // Log the actual measurement
-      console.log(
-        `[Virtual] Container size measured: ${size}px from viewport element`
-      );
+      // console.log(
+      //   `[Virtual] Container size measured: ${size}px from viewport element`
+      // );
 
       if (size !== viewportState.containerSize) {
         viewportState.containerSize = size;
@@ -332,9 +332,9 @@ export const withVirtual = (config: VirtualConfig = {}) => {
               sizes.reduce((sum, size) => sum + size, 0) / sizes.length
             );
 
-            console.log(
-              `[Virtual] Auto-detected item size: ${avgSize}px (was ${viewportState.itemSize}px), based on ${sizes.length} items`
-            );
+            // console.log(
+            //   `[Virtual] Auto-detected item size: ${avgSize}px (was ${viewportState.itemSize}px), based on ${sizes.length} items`
+            // );
             viewportState.itemSize = avgSize;
 
             // Recalculate everything with new size
