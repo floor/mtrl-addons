@@ -102,7 +102,7 @@ export const withSelection = <T = any>(config: VListConfig<T>) => {
       }
 
       const index = parseInt(viewportItem.dataset.index || "-1");
-      console.log(`🎯 [Selection] Clicked item index: ${index}`);
+      // console.log(`🎯 [Selection] Clicked item index: ${index}`);
       if (index < 0) return;
 
       // Get the item data
