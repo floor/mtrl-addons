@@ -196,11 +196,27 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       const oldSize = viewportState.virtualTotalSize;
       viewportState.totalItems = totalItems;
       const actualSize = totalItems * viewportState.itemSize;
-      viewportState.virtualTotalSize = Math.min(actualSize, MAX_VIRTUAL_SIZE);
+
+      // Get padding from the items container if available
+      let totalPadding = 0;
+      if (viewportState.itemsContainer) {
+        const computedStyle = window.getComputedStyle(
+          viewportState.itemsContainer
+        );
+        const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
+        const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
+        totalPadding = paddingTop + paddingBottom;
+      }
+
+      // Include padding in the virtual size
+      viewportState.virtualTotalSize = Math.min(
+        actualSize + totalPadding,
+        MAX_VIRTUAL_SIZE
+      );
 
       // Strategic log for debugging gap issue
       console.log(
-        `[Virtual] Total size update: items=${totalItems}, itemSize=${viewportState.itemSize}px, virtualSize=${viewportState.virtualTotalSize}px (was ${oldSize}px)`
+        `[Virtual] Total size update: items=${totalItems}, itemSize=${viewportState.itemSize}px, padding=${totalPadding}px, virtualSize=${viewportState.virtualTotalSize}px (was ${oldSize}px)`
       );
 
       component.emit?.("viewport:virtual-size-changed", {

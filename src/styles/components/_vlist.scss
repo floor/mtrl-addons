@@ -121,7 +121,7 @@ $opacity-transition: opacity $transition-duration $transition-easing;
     position: relative;
     width: 100%;
     height: 100%;
-    padding: 0;
+    padding: 8px 0;
     will-change: transform;
   }
 }
