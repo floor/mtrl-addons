@@ -117,6 +117,8 @@ export interface ViewportComponent extends ViewportContext {
     scrollToIndex(index: number, alignment?: "start" | "center" | "end"): void;
     scrollToPosition(position: number): void;
     getScrollPosition(): number;
+    scrollBy(delta: number): void;
+    getVelocity(): number;
 
     // Collection feature (optional)
     collection?: CollectionComponent["collection"];

@@ -198,10 +198,11 @@ export const createViewport = (config: ViewportConfig = {}) => {
         withCollection({
           collection: config.collection.adapter,
           rangeSize: config.pagination?.limit,
-          strategy:
-            config.pagination?.strategy === "cursor"
-              ? "page"
-              : (config.pagination?.strategy as "offset" | "page" | undefined),
+          strategy: config.pagination?.strategy as
+            | "offset"
+            | "page"
+            | "cursor"
+            | undefined,
           transform: config.collection?.transform,
           cancelLoadThreshold: config.performance?.cancelLoadThreshold,
           maxConcurrentRequests: config.performance?.maxConcurrentRequests,

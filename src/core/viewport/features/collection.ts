@@ -11,7 +11,7 @@ import { VIEWPORT_CONSTANTS } from "../constants";
 export interface CollectionConfig {
   collection?: any; // Collection adapter
   rangeSize?: number; // Default range size for loading
-  strategy?: "offset" | "page"; // Loading strategy
+  strategy?: "offset" | "page" | "cursor"; // Loading strategy
   transform?: (item: any) => any; // Item transformation function
   cancelLoadThreshold?: number; // Velocity threshold for cancelling loads
   maxConcurrentRequests?: number;
@@ -33,6 +33,9 @@ export interface CollectionComponent {
     retryFailedRange: (rangeId: number) => Promise<any[]>;
     setTotalItems: (total: number) => void;
     getTotalItems: () => number;
+    // Cursor-specific methods
+    getCurrentCursor: () => string | null;
+    getCursorForPage: (page: number) => string | null;
   };
 }
 
@@ -92,6 +95,14 @@ export function withCollection(config: CollectionConfig = {}) {
       }
     >();
     let activeRequests = new Map<number, Promise<any[]>>();
+
+    // Cursor pagination state
+    let currentCursor: string | null = null;
+    let cursorMap = new Map<number, string>(); // Map page number to cursor
+    let pageToOffsetMap = new Map<number, number>(); // Map page to actual offset
+    let highestLoadedPage = 0;
+    let discoveredTotal: number | null = null; // Track discovered total from API
+    let hasReachedEnd = false; // Track if we've reached the end of data
 
     // Share items array with component
     component.items = items;
@@ -219,8 +230,37 @@ export function withCollection(config: CollectionConfig = {}) {
         try {
           // Call collection adapter with appropriate parameters
           const page = Math.floor(offset / limit) + 1;
-          const params =
-            strategy === "page" ? { page, limit: limit } : { offset, limit };
+          let params: any;
+
+          if (strategy === "cursor") {
+            // For cursor pagination
+            if (page === 1) {
+              // First page - no cursor
+              params = { limit };
+            } else {
+              // Check if we have cursor for previous page
+              const prevPageCursor = cursorMap.get(page - 1);
+              if (!prevPageCursor) {
+                // Can't load this page without previous cursor
+                console.warn(
+                  `[Collection] Cannot load page ${page} without cursor for page ${
+                    page - 1
+                  }`
+                );
+                throw new Error(
+                  `Sequential loading required - missing cursor for page ${
+                    page - 1
+                  }`
+                );
+              }
+              params = { cursor: prevPageCursor, limit };
+            }
+          } else if (strategy === "page") {
+            params = { page, limit };
+          } else {
+            // offset strategy
+            params = { offset, limit };
+          }
 
           console.log(
             `[Viewport Collection] Loading range offset=${offset}, limit=${limit}, strategy=${strategy}, calculated page=${page}, params:`,
@@ -231,23 +271,84 @@ export function withCollection(config: CollectionConfig = {}) {
 
           // Extract items and total
           const rawItems = response.data || response.items || response;
-          const newTotal =
-            response.meta?.total ||
-            response.total ||
-            response.totalCount ||
-            totalItems;
+          const meta = response.meta || {};
+
+          // For cursor pagination, track the cursor (check both cursor and nextCursor)
+          const responseCursor = meta.cursor || meta.nextCursor;
+          if (strategy === "cursor" && responseCursor) {
+            currentCursor = responseCursor;
+            cursorMap.set(page, responseCursor);
+            pageToOffsetMap.set(page, offset);
+            highestLoadedPage = Math.max(highestLoadedPage, page);
+            console.log(
+              `[Collection] Stored cursor for page ${page}: ${responseCursor}`
+            );
+          }
+
+          // Check if we've reached the end
+          if (strategy === "cursor" && meta.hasNext === false) {
+            hasReachedEnd = true;
+            console.log(
+              `[Collection] Reached end of cursor pagination at page ${page}`
+            );
+          }
+
+          // Update discovered total if provided
+          if (meta.total !== undefined) {
+            discoveredTotal = meta.total;
+          }
 
           // Transform items
           const transformedItems = transformItems(rawItems);
 
-          // Update state
-          if (newTotal !== totalItems) {
-            setTotalItems(newTotal);
+          // Add items to array
+          transformedItems.forEach((item, index) => {
+            items[offset + index] = item;
+          });
+
+          // For cursor strategy, calculate dynamic total based on loaded data
+          let newTotal = discoveredTotal || totalItems;
+
+          if (strategy === "cursor") {
+            // Calculate total based on loaded items + margin
+            const loadedItemsCount = items.filter(
+              (item) => item !== undefined
+            ).length;
+            const marginItems = hasReachedEnd
+              ? 0
+              : rangeSize *
+                VIEWPORT_CONSTANTS.PAGINATION.CURSOR_SCROLL_MARGIN_MULTIPLIER;
+            const minVirtualItems =
+              rangeSize *
+              VIEWPORT_CONSTANTS.PAGINATION.CURSOR_MIN_VIRTUAL_SIZE_MULTIPLIER;
+
+            // Dynamic total: loaded items + margin (unless we've reached the end)
+            newTotal = Math.max(
+              loadedItemsCount + marginItems,
+              minVirtualItems
+            );
+
+            console.log(
+              `[Collection] Cursor mode virtual size: loaded=${loadedItemsCount}, margin=${marginItems}, total=${newTotal}, hasReachedEnd=${hasReachedEnd}`
+            );
+
+            // Update total if it has grown
+            if (newTotal > totalItems) {
+              console.log(
+                `[Collection] Updating cursor virtual size from ${totalItems} to ${newTotal}`
+              );
+              totalItems = newTotal;
+              setTotalItems(newTotal);
+            }
+          } else {
+            // For other strategies, use discovered total or current total
+            newTotal = discoveredTotal || totalItems;
           }
 
-          // Merge items into array
-          for (let i = 0; i < transformedItems.length; i++) {
-            items[offset + i] = transformedItems[i];
+          // Update state
+          if (newTotal !== totalItems) {
+            totalItems = newTotal;
+            setTotalItems(newTotal);
           }
 
           // Update component items reference
@@ -290,6 +391,7 @@ export function withCollection(config: CollectionConfig = {}) {
             total: newTotal,
             rangeId,
             itemsInMemory: items.filter((item) => item !== undefined).length,
+            cursor: strategy === "cursor" ? currentCursor : undefined,
           });
 
           // Trigger viewport update
@@ -334,6 +436,81 @@ export function withCollection(config: CollectionConfig = {}) {
     }): Promise<void> => {
       if (!collection) return;
 
+      // For cursor pagination, we need to load sequentially
+      if (strategy === "cursor") {
+        const startPage = Math.floor(range.start / rangeSize) + 1;
+        const endPage = Math.floor(range.end / rangeSize) + 1;
+
+        // Limit how many pages we'll load at once
+        const maxPagesToLoad = 10;
+        const currentHighestPage = highestLoadedPage || 0;
+        const limitedEndPage = Math.min(
+          endPage,
+          currentHighestPage + maxPagesToLoad
+        );
+
+        console.log(
+          `[Collection] Cursor mode: need to load pages ${startPage} to ${endPage}, limited to ${limitedEndPage}`
+        );
+
+        // Check if we need to load pages sequentially
+        for (let page = startPage; page <= limitedEndPage; page++) {
+          const rangeId = page - 1; // Convert to 0-based rangeId
+          const offset = rangeId * rangeSize;
+
+          if (!loadedRanges.has(rangeId) && !pendingRanges.has(rangeId)) {
+            // For cursor pagination, we must load sequentially
+            // Check if we have all previous pages loaded
+            if (page > 1) {
+              let canLoad = true;
+              for (let prevPage = 1; prevPage < page; prevPage++) {
+                const prevRangeId = prevPage - 1;
+                if (!loadedRanges.has(prevRangeId)) {
+                  console.log(
+                    `[Collection] Cannot load page ${page} - need to load page ${prevPage} first`
+                  );
+                  canLoad = false;
+
+                  // Try to load the missing page
+                  if (!pendingRanges.has(prevRangeId)) {
+                    try {
+                      await loadRange(prevRangeId * rangeSize, rangeSize);
+                    } catch (error) {
+                      console.error(
+                        `[Collection] Failed to load prerequisite page ${prevPage}:`,
+                        error
+                      );
+                      return; // Stop trying to load further pages
+                    }
+                  }
+                  break;
+                }
+              }
+
+              if (!canLoad) {
+                continue; // Skip this page for now
+              }
+            }
+
+            try {
+              await loadRange(offset, rangeSize);
+            } catch (error) {
+              console.error(`[Collection] Failed to load page ${page}:`, error);
+              break; // Stop sequential loading on error
+            }
+          }
+        }
+
+        if (endPage > limitedEndPage) {
+          console.log(
+            `[Collection] Stopped at page ${limitedEndPage} to prevent excessive loading (requested up to ${endPage})`
+          );
+        }
+
+        return;
+      }
+
+      // Original logic for offset/page strategies
       // Calculate range boundaries
       const startRange = Math.floor(range.start / rangeSize);
       const endRange = Math.floor(range.end / rangeSize);
@@ -468,6 +645,13 @@ export function withCollection(config: CollectionConfig = {}) {
      */
     const setTotalItems = (total: number): void => {
       totalItems = total;
+
+      // Update viewport state's total items
+      const viewportState = (component.viewport as any).state;
+      if (viewportState) {
+        viewportState.totalItems = total;
+      }
+
       component.emit?.("viewport:total-items-changed", { total });
     };
 
@@ -522,6 +706,30 @@ export function withCollection(config: CollectionConfig = {}) {
 
         // Load missing ranges if needed
         await loadMissingRanges({ start, end }, "viewport:range-changed");
+
+        // For cursor mode, check if we need to update virtual size
+        if (strategy === "cursor" && !hasReachedEnd) {
+          const loadedItemsCount = items.filter(
+            (item) => item !== undefined
+          ).length;
+          const marginItems =
+            rangeSize *
+            VIEWPORT_CONSTANTS.PAGINATION.CURSOR_SCROLL_MARGIN_MULTIPLIER;
+          const minVirtualItems =
+            rangeSize *
+            VIEWPORT_CONSTANTS.PAGINATION.CURSOR_MIN_VIRTUAL_SIZE_MULTIPLIER;
+          const dynamicTotal = Math.max(
+            loadedItemsCount + marginItems,
+            minVirtualItems
+          );
+
+          if (dynamicTotal !== totalItems) {
+            console.log(
+              `[Collection] Updating cursor virtual size from ${totalItems} to ${dynamicTotal}`
+            );
+            setTotalItems(dynamicTotal);
+          }
+        }
       });
 
       // Listen for velocity changes
@@ -609,6 +817,9 @@ export function withCollection(config: CollectionConfig = {}) {
       retryFailedRange,
       setTotalItems,
       getTotalItems: () => totalItems,
+      // Cursor-specific methods
+      getCurrentCursor: () => currentCursor,
+      getCursorForPage: (page: number) => cursorMap.get(page) || null,
     };
 
     // Add collection data access with direct assignment
@@ -630,6 +841,9 @@ export function withCollection(config: CollectionConfig = {}) {
         canLoad: canLoad(),
         queuedRequests: loadRequestQueue.length,
       }),
+      // Cursor methods
+      getCurrentCursor: () => currentCursor,
+      getCursorForPage: (page: number) => cursorMap.get(page) || null,
     };
 
     // Also ensure component.items is updated
@@ -657,6 +871,9 @@ export function withCollection(config: CollectionConfig = {}) {
         retryFailedRange,
         setTotalItems,
         getTotalItems: () => totalItems,
+        // Cursor-specific methods
+        getCurrentCursor: () => currentCursor,
+        getCursorForPage: (page: number) => cursorMap.get(page) || null,
       },
     };
   };

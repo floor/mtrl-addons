@@ -71,6 +71,8 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
     let thumbHeight = 0;
     let animationFrameId: number | null = null;
     let lastRequestedScrollPosition: number | null = null;
+    let isCursorMode = false;
+    let loadedItemsCount = 0;
 
     // Create scrollbar elements
     const createScrollbarElements = () => {
@@ -135,7 +137,21 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       scrollbarTrack.style.display = needsScrollbar ? "block" : "none";
 
       if (needsScrollbar) {
-        const scrollRatio = containerSize / totalVirtualSize;
+        let scrollRatio: number;
+
+        if (isCursorMode && loadedItemsCount > 0) {
+          // For cursor mode, thumb size represents loaded content vs estimated total
+          // If we don't know total, use loaded items * 2 as estimate
+          const estimatedTotal =
+            totalVirtualSize > 0 ? totalVirtualSize : loadedItemsCount * 2;
+          scrollRatio =
+            containerSize /
+            Math.max(estimatedTotal, loadedItemsCount + containerSize);
+        } else {
+          // Normal calculation for offset/page strategies
+          scrollRatio = containerSize / totalVirtualSize;
+        }
+
         thumbHeight = Math.max(thumbMinHeight, scrollRatio * containerSize);
         scrollbarThumb.style.height = `${thumbHeight}px`;
         updatePosition(component.viewport?.getScrollPosition() || 0);
@@ -330,6 +346,12 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
         const info = component.viewport.getViewportInfo();
         totalVirtualSize = info.totalVirtualSize;
         containerSize = info.containerSize;
+
+        // Check if we're in cursor mode
+        const collection = (component as any).collection;
+        const viewportConfig = (component as any).config;
+        isCursorMode = viewportConfig?.pagination?.strategy === "cursor";
+
         updateBounds(totalVirtualSize, containerSize);
         updatePosition(component.viewport.getScrollPosition());
       }
@@ -350,6 +372,25 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       component.on?.("viewport:container-size-changed", (data: any) => {
         containerSize = data.containerSize;
         updateBounds(totalVirtualSize, data.containerSize);
+      });
+
+      // Listen for items loaded to update scrollbar in cursor mode
+      component.on?.("viewport:items-changed", (data: any) => {
+        if (isCursorMode) {
+          loadedItemsCount = data.loadedCount || 0;
+          updateBounds(totalVirtualSize, containerSize);
+        }
+      });
+
+      // Listen for total items changes (important for cursor mode)
+      component.on?.("viewport:total-items-changed", (data: any) => {
+        if (isCursorMode && data.total) {
+          // In cursor mode, the total is dynamic
+          console.log(
+            `[Scrollbar] Cursor mode: updating bounds for new total ${data.total}`
+          );
+          updateBounds(totalVirtualSize, containerSize);
+        }
       });
     };
 

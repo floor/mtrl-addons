@@ -14,10 +14,10 @@
     "server:stop": "pm2 stop mtrl-app",
     "server:reload": "pm2 restart mtrl-app",
     "server:logs": "pm2 logs mtrl-app",
-    "debug:list": "bun run ../mtrl-app/scripts/debug/list examples/list-addons",
-    "debug:vlist": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist-addons",
-    "debug:list:interactive": "bun run ../mtrl-app/scripts/debug/list examples/list-addons --interactive",
-    "debug:vlist:interactive": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist-addons --interactive"
+    "debug:vlist": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist",
+    "debug:vlist:interactive": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist --interactive",
+    "debug:vlist-cursor": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist-cursor",
+    "debug:vlist-cursor:interactive": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist-cursor --interactive"
   },
   "repository": {
     "type": "git",

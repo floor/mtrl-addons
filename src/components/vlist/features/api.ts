@@ -107,7 +107,7 @@ export const withAPI = <T = any>(config: VListConfig<T>) => {
           // Find the next unloaded range
           let nextOffset = 0;
           for (const rangeId of loadedRanges) {
-            const rangeEnd = (rangeId + 1) * (config.rangeSize || 20);
+            const rangeEnd = (rangeId + 1) * (config.pagination?.limit || 20);
             if (rangeEnd > nextOffset) {
               nextOffset = rangeEnd;
             }
@@ -116,7 +116,7 @@ export const withAPI = <T = any>(config: VListConfig<T>) => {
           if (nextOffset < totalItems) {
             await component.viewport.collection.loadRange(
               nextOffset,
-              config.rangeSize || 20
+              config.pagination?.limit || 20
             );
           }
         }
@@ -245,7 +245,26 @@ export const withAPI = <T = any>(config: VListConfig<T>) => {
         // console.log(`[VList] scrollToPage(${pageNum})`);
 
         // Get limit from config (rangeSize) or default
-        const limit = config.rangeSize || 20;
+        const limit = config.pagination?.limit || 20;
+
+        // Check if we're in cursor mode
+        if (config.pagination?.strategy === "cursor") {
+          // In cursor mode, we need to handle sequential loading
+          const collection = (component.viewport as any)?.collection;
+          if (collection) {
+            const loadedRanges = collection.getLoadedRanges();
+            const highestLoadedPage = loadedRanges.size;
+
+            if (pageNum > highestLoadedPage + 1) {
+              console.warn(
+                `[VList] Cannot jump to page ${pageNum} in cursor mode. ` +
+                  `Loading pages sequentially from ${
+                    highestLoadedPage + 1
+                  } to ${pageNum}`
+              );
+            }
+          }
+        }
 
         // Use viewport's scrollToPage if available
         if ((component.viewport as any)?.scrollToPage) {
@@ -259,6 +278,11 @@ export const withAPI = <T = any>(config: VListConfig<T>) => {
 
       getScrollPosition: () => {
         return component.viewport?.getScrollPosition() || 0;
+      },
+
+      getCurrentCursor: () => {
+        const collection = (component.viewport as any)?.collection;
+        return collection?.getCurrentCursor?.() || null;
       },
 
       setScrollAnimation(enabled: boolean) {

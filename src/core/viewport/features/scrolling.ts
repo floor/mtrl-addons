@@ -418,6 +418,53 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         alignment = "start";
       }
 
+      // Check if we're in cursor mode
+      const viewportConfig = (component as any).config;
+      const isCursorMode = viewportConfig?.pagination?.strategy === "cursor";
+
+      if (isCursorMode) {
+        // In cursor mode, check if we can scroll to this page
+        const collection = (component.viewport as any).collection;
+        if (collection) {
+          const highestLoadedPage = Math.floor(
+            collection.getLoadedRanges().size
+          );
+
+          if (page > highestLoadedPage + 1) {
+            // Limit how many pages we'll load at once to prevent excessive API calls
+            const maxPagesToLoad = 10; // Reasonable limit
+            const targetPage = Math.min(
+              page,
+              highestLoadedPage + maxPagesToLoad
+            );
+
+            console.warn(
+              `[Scrolling] Cannot jump directly to page ${page} in cursor mode. ` +
+                `Pages must be loaded sequentially. Current highest page: ${highestLoadedPage}. ` +
+                `Will load up to page ${targetPage}`
+            );
+
+            // Trigger sequential loading to the target page (limited)
+            const targetOffset = (targetPage - 1) * limit;
+            const currentOffset = highestLoadedPage * limit;
+
+            // Load pages sequentially up to the limited target
+            console.log(
+              `[Scrolling] Initiating sequential load from page ${
+                highestLoadedPage + 1
+              } to ${targetPage}`
+            );
+
+            // Scroll to the last loaded position first
+            const lastLoadedIndex = highestLoadedPage * limit;
+            scrollToIndex(lastLoadedIndex, alignment);
+
+            // The collection feature will handle sequential loading
+            return;
+          }
+        }
+      }
+
       // Convert page to index (page 1 = index 0)
       const index = (page - 1) * limit;
 

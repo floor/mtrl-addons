@@ -212,6 +212,23 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       }
     });
 
+    // Listen for total items changes (important for cursor pagination)
+    component.on?.("viewport:total-items-changed", (data: any) => {
+      if (
+        data.total !== undefined &&
+        data.total !== viewportState?.totalItems
+      ) {
+        log(
+          `Total items changed from ${viewportState?.totalItems} to ${data.total}`
+        );
+        updateTotalVirtualSize(data.total);
+        updateVisibleRange(viewportState?.scrollPosition || 0);
+
+        // Trigger a render to update the view
+        component.viewport?.renderItems?.();
+      }
+    });
+
     component.on?.("collection:range-loaded", (data: any) => {
       if (
         data.total !== undefined &&

@@ -9,7 +9,7 @@
 export const VIEWPORT_CONSTANTS = {
   // Virtual scrolling defaults
   VIRTUAL_SCROLL: {
-    DEFAULT_ITEM_SIZE: 84,
+    DEFAULT_ITEM_SIZE: 10,
     OVERSCAN_BUFFER: 2,
     SCROLL_SENSITIVITY: 0.2,
     MAX_VIRTUAL_SIZE: 10 * 1000 * 1000, // 10M pixels - well within browser limits
@@ -32,16 +32,22 @@ export const VIEWPORT_CONSTANTS = {
 
   // Loading settings
   LOADING: {
-    CANCEL_THRESHOLD: 1, // px/ms - velocity above which loads are cancelled
-    MAX_CONCURRENT_REQUESTS: 1,
-    DEFAULT_RANGE_SIZE: 20,
+    CANCEL_THRESHOLD: 1, // px/ms - velocity above which loads cancel
+    MAX_CONCURRENT_REQUESTS: 1, // Parallel requests allowed
+    DEFAULT_RANGE_SIZE: 20, // Items per request
+    DEBOUNCE_LOADING: 150, // Debounce delay (ms)
+    MIN_RANGE_SIZE: 10, // Minimum items per load
+    MAX_RANGE_SIZE: 100, // Maximum items per load
+    REQUEST_TIMEOUT: 5000, // Request timeout (ms)
+    RETRY_ATTEMPTS: 2, // Failed request retries
+    RETRY_DELAY: 1000, // Delay between retries (ms)
   },
 
   // Request queue configuration (from features/constants)
   REQUEST_QUEUE: {
-    ENABLED: true,
-    MAX_QUEUE_SIZE: 1, // Keep only a few requests in queue to avoid memory issues
-    MAX_ACTIVE_REQUESTS: 2, // Sequential requests
+    ENABLED: true, // Enable request queuing
+    MAX_QUEUE_SIZE: 1, // Max queued requests
+    MAX_ACTIVE_REQUESTS: 2, // Max concurrent active requests
   },
 
   // Placeholder settings
@@ -61,7 +67,7 @@ export const VIEWPORT_CONSTANTS = {
 
   // Momentum settings
   MOMENTUM: {
-    ENABLED: true, // Enable momentum by default
+    ENABLED: false, // Enable momentum by default
     DECELERATION_FACTOR: 0.85, // How quickly velocity decreases per frame
     MIN_VELOCITY: 0.1, // Minimum velocity before stopping (px/ms)
     MIN_DURATION: 300, // Maximum gesture duration to trigger momentum (ms)
@@ -98,6 +104,21 @@ export const VIEWPORT_CONSTANTS = {
     DEFAULT_ORIENTATION: "vertical",
     DEFAULT_CROSS_AXIS_ALIGNMENT: "stretch",
     REVERSE_DIRECTION: false,
+  },
+
+  PAGINATION: {
+    DEFAULT_STRATEGY: "offset" as "offset" | "page" | "cursor",
+    DEFAULT_LIMIT: 20,
+    STRATEGIES: {
+      PAGE: "page" as const,
+      OFFSET: "offset" as const,
+      CURSOR: "cursor" as const,
+    },
+    CURSOR_CLEANUP_INTERVAL: 60000, // Clean up old cursors every minute
+    MAX_CURSOR_MAP_SIZE: 1000, // Maximum number of cursors to keep in memory
+    // Cursor-specific virtual sizing
+    CURSOR_SCROLL_MARGIN_MULTIPLIER: 3, // Multiply rangeSize by this for scroll margin
+    CURSOR_MIN_VIRTUAL_SIZE_MULTIPLIER: 3, // Minimum virtual size as multiplier of rangeSize
   },
 };
 
