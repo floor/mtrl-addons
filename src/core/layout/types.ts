@@ -37,11 +37,14 @@ export interface ElementOptions extends Record<string, any> {
   /** Layout item configuration */
   layoutItem?: LayoutItemConfig;
 
-  /** CSS classes to apply */
+  /** CSS classes to apply (with automatic mtrl- prefix) */
   class?: string;
 
   /** Additional CSS classes (alias for class) */
   className?: string;
+
+  /** CSS classes to apply without prefix */
+  rawClass?: string | string[];
 
   /** HTML tag name for createElement */
   tag?: string;

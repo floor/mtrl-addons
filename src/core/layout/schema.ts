@@ -180,45 +180,78 @@ function releaseFragment(fragment: DocumentFragment): void {
 
 /**
  * Optimized class processing with minimal string operations
- * Handles arrays, strings, and className aliases efficiently
+ * Handles arrays, strings, className aliases, and rawClass efficiently
  */
 function processClassNames(
   options: Record<string, any>,
   skipPrefix = false
 ): Record<string, any> {
-  if (!options || skipPrefix) return { ...options };
+  if (!options) return options;
 
-  const hasClassProps = options.class || options.className;
-  if (!hasClassProps) return { ...options };
-
-  const processed = { ...options };
-
-  // Combine class sources efficiently
-  let classString = "";
-  if (processed.class) {
-    // Handle arrays by joining first
-    if (Array.isArray(processed.class)) {
-      classString += processed.class.join(" ");
+  const hasRawClass = options.rawClass;
+  const hasRegularClass = options.class || options.className;
+  
+  // Fast path: no class properties at all
+  if (!hasRawClass && !hasRegularClass) return options;
+  
+  // Fast path: only rawClass and skipping prefix (most common rawClass scenario)
+  if (hasRawClass && !hasRegularClass && skipPrefix) {
+    const processed = { ...options };
+    delete processed.rawClass;
+    
+    // Direct assignment for simple string
+    if (typeof hasRawClass === "string") {
+      processed.class = hasRawClass;
     } else {
-      classString += processed.class;
+      // Handle array case
+      processed.class = hasRawClass.join(" ");
+    }
+    return processed;
+  }
+
+  // Full processing path (only when needed)
+  const processed = { ...options };
+  let finalClasses = "";
+
+  // Handle prefixed classes only if not skipping prefix
+  if (!skipPrefix && hasRegularClass) {
+    let prefixedString = "";
+    
+    if (processed.class) {
+      prefixedString += Array.isArray(processed.class) 
+        ? processed.class.join(" ") 
+        : processed.class;
+    }
+    if (processed.className) {
+      prefixedString += (prefixedString ? " " : "") + processed.className;
+    }
+
+    if (prefixedString) {
+      finalClasses = prefixedString
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(cls => cls.startsWith(PREFIX_WITH_DASH) ? cls : PREFIX_WITH_DASH + cls)
+        .join(" ");
     }
   }
-  if (processed.className) {
-    classString += (classString ? " " : "") + processed.className;
+
+  // Handle rawClass (always processed when present)
+  if (hasRawClass) {
+    const rawString = Array.isArray(hasRawClass) 
+      ? hasRawClass.filter(Boolean).join(" ")
+      : hasRawClass;
+    
+    finalClasses += (finalClasses ? " " : "") + rawString;
   }
 
-  if (classString) {
-    // Single pass prefix application
-    processed.class = classString
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((cls) =>
-        cls && !cls.startsWith(PREFIX_WITH_DASH) ? PREFIX_WITH_DASH + cls : cls
-      )
-      .join(" ");
+  if (finalClasses) {
+    processed.class = finalClasses;
   }
 
+  // Clean up in one operation
   delete processed.className;
+  delete processed.rawClass;
+  
   return processed;
 }
 
@@ -668,12 +701,14 @@ function processArraySchema(
     // Advance index by consumed items minus 1 (loop increment handles the +1)
     i += consumed - 1;
 
-    // Process options with prefix
-    const shouldApplyPrefix =
+    // Process options with prefix - optimized decision logic
+    const shouldApplyPrefix = 
       "prefix" in itemOptions ? itemOptions.prefix : options.prefix !== false;
-    const processedOptions = shouldApplyPrefix
-      ? processClassNames(itemOptions)
-      : { ...itemOptions };
+    
+    // Fast path: process only when needed
+    const processedOptions = (shouldApplyPrefix || itemOptions.rawClass)
+      ? processClassNames(itemOptions, !shouldApplyPrefix)
+      : itemOptions; // No copy needed if no processing
 
     // Add name to options if needed
     if (
