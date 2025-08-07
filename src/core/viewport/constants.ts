@@ -11,7 +11,7 @@ export const VIEWPORT_CONSTANTS = {
   VIRTUAL_SCROLL: {
     DEFAULT_ITEM_SIZE: 48,
     OVERSCAN_BUFFER: 2,
-    SCROLL_SENSITIVITY: 0.2,
+    SCROLL_SENSITIVITY: 0.7,
     MAX_VIRTUAL_SIZE: 100 * 1000 * 1000, // 100M pixels - modern browsers can handle this
     AUTO_DETECT_ITEM_SIZE: true, // Enable automatic item size detection
   },
@@ -32,7 +32,7 @@ export const VIEWPORT_CONSTANTS = {
 
   // Loading settings
   LOADING: {
-    CANCEL_THRESHOLD: 1, // px/ms - velocity above which loads cancel
+    CANCEL_THRESHOLD: 2, // px/ms - velocity above which loads cancel
     MAX_CONCURRENT_REQUESTS: 1, // Parallel requests allowed
     DEFAULT_RANGE_SIZE: 20, // Items per request
     DEBOUNCE_LOADING: 150, // Debounce delay (ms)
