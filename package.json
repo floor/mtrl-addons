@@ -1,6 +1,6 @@
 {
   "name": "mtrl-addons",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Additional components and utilities for the mtrl system, featuring forms, specialized elements, and extended functionality for modern applications",
   "type": "module",
   "main": "index.ts",
@@ -14,6 +14,7 @@
     "server:stop": "pm2 stop mtrl-app",
     "server:reload": "pm2 restart mtrl-app",
     "server:logs": "pm2 logs mtrl-app",
+    "link:mtrl": "rm -rf node_modules/mtrl && ln -sf ../../mtrl node_modules/mtrl",
     "debug:vlist": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist",
     "debug:vlist:interactive": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist --interactive",
     "debug:vlist-cursor": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist-cursor",
@@ -33,7 +34,7 @@
   "author": "floor",
   "license": "MIT",
   "peerDependencies": {
-    "mtrl": "^0.2.8"
+    "mtrl": "^0.5.1"
   },
   "devDependencies": {
     "@types/jsdom": "^21.1.7",
