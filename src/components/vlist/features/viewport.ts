@@ -5,13 +5,15 @@
  * Integrates the core viewport functionality with VList component
  */
 
-import type { VListConfig } from "../types";
+import type { VListConfig, VListItem } from "../types";
 import { createViewport } from "../../../core/viewport";
 
 /**
  * Adds viewport functionality to VList
  */
-export const withViewport = <T = any>(config: VListConfig<T>) => {
+export const withViewport = <T extends VListItem = VListItem>(
+  config: VListConfig<T>
+) => {
   return (component: any) => {
     // console.log("📋 [VList] Applying viewport feature", {
     //   hasElement: !!component.element,

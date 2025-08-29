@@ -1,6 +1,6 @@
 export {
   withGestures
-} from './features';
+} from './features/gestures';
 
 // Gesture features
 export { withTapGesture } from './features/gestures/tap';

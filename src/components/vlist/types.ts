@@ -2,21 +2,31 @@
  * VList Types - Virtual List with direct viewport integration
  */
 
-import type { BaseComponent, ElementComponent } from "mtrl/src/core/compose";
-import type {
-  Collection,
-  CollectionItem,
-  CollectionConfig,
-} from "../../core/collection";
+import type { BaseComponent, ElementComponent } from "mtrl";
+// Collection types are not exposed by mtrl; define minimal interfaces locally
+export interface CollectionItem {
+  id: string | number;
+  [key: string]: any;
+}
+
+export interface CollectionConfig<T = any> {
+  adapter?: {
+    read(params?: any): Promise<{ items: T[]; meta?: any; error?: any }>;
+  };
+}
+
+export interface Collection<T = any> {
+  loadMissingRanges?: (
+    range: { start: number; end: number },
+    reason?: string
+  ) => Promise<void>;
+}
 import type { ViewportComponent } from "../../core/viewport/types";
 
 /**
  * List item interface - extends collection item
  */
-export interface ListItem extends CollectionItem {
-  id: string;
-  [key: string]: any;
-}
+export interface ListItem extends CollectionItem {}
 
 /**
  * List adapter interface - extends collection adapter
@@ -168,12 +178,13 @@ export interface ListPaginationConfig {
 /**
  * Complete List component configuration
  */
-export interface ListConfig<T = any> extends ListStyleConfig {
+export interface ListConfig<T extends ListItem = ListItem>
+  extends ListStyleConfig {
   // Data layer (Collection) configuration
   collection?: Partial<CollectionConfig<T>>;
 
   // Performance layer (List Manager) configuration
-  listManager?: Partial<ListManagerConfig>;
+  listManager?: Partial<any>;
 
   // Pagination configuration
   pagination?: ListPaginationConfig;
@@ -319,7 +330,7 @@ export interface ListEvents<T = any> {
 /**
  * List component API
  */
-export interface ListAPI<T = any> {
+export interface ListAPI<T extends ListItem = ListItem> {
   // Data management
   /** Load data */
   loadData(): Promise<void>;
@@ -445,7 +456,7 @@ export interface ListAPI<T = any> {
 /**
  * List component interface (extends mtrl component patterns)
  */
-export interface ListComponent<T = any>
+export interface ListComponent<T extends ListItem = ListItem>
   extends BaseComponent,
     ElementComponent,
     ListAPI<T> {
@@ -453,7 +464,7 @@ export interface ListComponent<T = any>
   collection: Collection<T>;
 
   /** List manager instance (performance layer) */
-  listManager: ListManager;
+  listManager: any;
 
   /** Current list state */
   state: ListState;
@@ -509,7 +520,7 @@ export interface ListFeatures {
 /**
  * VList configuration interface
  */
-export interface VListConfig<T = any> {
+export interface VListConfig<T extends ListItem = ListItem> {
   // Container
   parent?: HTMLElement | string;
   container?: HTMLElement | string; // Also support container
@@ -570,11 +581,11 @@ export interface VListConfig<T = any> {
   on?: ListEventHandlers<T>;
 }
 
-export type VListComponent<T = any> = ListComponent<T> & {
+export type VListComponent<T extends ListItem = ListItem> = ListComponent<T> & {
   viewport: ViewportComponent["viewport"];
 };
 
 export type VListItem = ListItem;
-export type VListAPI<T = any> = ListAPI<T>;
+export type VListAPI<T extends ListItem = ListItem> = ListAPI<T>;
 export type VListState = ListState;
 export type VListEvents<T = any> = ListEvents<T>;

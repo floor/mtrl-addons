@@ -5,10 +5,7 @@
  * Follows mtrl patterns for component configuration.
  */
 
-import {
-  createComponentConfig,
-  createElementConfig as coreCreateElementConfig,
-} from "mtrl/src/core/config/component";
+import { createComponentConfig, createElementConfig } from "mtrl";
 import { VLIST_CLASSES } from "./constants";
 import type { ListConfig, ListItem } from "./types";
 import type { ListComponent } from "./types";
@@ -55,6 +52,59 @@ export const defaultConfig: Partial<ListConfig> = {
  * @param {ListConfig} config - User provided configuration
  * @returns {ListConfig} Complete configuration with defaults applied
  */
+// Minimal converter to avoid hardcoding external helpers
+function convertRenderItemToTemplate(render: any) {
+  if (typeof render === "function") return render;
+  if (render && typeof render === "object") {
+    const { headline, supporting, leading, trailing } = render as any;
+    return (item: any, index: number) => {
+      const container = document.createElement("div");
+      container.className = "mtrl-list-item";
+      if (leading) {
+        const el = document.createElement("div");
+        el.className = "mtrl-list-item__leading";
+        el.innerHTML =
+          typeof leading === "function"
+            ? leading(item, index)
+            : String(leading);
+        container.appendChild(el);
+      }
+      const content = document.createElement("div");
+      content.className = "mtrl-list-item__content";
+      if (headline) {
+        const h = document.createElement("div");
+        h.className = "mtrl-list-item__headline";
+        h.innerHTML =
+          typeof headline === "function"
+            ? headline(item, index)
+            : String(headline);
+        content.appendChild(h);
+      }
+      if (supporting) {
+        const s = document.createElement("div");
+        s.className = "mtrl-list-item__supporting";
+        s.innerHTML =
+          typeof supporting === "function"
+            ? supporting(item, index)
+            : String(supporting);
+        content.appendChild(s);
+      }
+      container.appendChild(content);
+      if (trailing) {
+        const el = document.createElement("div");
+        el.className = "mtrl-list-item__trailing";
+        el.innerHTML =
+          typeof trailing === "function"
+            ? trailing(item, index)
+            : String(trailing);
+        container.appendChild(el);
+      }
+      return container;
+    };
+  }
+  return (item: any) => String(item);
+}
+
 export function createBaseConfig<T extends ListItem = ListItem>(
   config: ListConfig<T> = {}
 ): Required<ListConfig<T>> {
@@ -67,15 +117,14 @@ export function createBaseConfig<T extends ListItem = ListItem>(
     );
   }
 
-  // Use mtrl core config system for proper merging and validation
-  const mergedConfig = createComponentConfig(defaultConfig, config, "list");
+  const mergedConfig = createComponentConfig(
+    defaultConfig as any,
+    config as any,
+    "list"
+  ) as any;
 
   // Convert renderItem object to template function if provided
-  if (
-    (config as any).renderItem &&
-    typeof (config as any).renderItem === "object" &&
-    !mergedConfig.template
-  ) {
+  if ((config as any).renderItem && !mergedConfig.template) {
     mergedConfig.template = convertRenderItemToTemplate(
       (config as any).renderItem
     );
@@ -107,8 +156,7 @@ export function getElementConfig<T extends ListItem = ListItem>(
     "aria-label": config.ariaLabel || "List",
   };
 
-  // Create element config using mtrl core system
-  return coreCreateElementConfig(config, {
+  return createElementConfig(config as any, {
     tag: "div",
     attributes,
     className: VLIST_CLASSES.LIST,
@@ -267,7 +315,7 @@ export const validateConfig = (config: ListConfig): void => {
 export const getCollectionConfig = (config: ListConfig) => ({
   adapter: config.adapter,
   items: config.items,
-  cache: config.collection?.cache || {
+  cache: (config.collection as any)?.cache || {
     enabled: true,
     maxSize: 1000,
     ttl: 300000, // 5 minutes

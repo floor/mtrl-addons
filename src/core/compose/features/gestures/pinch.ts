@@ -4,10 +4,10 @@
  * @description Adds pinch gesture recognition to components
  */
 
-import { BaseComponent, ElementComponent } from "../../component";
+import type { BaseComponent, ElementComponent } from "mtrl";
 import { PinchEvent, GestureHandler } from "../../../gestures";
 import { getDistance } from "../../../gestures/utils";
-import { hasLifecycle, hasEmit } from "mtrl/src/core/compose/utils/type-guards";
+import { hasLifecycle, hasEmit } from "mtrl";
 
 /**
  * Extended PinchEvent to support our custom event types

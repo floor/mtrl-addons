@@ -1,6 +1,6 @@
 // src/components/vlist/features/selection.ts
 
-import type { VListConfig, VListComponent } from "../types";
+import type { VListConfig, VListComponent, VListItem } from "../types";
 import { VLIST_CLASSES } from "../constants";
 import { PREFIX, addClass, removeClass } from "mtrl";
 
@@ -20,7 +20,9 @@ interface SelectionState {
  * @param config - VList configuration with selection options
  * @returns Function that enhances a component with selection management
  */
-export const withSelection = <T = any>(config: VListConfig<T>) => {
+export const withSelection = <T extends VListItem = VListItem>(
+  config: VListConfig<T>
+) => {
   return (component: VListComponent<T>): VListComponent<T> => {
     // Skip if selection is not enabled
     if (!config.selection?.enabled || config.selection?.mode === "none") {

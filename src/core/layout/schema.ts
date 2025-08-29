@@ -190,15 +190,15 @@ function processClassNames(
 
   const hasRawClass = options.rawClass;
   const hasRegularClass = options.class || options.className;
-  
+
   // Fast path: no class properties at all
   if (!hasRawClass && !hasRegularClass) return options;
-  
+
   // Fast path: only rawClass and skipping prefix (most common rawClass scenario)
   if (hasRawClass && !hasRegularClass && skipPrefix) {
     const processed = { ...options };
     delete processed.rawClass;
-    
+
     // Direct assignment for simple string
     if (typeof hasRawClass === "string") {
       processed.class = hasRawClass;
@@ -216,10 +216,10 @@ function processClassNames(
   // Handle prefixed classes only if not skipping prefix
   if (!skipPrefix && hasRegularClass) {
     let prefixedString = "";
-    
+
     if (processed.class) {
-      prefixedString += Array.isArray(processed.class) 
-        ? processed.class.join(" ") 
+      prefixedString += Array.isArray(processed.class)
+        ? processed.class.join(" ")
         : processed.class;
     }
     if (processed.className) {
@@ -230,17 +230,19 @@ function processClassNames(
       finalClasses = prefixedString
         .split(/\s+/)
         .filter(Boolean)
-        .map(cls => cls.startsWith(PREFIX_WITH_DASH) ? cls : PREFIX_WITH_DASH + cls)
+        .map((cls) =>
+          cls.startsWith(PREFIX_WITH_DASH) ? cls : PREFIX_WITH_DASH + cls
+        )
         .join(" ");
     }
   }
 
   // Handle rawClass (always processed when present)
   if (hasRawClass) {
-    const rawString = Array.isArray(hasRawClass) 
+    const rawString = Array.isArray(hasRawClass)
       ? hasRawClass.filter(Boolean).join(" ")
       : hasRawClass;
-    
+
     finalClasses += (finalClasses ? " " : "") + rawString;
   }
 
@@ -251,7 +253,7 @@ function processClassNames(
   // Clean up in one operation
   delete processed.className;
   delete processed.rawClass;
-  
+
   return processed;
 }
 
@@ -305,7 +307,7 @@ function extractParameters(
   return {
     creator: creator || defaultCreator,
     name,
-    options: options || {},
+    options: (options || {}) as Record<string, any>,
     consumed,
   };
 }
@@ -651,7 +653,7 @@ function getLayoutType(element: HTMLElement): string {
  * Optimized with parameter extraction and integrated configuration
  */
 function processArraySchema(
-  schema: SchemaItem[],
+  schema: SchemaItem[] | any,
   parentElement: HTMLElement | null = null,
   level: number = 0,
   options: LayoutOptions = {}
@@ -666,7 +668,7 @@ function processArraySchema(
     return createLayoutResult(layout);
   }
 
-  const defaultCreator = options.creator || createElement;
+  const defaultCreator = (options as any).creator || createElement;
 
   for (let i = 0; i < schema.length; i++) {
     const item = schema[i];
@@ -702,13 +704,14 @@ function processArraySchema(
     i += consumed - 1;
 
     // Process options with prefix - optimized decision logic
-    const shouldApplyPrefix = 
+    const shouldApplyPrefix =
       "prefix" in itemOptions ? itemOptions.prefix : options.prefix !== false;
-    
+
     // Fast path: process only when needed
-    const processedOptions = (shouldApplyPrefix || itemOptions.rawClass)
-      ? processClassNames(itemOptions, !shouldApplyPrefix)
-      : itemOptions; // No copy needed if no processing
+    const processedOptions =
+      shouldApplyPrefix || itemOptions.rawClass
+        ? processClassNames(itemOptions, !shouldApplyPrefix)
+        : itemOptions; // No copy needed if no processing
 
     // Add name to options if needed
     if (
@@ -769,7 +772,7 @@ function processArraySchema(
  * Simplified and optimized for better performance
  */
 function processObjectSchema(
-  schema: Record<string, any>,
+  schema: Record<string, any> | string,
   parentElement: HTMLElement | null = null,
   options: LayoutOptions = {}
 ): LayoutResult {
@@ -777,8 +780,8 @@ function processObjectSchema(
   const defaultCreator = options.creator || createElement;
 
   // Handle root element creation
-  if (schema.element && !parentElement) {
-    const elementDef = schema.element;
+  if ((schema as any).element && !parentElement) {
+    const elementDef = (schema as any).element;
     const createElementFn = elementDef.creator || defaultCreator;
 
     const elementOptions = elementDef.options || {};
@@ -813,8 +816,8 @@ function processObjectSchema(
   // Process normal schema elements
   const fragment = parentElement ? createFragment() : null;
 
-  for (const key in schema) {
-    const def = schema[key];
+  for (const key in schema as Record<string, any>) {
+    const def = (schema as Record<string, any>)[key];
     if (!def) continue;
 
     const elementCreator = def.creator || defaultCreator;

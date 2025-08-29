@@ -3,12 +3,14 @@
  * Provides a clean public API for the VList component
  */
 
-import type { VListConfig } from "../types";
+import type { VListConfig, VListItem } from "../types";
 
 /**
  * Adds public API methods to VList
  */
-export const withAPI = <T = any>(config: VListConfig<T>) => {
+export const withAPI = <T extends VListItem = VListItem>(
+  config: VListConfig<T>
+) => {
   return (component: any) => {
     // Initialize viewport on creation
     setTimeout(() => {

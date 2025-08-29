@@ -4,14 +4,14 @@
  * @description Adds swipe gesture recognition to components
  */
 
-import { BaseComponent, ElementComponent } from "../../component";
+import type { BaseComponent, ElementComponent } from "mtrl";
 import {
   SwipeEvent,
   SWIPE_DIRECTIONS,
   GestureHandler,
 } from "../../../gestures";
-import { hasLifecycle, hasEmit } from "mtrl/src/core/compose/utils/type-guards";
- 
+import { hasLifecycle, hasEmit } from "mtrl";
+
 /**
  * Configuration for swipe gesture feature
  */

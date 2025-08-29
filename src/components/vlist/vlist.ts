@@ -7,12 +7,12 @@
  * without the list-manager abstraction layer.
  */
 
-import type { VListConfig, VListComponent } from "./types";
+import type { VListConfig, VListComponent, VListItem } from "./types";
 
 // Import mtrl compose system
-import { pipe } from "mtrl/src/core/compose/pipe";
-import { createBase, withElement } from "mtrl/src/core/compose/component";
-import { withEvents, withLifecycle } from "mtrl/src/core/compose/features";
+import { pipe } from "mtrl";
+import { createBase, withElement } from "mtrl";
+import { withEvents, withLifecycle } from "mtrl";
 
 // Import viewport feature
 import { withViewport } from "./features/viewport";
@@ -40,7 +40,7 @@ import { withSelection } from "./features/selection";
  * });
  * ```
  */
-export const createVList = <T = any>(
+export const createVList = <T extends VListItem = VListItem>(
   config: VListConfig<T> = {}
 ): VListComponent<T> => {
   try {

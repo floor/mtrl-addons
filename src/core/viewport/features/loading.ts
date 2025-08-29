@@ -5,7 +5,8 @@
  * When scrolling fast, it cancels loads to prevent server overload.
  */
 
-import type { ListManagerComponent, ItemRange } from "../../types";
+import type { ItemRange } from "../types";
+type ListManagerComponent = any;
 import { VIEWPORT_CONSTANTS } from "../constants";
 
 export interface LoadingConfig {

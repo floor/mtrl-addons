@@ -4,15 +4,15 @@
  * @description Adds gesture recognition capabilities to components
  */
 
-import { BaseComponent, ElementComponent } from "../component";
+import { BaseComponent, ElementComponent } from "mtrl";
 import {
   createGestureManager,
   GestureManager,
   GestureConfig,
   GestureHandler,
   AnyGestureEvent,
-} from "../../gestures";
-import { hasLifecycle, hasEmit } from "mtrl/src/core/compose/utils/type-guards";
+} from "../../../gestures";
+import { hasLifecycle, hasEmit } from "mtrl";
 
 /**
  * Configuration for gestures feature

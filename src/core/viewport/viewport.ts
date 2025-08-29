@@ -9,7 +9,7 @@ import type {
   ItemRange,
   ViewportInfo,
 } from "./types";
-import { pipe } from "mtrl/src/core/compose/pipe";
+import { pipe } from "mtrl";
 import { withBase } from "./features/base";
 import { withVirtual } from "./features/virtual";
 import { withScrolling } from "./features/scrolling";

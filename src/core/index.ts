@@ -12,7 +12,7 @@ export {
   applyLayoutClasses,
   cleanupLayoutClasses,
 } from "./layout";
-export type { Layout, LayoutConfig } from "./layout";
+export type { LayoutConfig } from "./layout/types";
 
 // Viewport system
 export { createViewport } from "./viewport";
@@ -39,3 +39,5 @@ export type {
   AnyGestureEvent,
   GestureHandler,
 } from "./gestures";
+
+export * from "./compose";
