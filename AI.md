@@ -16,9 +16,10 @@ This project uses **CLAUDE.md** as the primary development guide and documentati
 
 - **[CLAUDE.md](./CLAUDE.md)** - Complete development guide
   - Project overview and architecture
-  - Virtual scrolling and list manager system
-  - Collection system for data management
-  - Layout schema for declarative UI
+  - VList component with virtual scrolling
+  - Viewport system for virtual positioning
+  - Layout schema for declarative UI (JSX-like)
+  - Gesture system for touch interactions
   - Development philosophy and standards
   - TypeScript and SCSS guidelines
   - Testing strategy and performance benchmarks
@@ -32,7 +33,7 @@ This project uses **CLAUDE.md** as the primary development guide and documentati
 
 **Package:** mtrl-addons - Extended Components for mtrl  
 **Philosophy:** "Less is more" - Zero dependencies (mtrl peer only)  
-**Key Features:** Virtual scrolling, Collection system, Layout schema  
+**Key Features:** VList (virtual list), Viewport system, Layout schema, Gesture handling  
 **Documentation:** Everything you need is in CLAUDE.md
 
 Enjoy building with mtrl-addons! 🚀

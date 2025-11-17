@@ -50,13 +50,14 @@ Clone related packages as siblings for easier cross-package development:
 mtrl-addons/
 ├── src/
 │   ├── components/           # Extended components
-│   │   └── list/            # Advanced list component
+│   │   └── vlist/           # Virtual list component
 │   ├── core/                # Advanced core features
-│   │   ├── collection/      # Collection management system
-│   │   ├── list-manager/    # Virtual scrolling engine
-│   │   ├── layout/          # Layout schema system
-│   │   └── compose/         # Composition utilities
-│   └── styles/              # Extended component styles
+│   │   ├── viewport/        # Viewport and virtual scrolling
+│   │   ├── layout/          # Layout schema system (JSX-like)
+│   │   ├── compose/         # Enhanced composition utilities
+│   │   └── gestures/        # Touch and gesture handling
+│   ├── styles/              # Extended component styles
+│   └── types/               # Shared type definitions
 ├── test/                    # Bun test suite
 │   ├── components/          # Component tests
 │   ├── core/                # Core feature tests
@@ -76,10 +77,11 @@ mtrl-addons/
 - **DOM Testing**: JSDOM
 
 ### Key Features
-- **Virtual Scrolling**: High-performance list rendering for large datasets
-- **Collection System**: Advanced data management with caching
-- **Layout Schema**: Declarative UI composition system
-- **Performance Utilities**: Optimized calculations and range management
+- **VList Component**: High-performance virtual list with direct viewport integration
+- **Viewport System**: Virtual scrolling and positioning engine
+- **Layout Schema**: Declarative UI composition system (JSX-like, array-based)
+- **Gesture System**: Touch and gesture handling for interactive components
+- **Compose Utilities**: Enhanced functional composition patterns
 
 ## Development Philosophy
 
@@ -94,9 +96,10 @@ mtrl-addons/
 
 ### Design Decisions
 
-- **Why Virtual Scrolling?** Handle 100k+ items without performance degradation
-- **Why Collection System?** Intelligent data loading and caching strategies
-- **Why Layout Schema?** Declarative, composable UI patterns
+- **Why VList?** Handle 100k+ items without performance degradation
+- **Why Viewport System?** Flexible virtual scrolling for any component
+- **Why Layout Schema?** Declarative, composable UI patterns (JSX-like without JSX)
+- **Why Gestures?** Rich interaction patterns for touch devices
 - **Why Extend mtrl?** Specialized features not needed in base library
 - **Why Peer Dependency?** Maintain single source of truth for core components
 
@@ -283,97 +286,102 @@ const createEnhancedComponent = <T>(config: Config): HTMLElement => {
 
 ## Core Systems
 
-### List Manager System
+### VList Component
 
-**Purpose:** Virtual scrolling engine for handling massive datasets efficiently
+**Purpose:** High-performance virtual list with direct viewport integration
 
 **Key Features:**
-- Virtual scrolling with viewport management
-- Item size calculation and caching
-- Custom scrollbar implementation
-- Collection integration for data loading
+- Virtual scrolling for massive datasets (100k+ items)
+- Direct viewport integration (no abstraction layer)
+- Configurable pagination strategies
+- Template-based item rendering
+- Built-in selection support
 
 **Architecture:**
 ```
-list-manager/
-├── list-manager.ts       # Main manager
+vlist/
+├── vlist.ts              # Main component
 ├── types.ts              # Type definitions
-├── constants.ts          # Configuration defaults
+├── config.ts             # Configuration defaults
+├── constants.ts          # Constants
+├── features.ts           # Feature composition
 ├── features/
-│   ├── viewport/         # Virtual scrolling viewport
-│   ├── collection/       # Data loading integration
-│   ├── item-size/        # Size calculation & caching
-│   └── scrollbar/        # Custom scrollbar
+│   ├── viewport/         # Virtual scrolling integration
+│   ├── api/              # Public API methods
+│   └── selection/        # Item selection handling
 └── index.ts
 ```
 
 **Usage Pattern:**
 ```typescript
-import { createListManager } from 'mtrl-addons/core/list-manager'
+import { createVList } from 'mtrl-addons/components/vlist'
 
-const listManager = createListManager({
-  collection: {
-    loadData: async (range) => fetchItems(range),
-    totalItems: 100000,
-    cacheSize: 1000
-  },
-  viewport: {
-    orientation: 'vertical',
-    estimatedItemSize: 60,
-    overscan: 5
-  }
+const vlist = createVList({
+  container: '#my-list',
+  collection: myAdapter,
+  rangeSize: 20,
+  paginationStrategy: 'page',
+  template: (item, index) => [
+    { class: 'viewport-item', attributes: { 'data-id': item.id }},
+    [{ class: 'viewport-item__name', text: item.name }],
+    [{ class: 'viewport-item__value', text: item.value }]
+  ]
 })
 
-// Event handling
-listManager.on('range:loaded', (data) => {
-  console.log('Loaded items:', data)
-})
-
-listManager.on('viewport:changed', (viewport) => {
-  console.log('Viewport changed:', viewport)
-})
+// VList automatically handles:
+// - Virtual scrolling
+// - Item positioning
+// - Data loading
+// - Template rendering
 ```
 
-### Collection System
+### Viewport System
 
-**Purpose:** Advanced data management with caching and state
+**Purpose:** Virtual scrolling and positioning engine
 
 **Key Features:**
-- Data loading and caching strategies
-- State management for large datasets
-- Event-driven architecture
-- Intelligent range loading
+- Flexible viewport for any component
+- Item size calculation and caching
+- Scroll position management
+- Range-based rendering
+- Orientation support (vertical/horizontal)
 
 **Usage Pattern:**
 ```typescript
-import { createCollection } from 'mtrl-addons/core/collection'
+import { withViewport } from 'mtrl-addons/core/viewport'
 
-const collection = createCollection({
-  loadData: async (range) => {
-    const response = await fetch(`/api/items?start=${range.start}&end=${range.end}`)
-    return response.json()
-  },
-  totalItems: 100000,
-  cacheSize: 1000,
-  preloadAhead: 2
-})
-
-// Load data
-await collection.load({ start: 0, end: 50 })
-
-// Get cached data
-const items = collection.get({ start: 10, end: 30 })
+// Apply viewport to any component
+const component = pipe(
+  createBaseComponent(config),
+  withViewport({
+    orientation: 'vertical',
+    estimatedItemSize: 60,
+    overscan: 5
+  })
+)
 ```
 
 ### Layout Schema System
 
-**Purpose:** Declarative UI composition system
+**Purpose:** Declarative UI composition system (JSX-like without JSX)
 
 **Key Features:**
 - Array-based schema for component composition
-- JSX-like syntax without JSX
+- JSX-like syntax without JSX transpilation
 - Dynamic HTML generation
 - Type-safe component creation
+- Responsive layout configurations (stack, row, grid)
+- Built-in performance optimizations
+
+**Architecture:**
+```
+layout/
+├── schema.ts             # Main schema processor
+├── jsx.ts                # JSX-style API
+├── config.ts             # Layout configurations
+├── types.ts              # Type definitions
+└── index.ts
+```
 
 **Usage Pattern:**
 ```typescript
@@ -381,6 +389,7 @@ import { createLayout } from 'mtrl-addons/core/layout'
 import { createButton } from 'mtrl/components/button'
 import { createText } from 'mtrl/components/text'
 
+// Array-based schema
 const layout = createLayout([
   [createButton, { variant: 'filled', text: 'Click me' }],
   [createText, { text: 'Hello World' }],
@@ -389,7 +398,70 @@ const layout = createLayout([
   ]
 ])
 
+// With layout configuration
+const responsiveLayout = createLayout({
+  type: 'row',
+  gap: 16,
+  mobileStack: true,
+  children: [
+    [createButton, { variant: 'filled', text: 'Button 1' }],
+    [createButton, { variant: 'outlined', text: 'Button 2' }]
+  ]
+})
+
 document.body.appendChild(layout)
+```
+
+### Gesture System
+
+**Purpose:** Touch and gesture handling for interactive components
+
+**Key Features:**
+- Touch event abstraction
+- Gesture recognition (tap, swipe, pinch, etc.)
+- Multi-touch support
+- Velocity and momentum calculations
+- Integration with scroll and drag behaviors
+
+**Usage Pattern:**
+```typescript
+import { withGestures } from 'mtrl-addons/core/gestures'
+
+const component = pipe(
+  createBaseComponent(config),
+  withGestures({
+    onSwipe: (direction, velocity) => {
+      console.log(`Swiped ${direction} at ${velocity}px/s`)
+    },
+    onTap: (position) => {
+      console.log(`Tapped at`, position)
+    }
+  })
+)
+```
+
+### Compose Utilities
+
+**Purpose:** Enhanced functional composition patterns
+
+**Key Features:**
+- Extended pipe and compose functions
+- Conditional composition helpers
+- Feature factory patterns
+- Component enhancement utilities
+
+**Usage Pattern:**
+```typescript
+import { pipe, composeFeatures } from 'mtrl-addons/core/compose'
+
+const component = pipe(
+  createBase(config),
+  composeFeatures(
+    withFeature1(config.feature1),
+    config.feature2 && withFeature2(config.feature2),
+    withFeature3(config.feature3)
+  )
+)
 ```
 
 ## Testing Strategy
@@ -412,35 +484,29 @@ describe('ListManager', () => {
   })
   
   it('should handle large datasets efficiently', async () => {
-    const manager = createListManager({
+    const vlist = createVList({
       collection: {
         loadData: async (range) => generateMockData(range),
         totalItems: 100000
       },
-      viewport: {
-        orientation: 'vertical',
-        estimatedItemSize: 60
-      }
+      rangeSize: 20,
+      template: (item) => [{ text: item.name }]
     })
     
-    expect(manager).toBeDefined()
+    expect(vlist).toBeDefined()
     // Performance assertions
   })
   
-  it('should load data on demand', async () => {
-    let loadCount = 0
-    const manager = createListManager({
-      collection: {
-        loadData: async (range) => {
-          loadCount++
-          return generateMockData(range)
-        },
-        totalItems: 1000
-      }
+  it('should render visible items only', async () => {
+    const vlist = createVList({
+      collection: mockAdapter,
+      rangeSize: 20,
+      template: (item) => [{ text: item.name }]
     })
     
-    await manager.scrollTo(500)
-    expect(loadCount).toBeGreaterThan(0)
+    // Only visible range should be rendered
+    const renderedItems = vlist.element.querySelectorAll('.viewport-item')
+    expect(renderedItems.length).toBeLessThanOrEqual(20)
   })
 })
 ```
@@ -454,26 +520,30 @@ import { createListManager } from '../../src/core/list-manager'
 
 describe('Virtual Scrolling Performance', () => {
   bench('render 100k items', () => {
-    const manager = createListManager({
+    const vlist = createVList({
       collection: {
         loadData: async (range) => generateMockData(range),
         totalItems: 100000
-      }
+      },
+      template: (item) => [{ text: item.name }]
     })
     
-    manager.render()
+    // Initial render
+    vlist.render()
   })
   
   bench('scroll through 100k items', async () => {
-    const manager = createListManager({
+    const vlist = createVList({
       collection: {
         loadData: async (range) => generateMockData(range),
         totalItems: 100000
-      }
+      },
+      template: (item) => [{ text: item.name }]
     })
     
+    // Simulate scrolling
     for (let i = 0; i < 100; i++) {
-      await manager.scrollTo(i * 1000)
+      await vlist.scrollToIndex(i * 100)
     }
   })
 })
@@ -499,10 +569,12 @@ describe('Virtual Scrolling Performance', () => {
 - Data loading: < 200ms for range requests
 
 **Bundle Size:**
-- Core list manager: < 10KB gzipped
-- Collection system: < 5KB gzipped
-- Layout schema: < 3KB gzipped
-- Full package: < 25KB gzipped
+- VList component: < 12KB gzipped
+- Viewport system: < 8KB gzipped
+- Layout schema: < 5KB gzipped
+- Gesture system: < 4KB gzipped
+- Compose utilities: < 2KB gzipped
+- Full package: < 30KB gzipped
 
 ### Optimization Strategies
 
@@ -576,69 +648,70 @@ const showcase = [
 
 ## Common Development Tasks
 
-### Adding New Feature to List Manager
+### Adding New Feature to VList
 
 **1. Create feature module:**
 ```bash
-mkdir -p src/core/list-manager/features/new-feature
-touch src/core/list-manager/features/new-feature/new-feature.ts
-touch src/core/list-manager/features/new-feature/types.ts
-touch src/core/list-manager/features/new-feature/index.ts
+mkdir -p src/components/vlist/features/new-feature
+touch src/components/vlist/features/new-feature/new-feature.ts
+touch src/components/vlist/features/new-feature/types.ts
+touch src/components/vlist/features/new-feature/index.ts
 ```
 
 **2. Implement feature:**
 ```typescript
-// src/core/list-manager/features/new-feature/new-feature.ts
+// src/components/vlist/features/new-feature/new-feature.ts
 import type { NewFeatureConfig } from './types'
 
-export const createNewFeature = (config: NewFeatureConfig) => {
-  return {
-    apply: (manager: ListManager) => {
-      // Feature implementation
-    },
-    destroy: () => {
-      // Cleanup
-    }
-  }
+export const withNewFeature = (config: NewFeatureConfig) => (vlist: VListComponent) => {
+  // Feature implementation
+  return vlist
 }
 ```
 
-**3. Integrate with list manager:**
+**3. Integrate with VList:**
 ```typescript
-// src/core/list-manager/list-manager.ts
-import { createNewFeature } from './features/new-feature'
+// src/components/vlist/vlist.ts
+import { withNewFeature } from './features/new-feature'
 
-export const createListManager = (config: ListManagerConfig) => {
-  const features = []
-  
-  if (config.newFeature) {
-    features.push(createNewFeature(config.newFeature))
-  }
-  
-  // Apply features
-  features.forEach(feature => feature.apply(manager))
-  
-  return manager
+export const createVList = <T>(config: VListConfig<T>) => {
+  return pipe(
+    createBase(config),
+    withViewport(config),
+    withAPI(config),
+    config.newFeature && withNewFeature(config.newFeature)
+  )
 }
 ```
 
-### Extending Collection System
+### Extending Layout Schema
 
-**Add caching strategy:**
+**Add new layout type:**
 ```typescript
-// src/core/collection/features/caching.ts
-export const createCachingStrategy = (strategy: 'lru' | 'fifo' | 'lfu') => {
-  const cache = new Map()
-  
+// src/core/layout/types.ts
+export interface LayoutConfig {
+  type?: 'stack' | 'row' | 'grid' | 'masonry' // Add new type
+  // ...
+}
+
+// src/core/layout/schema.ts
+const createMasonryLayout = (config: LayoutConfig, children: any[]) => {
+  // Implement masonry layout logic
+}
+```
+
+### Adding Gesture Recognition
+
+**Add new gesture:**
+```typescript
+// src/core/gestures/recognizers/pinch.ts
+export const createPinchRecognizer = (config: PinchConfig) => {
   return {
-    set: (key: string, value: any) => {
-      // Strategy-specific caching
+    recognize: (touches: Touch[]) => {
+      // Pinch gesture detection
     },
-    get: (key: string) => {
-      return cache.get(key)
-    },
-    clear: () => {
-      cache.clear()
+    onPinch: (scale: number) => {
+      // Handle pinch gesture
     }
   }
 }
@@ -742,13 +815,13 @@ bun run typecheck
 ## Key Files Reference
 
 ### Core Systems
-- `src/core/list-manager/` - Virtual scrolling engine
-- `src/core/collection/` - Collection management
-- `src/core/layout/` - Layout schema system
-- `src/core/compose/` - Composition utilities
+- `src/core/viewport/` - Viewport and virtual scrolling engine
+- `src/core/layout/` - Layout schema system (JSX-like)
+- `src/core/compose/` - Enhanced composition utilities
+- `src/core/gestures/` - Touch and gesture handling
 
 ### Components
-- `src/components/list/` - Advanced list component
+- `src/components/vlist/` - Virtual list component with direct viewport
 - `src/components/index.ts` - Component exports
 
 ### Testing
