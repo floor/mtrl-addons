@@ -404,6 +404,9 @@ export interface ListAPI<T extends ListItem = ListItem> {
   /** Check if item is selected */
   isSelected(index: number): boolean;
 
+  /** Select an item by its ID */
+  selectById(id: string | number): boolean;
+
   // State
   /** Get current list state */
   getState(): ListState;
