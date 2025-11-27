@@ -25,7 +25,7 @@ export interface CollectionComponent {
     loadRange: (offset: number, limit: number) => Promise<any[]>;
     loadMissingRanges: (
       range: { start: number; end: number },
-      caller?: string
+      caller?: string,
     ) => Promise<void>;
     getLoadedRanges: () => Set<number>;
     getPendingRanges: () => Set<number>;
@@ -44,7 +44,7 @@ export interface CollectionComponent {
  */
 export function withCollection(config: CollectionConfig = {}) {
   return <T extends ViewportContext & ViewportComponent>(
-    component: T
+    component: T,
   ): T & CollectionComponent => {
     const {
       collection,
@@ -80,6 +80,9 @@ export function withCollection(config: CollectionConfig = {}) {
 
     const activeLoadRanges = new Set<string>();
     let loadRequestQueue: QueuedRequest[] = [];
+
+    // AbortController map for cancelling in-flight requests
+    const abortControllers = new Map<number, AbortController>();
 
     // State
     let items: any[] = [];
@@ -225,6 +228,10 @@ export function withCollection(config: CollectionConfig = {}) {
       // );
       pendingRanges.add(rangeId);
 
+      // Create AbortController for this request
+      const abortController = new AbortController();
+      abortControllers.set(rangeId, abortController);
+
       // Create request promise
       const requestPromise = (async () => {
         try {
@@ -245,12 +252,12 @@ export function withCollection(config: CollectionConfig = {}) {
                 console.warn(
                   `[Collection] Cannot load page ${page} without cursor for page ${
                     page - 1
-                  }`
+                  }`,
                 );
                 throw new Error(
                   `Sequential loading required - missing cursor for page ${
                     page - 1
-                  }`
+                  }`,
                 );
               }
               params = { cursor: prevPageCursor, limit };
@@ -267,7 +274,11 @@ export function withCollection(config: CollectionConfig = {}) {
           //   JSON.stringify(params)
           // );
 
-          const response = await collection.read(params);
+          // Pass abort signal to the adapter if it supports it
+          const response = await collection.read({
+            ...params,
+            signal: abortController.signal,
+          });
 
           // Extract items and total
           const rawItems = response.data || response.items || response;
@@ -281,7 +292,7 @@ export function withCollection(config: CollectionConfig = {}) {
             pageToOffsetMap.set(page, offset);
             highestLoadedPage = Math.max(highestLoadedPage, page);
             console.log(
-              `[Collection] Stored cursor for page ${page}: ${responseCursor}`
+              `[Collection] Stored cursor for page ${page}: ${responseCursor}`,
             );
           }
 
@@ -289,7 +300,7 @@ export function withCollection(config: CollectionConfig = {}) {
           if (strategy === "cursor" && meta.hasNext === false) {
             hasReachedEnd = true;
             console.log(
-              `[Collection] Reached end of cursor pagination at page ${page}`
+              `[Collection] Reached end of cursor pagination at page ${page}`,
             );
           }
 
@@ -312,7 +323,7 @@ export function withCollection(config: CollectionConfig = {}) {
           if (strategy === "cursor") {
             // Calculate total based on loaded items + margin
             const loadedItemsCount = items.filter(
-              (item) => item !== undefined
+              (item) => item !== undefined,
             ).length;
             const marginItems = hasReachedEnd
               ? 0
@@ -325,17 +336,17 @@ export function withCollection(config: CollectionConfig = {}) {
             // Dynamic total: loaded items + margin (unless we've reached the end)
             newTotal = Math.max(
               loadedItemsCount + marginItems,
-              minVirtualItems
+              minVirtualItems,
             );
 
             console.log(
-              `[Collection] Cursor mode virtual size: loaded=${loadedItemsCount}, margin=${marginItems}, total=${newTotal}, hasReachedEnd=${hasReachedEnd}`
+              `[Collection] Cursor mode virtual size: loaded=${loadedItemsCount}, margin=${marginItems}, total=${newTotal}, hasReachedEnd=${hasReachedEnd}`,
             );
 
             // Update total if it has grown
             if (newTotal > totalItems) {
               console.log(
-                `[Collection] Updating cursor virtual size from ${totalItems} to ${newTotal}`
+                `[Collection] Updating cursor virtual size from ${totalItems} to ${newTotal}`,
               );
               totalItems = newTotal;
               setTotalItems(newTotal);
@@ -399,8 +410,22 @@ export function withCollection(config: CollectionConfig = {}) {
 
           return transformedItems;
         } catch (error) {
-          // Handle error
+          // Handle AbortError and "Failed to fetch" (which can occur on abort) gracefully
+          const isAbortError =
+            (error as Error).name === "AbortError" ||
+            ((error as Error).message === "Failed to fetch" &&
+              abortController.signal.aborted);
+
+          if (isAbortError) {
+            pendingRanges.delete(rangeId);
+            cancelledLoads++;
+            // Don't throw, just return empty array
+            return [];
+          }
+
+          // Handle other errors
           pendingRanges.delete(rangeId);
+          failedLoads++;
 
           const attempts = (failedRanges.get(rangeId)?.attempts || 0) + 1;
           failedRanges.set(rangeId, {
@@ -420,6 +445,7 @@ export function withCollection(config: CollectionConfig = {}) {
           throw error;
         } finally {
           activeRequests.delete(rangeId);
+          abortControllers.delete(rangeId);
         }
       })();
 
@@ -446,11 +472,11 @@ export function withCollection(config: CollectionConfig = {}) {
         const currentHighestPage = highestLoadedPage || 0;
         const limitedEndPage = Math.min(
           endPage,
-          currentHighestPage + maxPagesToLoad
+          currentHighestPage + maxPagesToLoad,
         );
 
         console.log(
-          `[Collection] Cursor mode: need to load pages ${startPage} to ${endPage}, limited to ${limitedEndPage}`
+          `[Collection] Cursor mode: need to load pages ${startPage} to ${endPage}, limited to ${limitedEndPage}`,
         );
 
         // Check if we need to load pages sequentially
@@ -473,7 +499,7 @@ export function withCollection(config: CollectionConfig = {}) {
                 const prevRangeId = prevPage - 1;
                 if (!loadedRanges.has(prevRangeId)) {
                   console.log(
-                    `[Collection] Cannot load page ${page} - need to load page ${prevPage} first`
+                    `[Collection] Cannot load page ${page} - need to load page ${prevPage} first`,
                   );
                   canLoad = false;
 
@@ -484,7 +510,7 @@ export function withCollection(config: CollectionConfig = {}) {
                     } catch (error) {
                       console.error(
                         `[Collection] Failed to load prerequisite page ${prevPage}:`,
-                        error
+                        error,
                       );
                       return; // Stop trying to load further pages
                     }
@@ -509,7 +535,7 @@ export function withCollection(config: CollectionConfig = {}) {
 
         if (endPage > limitedEndPage) {
           console.log(
-            `[Collection] Stopped at page ${limitedEndPage} to prevent excessive loading (requested up to ${endPage})`
+            `[Collection] Stopped at page ${limitedEndPage} to prevent excessive loading (requested up to ${endPage})`,
           );
         }
 
@@ -543,7 +569,7 @@ export function withCollection(config: CollectionConfig = {}) {
 
       // Load ranges individually - no merging to avoid loading old ranges
       const promises = rangesToLoad.map((rangeId) =>
-        loadRange(rangeId * rangeSize, rangeSize)
+        loadRange(rangeId * rangeSize, rangeSize),
       );
       await Promise.allSettled(promises);
     };
@@ -556,7 +582,7 @@ export function withCollection(config: CollectionConfig = {}) {
         start: number;
         end: number;
       },
-      caller?: string
+      caller?: string,
     ): Promise<void> => {
       return new Promise((resolve, reject) => {
         const rangeKey = getRangeKey(range);
@@ -621,7 +647,7 @@ export function withCollection(config: CollectionConfig = {}) {
           if (loadRequestQueue.length >= maxQueueSize) {
             const removed = loadRequestQueue.splice(
               0,
-              loadRequestQueue.length - maxQueueSize
+              loadRequestQueue.length - maxQueueSize,
             );
             removed.forEach((r) => {
               cancelledLoads++;
@@ -701,7 +727,7 @@ export function withCollection(config: CollectionConfig = {}) {
         if (typeof start !== "number" || typeof end !== "number") {
           console.warn(
             "[Collection] Invalid range in viewport:range-changed event:",
-            data
+            data,
           );
           return;
         }
@@ -712,7 +738,7 @@ export function withCollection(config: CollectionConfig = {}) {
         // For cursor mode, check if we need to update virtual size
         if (strategy === "cursor" && !hasReachedEnd) {
           const loadedItemsCount = items.filter(
-            (item) => item !== undefined
+            (item) => item !== undefined,
           ).length;
           const marginItems =
             rangeSize *
@@ -722,12 +748,12 @@ export function withCollection(config: CollectionConfig = {}) {
             VIEWPORT_CONSTANTS.PAGINATION.CURSOR_MIN_VIRTUAL_SIZE_MULTIPLIER;
           const dynamicTotal = Math.max(
             loadedItemsCount + marginItems,
-            minVirtualItems
+            minVirtualItems,
           );
 
           if (dynamicTotal !== totalItems) {
             console.log(
-              `[Collection] Updating cursor virtual size from ${totalItems} to ${dynamicTotal}`
+              `[Collection] Updating cursor virtual size from ${totalItems} to ${dynamicTotal}`,
             );
             setTotalItems(dynamicTotal);
           }
@@ -779,7 +805,7 @@ export function withCollection(config: CollectionConfig = {}) {
 
             if (!isRelevant) {
               console.log(
-                `[Collection] Removing stale queued request: ${requestStart}-${requestEnd}`
+                `[Collection] Removing stale queued request: ${requestStart}-${requestEnd}`,
               );
               request.resolve(); // Resolve to avoid hanging promises
             }
@@ -811,7 +837,7 @@ export function withCollection(config: CollectionConfig = {}) {
       loadRange: (offset: number, limit: number) => loadRange(offset, limit),
       loadMissingRanges: (
         range: { start: number; end: number },
-        caller?: string
+        caller?: string,
       ) => loadMissingRanges(range, caller || "viewport.collection"),
       getLoadedRanges: () => loadedRanges,
       getPendingRanges: () => pendingRanges,
@@ -832,7 +858,7 @@ export function withCollection(config: CollectionConfig = {}) {
       loadRange,
       loadMissingRanges: (
         range: { start: number; end: number },
-        caller?: string
+        caller?: string,
       ) => loadMissingRanges(range, caller || "component.collection"),
       getLoadingStats: () => ({
         pendingRequests: activeLoadCount,
@@ -865,7 +891,7 @@ export function withCollection(config: CollectionConfig = {}) {
         loadRange,
         loadMissingRanges: (
           range: { start: number; end: number },
-          caller?: string
+          caller?: string,
         ) => loadMissingRanges(range, caller || "return.collection"),
         getLoadedRanges: () => loadedRanges,
         getPendingRanges: () => pendingRanges,
