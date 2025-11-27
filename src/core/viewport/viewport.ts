@@ -99,7 +99,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
       // Scrolling API (will be overridden by scrolling feature)
       scrollToIndex: (
         index: number,
-        alignment?: "start" | "center" | "end"
+        alignment?: "start" | "center" | "end",
       ) => {
         // Will be implemented by scrolling feature
       },
@@ -152,7 +152,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
     enhancers.push(
       withEvents({
         debug: config.debug,
-      })
+      }),
     );
 
     // Base setup (creates DOM structure)
@@ -160,7 +160,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
       withBase({
         className: config.className,
         orientation: config.scrolling?.orientation,
-      })
+      }),
     );
 
     // Virtual scrolling (required for most features)
@@ -170,7 +170,8 @@ export const createViewport = (config: ViewportConfig = {}) => {
         overscan: config.virtual?.overscan,
         orientation: config.scrolling?.orientation,
         autoDetectItemSize: config.virtual?.autoDetectItemSize,
-      })
+        initialScrollIndex: (config as any).initialScrollIndex,
+      }),
     );
 
     // Scrolling behavior
@@ -179,7 +180,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
         orientation: config.scrolling?.orientation,
         sensitivity: config.scrolling?.sensitivity,
         smoothing: config.scrolling?.animation,
-      })
+      }),
     );
 
     // Scrollbar (optional)
@@ -188,7 +189,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
         withScrollbar({
           enabled: true,
           autoHide: config.scrollbar?.autoHide,
-        })
+        }),
       );
     }
 
@@ -207,7 +208,9 @@ export const createViewport = (config: ViewportConfig = {}) => {
           cancelLoadThreshold: config.performance?.cancelLoadThreshold,
           maxConcurrentRequests: config.performance?.maxConcurrentRequests,
           enableRequestQueue: config.performance?.enableRequestQueue !== false,
-        })
+          initialScrollIndex: (config as any).initialScrollIndex,
+          autoLoad: (config as any).autoLoad !== false,
+        }),
       );
     }
 
@@ -218,7 +221,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
           enabled: true,
           analyzeFirstLoad: config.placeholders?.analyzeFirstLoad ?? true,
           maskCharacter: config.placeholders?.maskCharacter,
-        })
+        }),
       );
     }
 
@@ -227,7 +230,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
       withRendering({
         template: config.template,
         overscan: config.virtual?.overscan,
-      })
+      }),
     );
 
     // Compose all enhancers

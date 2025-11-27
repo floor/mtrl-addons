@@ -17,7 +17,7 @@ import { createLayout } from "../../layout";
 export interface RenderingConfig {
   template?: (
     item: any,
-    index: number
+    index: number,
   ) => string | HTMLElement | any[] | Record<string, any>;
   overscan?: number;
   measureItems?: boolean;
@@ -150,7 +150,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
           const renderStart = Math.max(0, visibleRange.start - overscan);
           const renderEnd = Math.min(
             viewportState?.totalItems ?? 0 - 1,
-            visibleRange.end + overscan
+            visibleRange.end + overscan,
           );
           const loadedStart = data.offset;
           const loadedEnd = data.offset + data.items.length - 1;
@@ -158,7 +158,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
           // Check for placeholders in range
           const hasPlaceholdersInRange = Array.from(
             { length: Math.min(loadedEnd, renderEnd) - loadedStart + 1 },
-            (_, i) => collectionItems[loadedStart + i]
+            (_, i) => collectionItems[loadedStart + i],
           ).some((item) => item && isPlaceholder(item));
 
           const needsRender =
@@ -195,7 +195,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
     const processLayoutSchema = (
       schema: any,
       item: any,
-      index: number
+      index: number,
     ): any => {
       if (typeof schema === "string") {
         // Handle variable substitution like {{name}}, {{index}}
@@ -234,7 +234,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
       totalItems: number,
       itemSize: number,
       virtualTotalSize: number,
-      containerSize: number
+      containerSize: number,
     ): number => {
       const actualTotalSize = totalItems * itemSize;
       const isCompressed =
@@ -260,7 +260,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
         const exactScrollIndex = scrollRatio * totalItems;
         const interpolation = Math.max(
           0,
-          Math.min(1, 1 - distanceFromBottom / nearBottomThreshold)
+          Math.min(1, 1 - distanceFromBottom / nearBottomThreshold),
         );
 
         const bottomPosition = (index - firstVisibleAtBottom) * itemSize;
@@ -352,7 +352,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
         actualTotalSize > virtualTotalSize && virtualTotalSize > 0;
 
       const sortedIndices = Array.from(renderedElements.keys()).sort(
-        (a, b) => a - b
+        (a, b) => a - b,
       );
       if (!sortedIndices.length) return;
 
@@ -371,7 +371,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
           const exactScrollIndex = scrollRatio * totalItems;
           const interpolation = Math.max(
             0,
-            Math.min(1, 1 - distanceFromBottom / containerSize)
+            Math.min(1, 1 - distanceFromBottom / containerSize),
           );
 
           const bottomPos = (firstIndex - firstVisibleAtBottom) * itemSize;
@@ -390,7 +390,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
         const element = renderedElements.get(index);
         if (element) {
           element.style.transform = `translateY(${Math.round(
-            currentPosition
+            currentPosition,
           )}px)`;
 
           // Strategic log for last items
@@ -420,6 +420,19 @@ export const withRendering = (config: RenderingConfig = {}) => {
         containerSize,
         virtualTotalSize,
       } = viewportState;
+
+      // DEBUG: Log rendering state on first render or when scrollPosition seems wrong
+      const firstVisibleIndex = visibleRange?.start || 0;
+      if (
+        firstVisibleIndex > 10 &&
+        scrollPosition < firstVisibleIndex * itemSize * 0.5
+      ) {
+        console.log(
+          `[Rendering:Mismatch] visibleRange=${visibleRange?.start}-${visibleRange?.end}, ` +
+            `scrollPosition=${scrollPosition}, expectedScrollPos~=${firstVisibleIndex * itemSize}, ` +
+            `itemSize=${itemSize}, totalItems=${totalItems}, virtualTotalSize=${virtualTotalSize}`,
+        );
+      }
 
       // Validate range
       if (
@@ -491,8 +504,17 @@ export const withRendering = (config: RenderingConfig = {}) => {
             totalItems,
             itemSize,
             virtualTotalSize,
-            containerSize
+            containerSize,
           );
+
+          // DEBUG: Log when position is suspiciously 0 for non-zero index
+          if (i > 10 && Math.abs(position) < 1) {
+            console.log(
+              `[Rendering:Position0] index=${i}, position=${position.toFixed(1)}, ` +
+                `scrollPosition=${scrollPosition}, itemSize=${itemSize}, ` +
+                `expected~=${i * itemSize - scrollPosition}`,
+            );
+          }
 
           Object.assign(element.style, {
             position: "absolute",
@@ -515,7 +537,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
             start: Math.min(...missingItems),
             end: Math.max(...missingItems),
           },
-          "rendering:missing-items"
+          "rendering:missing-items",
         );
       }
 
@@ -542,7 +564,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
       ) {
         component.viewport.collection.loadMissingRanges(
           visibleRange,
-          "rendering:no-items"
+          "rendering:no-items",
         );
       }
     };

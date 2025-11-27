@@ -40,7 +40,7 @@ const createSpeedTracker = (): SpeedTracker => ({
 const updateSpeedTracker = (
   tracker: SpeedTracker,
   newPosition: number,
-  previousPosition: number
+  previousPosition: number,
 ): SpeedTracker => {
   const now = Date.now();
   const timeDelta = now - tracker.lastTime;
@@ -112,15 +112,33 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       if (viewportState) {
         totalVirtualSize = viewportState.virtualTotalSize || 0;
         containerSize = viewportState.containerSize || 0;
-        // console.log(
-        //   `[Scrolling] Initialized with totalVirtualSize: ${totalVirtualSize}, containerSize: ${containerSize}`
-        // );
+        // Sync scrollPosition from viewportState (important for initialScrollIndex)
+        if (viewportState.scrollPosition > 0) {
+          scrollPosition = viewportState.scrollPosition;
+        }
+        console.log(
+          `[Scrolling:Init] viewportState.scrollPosition=${viewportState.scrollPosition}, local scrollPosition=${scrollPosition}, totalVirtualSize=${totalVirtualSize}, containerSize=${containerSize}`,
+        );
       }
 
       // Listen for virtual size changes
       component.on?.("viewport:virtual-size-changed", (data: any) => {
         // console.log("[Scrolling] Virtual size changed:", data);
         updateScrollBounds(data.totalVirtualSize, containerSize);
+      });
+
+      // Listen for scroll position changes from other features (e.g., virtual.ts after item size detection)
+      component.on?.("viewport:scroll-position-sync", (data: any) => {
+        if (data.position !== undefined && data.position !== scrollPosition) {
+          console.log(
+            `[Scrolling:Sync] Syncing scrollPosition from ${scrollPosition} to ${data.position}`,
+          );
+          scrollPosition = data.position;
+          // Also update local tracking vars
+          totalVirtualSize =
+            viewportState?.virtualTotalSize || totalVirtualSize;
+          containerSize = viewportState?.containerSize || containerSize;
+        }
       });
 
       // Listen for container size changes
@@ -239,9 +257,13 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
 
       newPosition = clamp(newPosition, 0, maxScroll);
 
-      // console.log(
-      //   `[Scrolling] Wheel: delta=${delta}, scrollDelta=${scrollDelta}, pos=${scrollPosition} -> ${newPosition}, max=${maxScroll}`
-      // );
+      // DEBUG: Log scroll attempt details
+      console.log(
+        `[Scrolling:Wheel] delta=${delta.toFixed(1)}, scrollDelta=${scrollDelta.toFixed(1)}, ` +
+          `localScrollPos=${scrollPosition.toFixed(1)}, viewportStateScrollPos=${viewportState?.scrollPosition?.toFixed(1)}, ` +
+          `newPosition=${newPosition.toFixed(1)}, maxScroll=${maxScroll.toFixed(1)}, ` +
+          `totalVirtualSize=${totalVirtualSize}, containerSize=${containerSize}`,
+      );
 
       if (newPosition !== scrollPosition) {
         scrollPosition = newPosition;
@@ -260,7 +282,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         speedTracker = updateSpeedTracker(
           speedTracker,
           scrollPosition,
-          previousPosition
+          previousPosition,
         );
 
         // Update viewport state
@@ -306,7 +328,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         speedTracker = updateSpeedTracker(
           speedTracker,
           scrollPosition,
-          previousPosition
+          previousPosition,
         );
 
         // Update viewport state
@@ -352,7 +374,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     // Scroll to index
     const scrollToIndex = (
       index: number,
-      alignment: "start" | "center" | "end" = "start"
+      alignment: "start" | "center" | "end" = "start",
     ) => {
       // console.log(
       //   `[Scrolling] scrollToIndex called: index=${index}, alignment=${alignment}`
@@ -405,7 +427,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     const scrollToPage = (
       page: number,
       limit: number = 20,
-      alignment: "start" | "center" | "end" = "start"
+      alignment: "start" | "center" | "end" = "start",
     ) => {
       // Validate alignment parameter
       if (
@@ -413,7 +435,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         !["start", "center", "end"].includes(alignment)
       ) {
         console.warn(
-          `[Scrolling] Invalid alignment "${alignment}", using "start"`
+          `[Scrolling] Invalid alignment "${alignment}", using "start"`,
         );
         alignment = "start";
       }
@@ -427,7 +449,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         const collection = (component.viewport as any).collection;
         if (collection) {
           const highestLoadedPage = Math.floor(
-            collection.getLoadedRanges().size
+            collection.getLoadedRanges().size,
           );
 
           if (page > highestLoadedPage + 1) {
@@ -435,13 +457,13 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
             const maxPagesToLoad = 10; // Reasonable limit
             const targetPage = Math.min(
               page,
-              highestLoadedPage + maxPagesToLoad
+              highestLoadedPage + maxPagesToLoad,
             );
 
             console.warn(
               `[Scrolling] Cannot jump directly to page ${page} in cursor mode. ` +
                 `Pages must be loaded sequentially. Current highest page: ${highestLoadedPage}. ` +
-                `Will load up to page ${targetPage}`
+                `Will load up to page ${targetPage}`,
             );
 
             // Trigger sequential loading to the target page (limited)
@@ -452,7 +474,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
             console.log(
               `[Scrolling] Initiating sequential load from page ${
                 highestLoadedPage + 1
-              } to ${targetPage}`
+              } to ${targetPage}`,
             );
 
             // Scroll to the last loaded position first
@@ -479,7 +501,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     // Update scroll bounds
     const updateScrollBounds = (
       newTotalSize: number,
-      newContainerSize: number
+      newContainerSize: number,
     ) => {
       totalVirtualSize = newTotalSize;
       containerSize = newContainerSize;
@@ -500,7 +522,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     const originalScrollToIndex = component.viewport.scrollToIndex;
     component.viewport.scrollToIndex = (
       index: number,
-      alignment?: "start" | "center" | "end"
+      alignment?: "start" | "center" | "end",
     ) => {
       scrollToIndex(index, alignment);
       originalScrollToIndex?.(index, alignment);
@@ -510,7 +532,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     (component.viewport as any).scrollToPage = (
       page: number,
       limit?: number,
-      alignment?: "start" | "center" | "end"
+      alignment?: "start" | "center" | "end",
     ) => {
       scrollToPage(page, limit, alignment);
     };
@@ -562,7 +584,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         speedTracker = updateSpeedTracker(
           speedTracker,
           scrollPosition,
-          previousPosition
+          previousPosition,
         );
 
         // Update viewport state

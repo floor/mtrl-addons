@@ -13,6 +13,7 @@ export interface VirtualConfig {
   orientation?: "vertical" | "horizontal";
   autoDetectItemSize?: boolean;
   debug?: boolean;
+  initialScrollIndex?: number;
 }
 
 /**
@@ -29,6 +30,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         ? VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.AUTO_DETECT_ITEM_SIZE
         : false,
       debug = false,
+      initialScrollIndex = 0,
     } = config;
 
     // Use provided itemSize or default, but mark if we should auto-detect
@@ -54,7 +56,32 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       });
 
       updateTotalVirtualSize(viewportState.totalItems);
-      updateVisibleRange(viewportState.scrollPosition || 0);
+
+      // If we have an initial scroll index, use it instead of 0
+      // This prevents loading page 1 when we want to start elsewhere
+      const initialScrollPosition =
+        initialScrollIndex > 0
+          ? initialScrollIndex * (viewportState.itemSize || initialItemSize)
+          : viewportState.scrollPosition || 0;
+
+      if (initialScrollIndex > 0) {
+        viewportState.scrollPosition = initialScrollPosition;
+        console.log(
+          `[Virtual:Init] initialScrollIndex=${initialScrollIndex}, itemSize=${viewportState.itemSize || initialItemSize}, ` +
+            `setting viewportState.scrollPosition=${initialScrollPosition}`,
+        );
+
+        // Notify scrolling feature to sync its local scroll position
+        // Use setTimeout to ensure scrolling feature has initialized
+        setTimeout(() => {
+          component.emit?.("viewport:scroll-position-sync", {
+            position: initialScrollPosition,
+            source: "initial-scroll-index",
+          });
+        }, 0);
+      }
+
+      updateVisibleRange(initialScrollPosition);
 
       // Ensure container size is measured after DOM is ready
       requestAnimationFrame(() => {
@@ -75,7 +102,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
 
     // Calculate visible range
     const calculateVisibleRange = (
-      scrollPosition: number
+      scrollPosition: number,
     ): { start: number; end: number } => {
       if (!viewportState) {
         console.warn("[Virtual] No viewport state, returning empty range");
@@ -91,6 +118,17 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         !totalItems ||
         totalItems <= 0
       ) {
+        // If we have an initialScrollIndex, use it to calculate the range
+        // even when totalItems is 0 (not yet loaded from API)
+        if (initialScrollIndex > 0) {
+          const visibleCount = Math.ceil(
+            (containerSize || 600) /
+              (viewportState.itemSize || initialItemSize),
+          );
+          const start = Math.max(0, initialScrollIndex - overscan);
+          const end = initialScrollIndex + visibleCount + overscan;
+          return { start, end };
+        }
         log(`Invalid state: container=${containerSize}, items=${totalItems}`);
         return { start: 0, end: 0 };
       }
@@ -115,16 +153,16 @@ export const withVirtual = (config: VirtualConfig = {}) => {
 
         if (distanceFromBottom <= containerSize && distanceFromBottom >= -1) {
           const itemsAtBottom = Math.floor(
-            containerSize / viewportState.itemSize
+            containerSize / viewportState.itemSize,
           );
           const firstVisibleAtBottom = Math.max(0, totalItems - itemsAtBottom);
           const interpolation = Math.max(
             0,
-            Math.min(1, 1 - distanceFromBottom / containerSize)
+            Math.min(1, 1 - distanceFromBottom / containerSize),
           );
 
           start = Math.floor(
-            start + (firstVisibleAtBottom - start) * interpolation
+            start + (firstVisibleAtBottom - start) * interpolation,
           );
           end =
             distanceFromBottom <= 1
@@ -148,7 +186,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         // Direct calculation
         start = Math.max(
           0,
-          Math.floor(scrollPosition / viewportState.itemSize) - overscan
+          Math.floor(scrollPosition / viewportState.itemSize) - overscan,
         );
         end = Math.min(totalItems - 1, start + visibleCount + overscan * 2);
       }
@@ -179,12 +217,52 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       return { start, end };
     };
 
+    // Calculate actual visible range (without overscan buffer)
+    const calculateActualVisibleRange = (scrollPosition: number) => {
+      if (!viewportState) return { start: 0, end: 0 };
+
+      const { containerSize, totalItems } = viewportState;
+      if (!containerSize || !totalItems) return { start: 0, end: 0 };
+
+      const itemSize = viewportState.itemSize;
+      const visibleCount = Math.ceil(containerSize / itemSize);
+      const compressionRatio = viewportState.virtualTotalSize
+        ? (totalItems * itemSize) / viewportState.virtualTotalSize
+        : 1;
+
+      let start: number, end: number;
+
+      if (compressionRatio < 1) {
+        // Compressed space - calculate based on scroll ratio
+        const virtualSize =
+          viewportState.virtualTotalSize || totalItems * itemSize;
+        const scrollRatio = scrollPosition / virtualSize;
+        start = Math.floor(scrollRatio * totalItems);
+        end = Math.min(totalItems - 1, start + visibleCount - 1);
+      } else {
+        // Direct calculation
+        start = Math.floor(scrollPosition / itemSize);
+        end = Math.min(totalItems - 1, start + visibleCount - 1);
+      }
+
+      // Ensure valid range
+      start = Math.max(0, start);
+      end = Math.max(start, end);
+
+      return { start, end };
+    };
+
     // Update functions
     const updateVisibleRange = (scrollPosition: number) => {
       if (!viewportState) return;
       viewportState.visibleRange = calculateVisibleRange(scrollPosition);
+
+      // Calculate actual visible range (without overscan) for UI display
+      const actualVisibleRange = calculateActualVisibleRange(scrollPosition);
+
       component.emit?.("viewport:range-changed", {
         range: viewportState.visibleRange,
+        visibleRange: actualVisibleRange,
         scrollPosition,
       });
     };
@@ -201,7 +279,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       let totalPadding = 0;
       if (viewportState.itemsContainer) {
         const computedStyle = window.getComputedStyle(
-          viewportState.itemsContainer
+          viewportState.itemsContainer,
         );
         const paddingTop = parseFloat(computedStyle.paddingTop) || 0;
         const paddingBottom = parseFloat(computedStyle.paddingBottom) || 0;
@@ -211,7 +289,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       // Include padding in the virtual size
       viewportState.virtualTotalSize = Math.min(
         actualSize + totalPadding,
-        MAX_VIRTUAL_SIZE
+        MAX_VIRTUAL_SIZE,
       );
 
       // Strategic log for debugging gap issue
@@ -259,7 +337,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
 
     // Event listeners
     component.on?.("viewport:scroll", (data: any) =>
-      updateVisibleRange(data.position)
+      updateVisibleRange(data.position),
     );
 
     component.on?.("viewport:items-changed", (data: any) => {
@@ -276,7 +354,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         data.total !== viewportState?.totalItems
       ) {
         log(
-          `Total items changed from ${viewportState?.totalItems} to ${data.total}`
+          `Total items changed from ${viewportState?.totalItems} to ${data.total}`,
         );
         updateTotalVirtualSize(data.total);
         updateVisibleRange(viewportState?.scrollPosition || 0);
@@ -329,13 +407,24 @@ export const withVirtual = (config: VirtualConfig = {}) => {
 
           if (sizes.length > 0) {
             const avgSize = Math.round(
-              sizes.reduce((sum, size) => sum + size, 0) / sizes.length
+              sizes.reduce((sum, size) => sum + size, 0) / sizes.length,
             );
 
-            // console.log(
-            //   `[Virtual] Auto-detected item size: ${avgSize}px (was ${viewportState.itemSize}px), based on ${sizes.length} items`
-            // );
+            const previousItemSize = viewportState.itemSize;
             viewportState.itemSize = avgSize;
+
+            // If we have an initialScrollIndex, recalculate scroll position
+            // based on the newly detected item size
+            if (initialScrollIndex > 0 && avgSize !== previousItemSize) {
+              const newScrollPosition = initialScrollIndex * avgSize;
+              viewportState.scrollPosition = newScrollPosition;
+
+              // Notify scrolling feature to sync its local scroll position
+              component.emit?.("viewport:scroll-position-sync", {
+                position: newScrollPosition,
+                source: "item-size-detected",
+              });
+            }
 
             // Recalculate everything with new size
             updateTotalVirtualSize(viewportState.totalItems);
@@ -373,7 +462,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       calculateIndexFromPosition: (position: number) =>
         Math.floor(
           position /
-            ((viewportState?.itemSize || initialItemSize) * compressionRatio)
+            ((viewportState?.itemSize || initialItemSize) * compressionRatio),
         ),
       calculatePositionForIndex: (index: number) =>
         index * (viewportState?.itemSize || initialItemSize) * compressionRatio,

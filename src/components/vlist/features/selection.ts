@@ -21,7 +21,7 @@ interface SelectionState {
  * @returns Function that enhances a component with selection management
  */
 export const withSelection = <T extends VListItem = VListItem>(
-  config: VListConfig<T>
+  config: VListConfig<T>,
 ) => {
   return (component: VListComponent<T>): VListComponent<T> => {
     // Skip if selection is not enabled
@@ -96,7 +96,7 @@ export const withSelection = <T extends VListItem = VListItem>(
 
       // Find the clicked viewport item element (wrapper)
       const viewportItem = (e.target as HTMLElement).closest(
-        `.${PREFIX}-viewport-item[data-index]`
+        `.${PREFIX}-viewport-item[data-index]`,
       ) as HTMLElement;
       if (!viewportItem) {
         console.log("🎯 [Selection] No viewport item found for click");
@@ -234,7 +234,7 @@ export const withSelection = <T extends VListItem = VListItem>(
      */
     const updateVisibleElements = () => {
       const container = component.element?.querySelector(
-        `.${PREFIX}-viewport-items`
+        `.${PREFIX}-viewport-items`,
       );
       if (!container) {
         // console.warn("🎯 [Selection] No viewport items container found");
@@ -242,7 +242,7 @@ export const withSelection = <T extends VListItem = VListItem>(
       }
 
       const viewportItems = container.querySelectorAll(
-        `.${PREFIX}-viewport-item[data-index]`
+        `.${PREFIX}-viewport-item[data-index]`,
       );
       // console.log(
       //   `🎯 [Selection] Updating ${viewportItems.length} visible elements`
@@ -253,7 +253,7 @@ export const withSelection = <T extends VListItem = VListItem>(
 
       viewportItems.forEach((viewportItem) => {
         const index = parseInt(
-          (viewportItem as HTMLElement).dataset.index || "-1"
+          (viewportItem as HTMLElement).dataset.index || "-1",
         );
         if (index < 0) return;
 
@@ -434,6 +434,45 @@ export const withSelection = <T extends VListItem = VListItem>(
         const item = items?.[index];
         const itemId = getItemId(item);
         return itemId !== undefined && state.selectedIds.has(itemId);
+      },
+
+      /**
+       * Select an item by its ID
+       * Useful for restoring selection when scrolling to a specific item
+       */
+      selectById(id: string | number): boolean {
+        if (id === undefined || id === null) return false;
+
+        // Clear previous selection in single mode
+        if (state.mode === "single") {
+          state.selectedIds.clear();
+        }
+
+        // Add the ID to selection
+        state.selectedIds.add(id);
+
+        // Update visible elements
+        updateVisibleElements();
+
+        // Get the selected item for the event
+        const getItemsFn = (this as any).getItems;
+        const items = getItemsFn?.() || [];
+        const selectedItem = items.find((item: any) => getItemId(item) === id);
+        const selectedIndex = items.findIndex(
+          (item: any) => getItemId(item) === id,
+        );
+
+        if (selectedIndex >= 0) {
+          state.lastSelectedIndex = selectedIndex;
+        }
+
+        // Emit selection change event
+        (this as any).emit?.("selection:change", {
+          selectedItems: selectedItem ? [selectedItem] : [],
+          selectedIndices: selectedIndex >= 0 ? [selectedIndex] : [],
+        });
+
+        return true;
       },
     };
 

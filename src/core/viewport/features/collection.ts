@@ -18,6 +18,8 @@ export interface CollectionConfig {
   enableRequestQueue?: boolean;
   maxQueueSize?: number;
   loadOnDragEnd?: boolean; // Enable loading when drag ends (safety measure)
+  initialScrollIndex?: number; // Initial scroll position (0-based index)
+  autoLoad?: boolean; // Whether to automatically load data on initialization (default: true)
 }
 
 export interface CollectionComponent {
@@ -57,9 +59,20 @@ export function withCollection(config: CollectionConfig = {}) {
       enableRequestQueue = VIEWPORT_CONSTANTS.REQUEST_QUEUE.ENABLED,
       maxQueueSize = VIEWPORT_CONSTANTS.REQUEST_QUEUE.MAX_QUEUE_SIZE,
       loadOnDragEnd = true, // Default to true as safety measure
+      initialScrollIndex = 0, // Start from beginning by default
+      autoLoad = true, // Auto-load initial data by default
     } = config;
 
-    // console.log("[Viewport Collection] Initialized with strategy:", strategy);
+    // Track if we've completed the initial load for initialScrollIndex
+    // This prevents the viewport:range-changed listener from loading page 1
+    let hasCompletedInitialPositionLoad = false;
+    const hasInitialScrollIndex = initialScrollIndex > 0;
+
+    // console.log("[Viewport Collection] Initialized with config:", {
+    //   strategy,
+    //   rangeSize,
+    //   initialScrollIndex,
+    // });
 
     // Loading manager state
     interface QueuedRequest {
@@ -154,12 +167,6 @@ export function withCollection(config: CollectionConfig = {}) {
     const executeQueuedLoad = (request: QueuedRequest) => {
       activeLoadCount++;
       activeLoadRanges.add(getRangeKey(request.range));
-
-      // console.log(
-      //   `[LoadingManager] Executing load for range ${request.range.start}-${
-      //     request.range.end
-      //   } (velocity: ${currentVelocity.toFixed(2)})`
-      // );
 
       // Call the actual loadMissingRanges function
       loadMissingRangesInternal(request.range)
@@ -586,7 +593,6 @@ export function withCollection(config: CollectionConfig = {}) {
     ): Promise<void> => {
       return new Promise((resolve, reject) => {
         const rangeKey = getRangeKey(range);
-        // Removed noisy log
 
         // Check if already loading
         if (activeLoadRanges.has(rangeKey)) {
@@ -711,14 +717,6 @@ export function withCollection(config: CollectionConfig = {}) {
       component.on?.("viewport:range-changed", async (data: any) => {
         // Don't load during fast scrolling - loadMissingRanges will handle velocity check
 
-        // Skip initial load if we're dragging and velocity is low (drag just started)
-        // if (isDragging && currentVelocity < 0.5) {
-        //   console.log(
-        //     "[Collection] Skipping range-changed load during drag start"
-        //   );
-        //   return;
-        // }
-
         // Extract range from event data - virtual feature emits { range: { start, end }, scrollPosition }
         const range = data.range || data;
         const { start, end } = range;
@@ -730,6 +728,17 @@ export function withCollection(config: CollectionConfig = {}) {
             data,
           );
           return;
+        }
+
+        // Skip loading page 1 if we have an initialScrollIndex and haven't completed initial load yet
+        // This prevents the requestAnimationFrame in virtual.ts from triggering a page 1 load
+        // after we've already started loading the correct initial page
+        if (hasInitialScrollIndex && !hasCompletedInitialPositionLoad) {
+          const page1EndIndex = rangeSize - 1; // e.g., 29 for rangeSize=30
+          if (start === 0 && end <= page1EndIndex) {
+            // This is a request for page 1, skip it
+            return;
+          }
         }
 
         // Load missing ranges if needed
@@ -820,8 +829,56 @@ export function withCollection(config: CollectionConfig = {}) {
         processQueue();
       });
 
-      // Load initial data if collection is available
-      if (collection) {
+      // Load initial data if collection is available and autoLoad is enabled
+      if (collection && autoLoad) {
+        // If we have an initial scroll index, load data for that position directly
+        // Don't use scrollToIndex() as it triggers animation/velocity tracking
+        // virtual.ts has already set the scroll position and calculated the visible range
+        if (initialScrollIndex > 0) {
+          // Get the visible range that was already calculated by virtual.ts
+          // We missed the initial viewport:range-changed event because our listener wasn't ready yet
+          const visibleRange = component.viewport?.getVisibleRange?.();
+
+          if (
+            visibleRange &&
+            (visibleRange.start > 0 || visibleRange.end > 0)
+          ) {
+            // Use the pre-calculated visible range from virtual.ts
+            loadMissingRanges(visibleRange, "initial-position")
+              .then(() => {
+                hasCompletedInitialPositionLoad = true;
+              })
+              .catch((error) => {
+                console.error(
+                  "[Collection] Failed to load initial position data:",
+                  error,
+                );
+                hasCompletedInitialPositionLoad = true; // Allow normal loading even on error
+              });
+          } else {
+            // Fallback: calculate range from initialScrollIndex
+            // This handles edge cases where visibleRange wasn't ready
+            const overscan = 2;
+            const estimatedVisibleCount = Math.ceil(600 / 50); // ~12 items
+            const start = Math.max(0, initialScrollIndex - overscan);
+            const end = initialScrollIndex + estimatedVisibleCount + overscan;
+
+            loadMissingRanges({ start, end }, "initial-position-fallback")
+              .then(() => {
+                hasCompletedInitialPositionLoad = true;
+              })
+              .catch((error) => {
+                console.error(
+                  "[Collection] Failed to load initial position data (fallback):",
+                  error,
+                );
+                hasCompletedInitialPositionLoad = true; // Allow normal loading even on error
+              });
+          }
+          return;
+        }
+
+        // No initial scroll index - load from beginning as normal
         loadRange(0, rangeSize)
           .then(() => {
             // console.log("[Collection] Initial data loaded");

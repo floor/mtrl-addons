@@ -18,7 +18,7 @@ export interface CollectionConfig<T = any> {
 export interface Collection<T = any> {
   loadMissingRanges?: (
     range: { start: number; end: number },
-    reason?: string
+    reason?: string,
   ) => Promise<void>;
 }
 import type { ViewportComponent } from "../../core/viewport/types";
@@ -82,7 +82,7 @@ export type ListTemplate = (item: any, index: number) => string | HTMLElement;
  */
 export type ListItemTemplate<T = any> = (
   item: T,
-  index: number
+  index: number,
 ) => string | HTMLElement;
 
 /**
@@ -363,7 +363,7 @@ export interface ListAPI<T extends ListItem = ListItem> {
   /** Scroll to item index */
   scrollToIndex(
     index: number,
-    alignment?: "start" | "center" | "end"
+    alignment?: "start" | "center" | "end",
   ): Promise<void>;
 
   /** Scroll to top */
@@ -442,7 +442,7 @@ export interface ListAPI<T extends ListItem = ListItem> {
 
   /** Set error template */
   setErrorTemplate(
-    template: string | ((error: Error) => string | HTMLElement)
+    template: string | ((error: Error) => string | HTMLElement),
   ): void;
 
   // Configuration
@@ -482,15 +482,15 @@ export interface ListComponent<T extends ListItem = ListItem>
   /** Event system (inherited from BaseComponent) */
   on<K extends keyof ListEvents<T>>(
     event: K,
-    handler: (payload: ListEvents<T>[K]) => void
+    handler: (payload: ListEvents<T>[K]) => void,
   ): void;
   emit<K extends keyof ListEvents<T>>(
     event: K,
-    payload: ListEvents<T>[K]
+    payload: ListEvents<T>[K],
   ): void;
   off<K extends keyof ListEvents<T>>(
     event: K,
-    handler?: (payload: ListEvents<T>[K]) => void
+    handler?: (payload: ListEvents<T>[K]) => void,
   ): void;
 }
 
@@ -532,13 +532,21 @@ export interface VListConfig<T extends ListItem = ListItem> {
   ariaLabel?: string;
   debug?: boolean;
 
+  // Initial scroll position (0-based index)
+  // When set, VList will start loading from this position instead of 0
+  initialScrollIndex?: number;
+
+  // Whether to automatically load data on initialization (default: true)
+  // Set to false to defer loading until manually triggered
+  autoLoad?: boolean;
+
   // Data source
   items?: T[];
 
   // Template for rendering items
   template?: (
     item: T,
-    index: number
+    index: number,
   ) => string | HTMLElement | any[] | Record<string, any>;
 
   // Collection configuration
