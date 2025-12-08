@@ -837,10 +837,10 @@ export function withCollection(config: CollectionConfig = {}) {
 
       // Load initial data if collection is available and autoLoad is enabled
       if (collection && autoLoad) {
-        // If we have an initial scroll index, load data for that position directly
+        // If we have an initial scroll index OR a selectId, load data for that position directly
         // Don't use scrollToIndex() as it triggers animation/velocity tracking
         // virtual.ts has already set the scroll position and calculated the visible range
-        if (initialScrollIndex > 0) {
+        if (initialScrollIndex > 0 || selectId !== undefined) {
           // Get the visible range that was already calculated by virtual.ts
           // We missed the initial viewport:range-changed event because our listener wasn't ready yet
           const visibleRange = component.viewport?.getVisibleRange?.();
