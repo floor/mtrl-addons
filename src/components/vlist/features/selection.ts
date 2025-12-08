@@ -198,14 +198,9 @@ export const withSelection = <T extends VListItem = VListItem>(
     (component as any).on?.(
       "collection:initial-load-complete",
       (data: { selectId: string | number }) => {
-        console.log(
-          "[Selection] Received collection:initial-load-complete:",
-          data,
-        );
         if (data?.selectId !== undefined) {
           // Use requestAnimationFrame to ensure rendering is complete
           requestAnimationFrame(() => {
-            console.log("[Selection] Calling selectById with:", data.selectId);
             if (state.mode === "single") {
               state.selectedIds.clear();
             }

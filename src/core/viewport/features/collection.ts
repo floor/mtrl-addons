@@ -65,13 +65,6 @@ export function withCollection(config: CollectionConfig = {}) {
       autoLoad = true, // Auto-load initial data by default
     } = config;
 
-    // Debug: trace selectId
-    console.log("[Collection] Config received:", {
-      initialScrollIndex,
-      selectId,
-      autoLoad,
-    });
-
     // Track if we've completed the initial load for initialScrollIndex
     // This prevents the viewport:range-changed listener from loading page 1
     let hasCompletedInitialPositionLoad = false;
@@ -856,16 +849,8 @@ export function withCollection(config: CollectionConfig = {}) {
             loadMissingRanges(visibleRange, "initial-position")
               .then(() => {
                 hasCompletedInitialPositionLoad = true;
-                console.log(
-                  "[Collection] Initial position loaded, selectId:",
-                  selectId,
-                );
                 // Emit event to select item after initial load if selectId is provided
                 if (selectId !== undefined) {
-                  console.log(
-                    "[Collection] Emitting collection:initial-load-complete with selectId:",
-                    selectId,
-                  );
                   component.emit?.("collection:initial-load-complete", {
                     selectId,
                     initialScrollIndex,
@@ -890,16 +875,8 @@ export function withCollection(config: CollectionConfig = {}) {
             loadMissingRanges({ start, end }, "initial-position-fallback")
               .then(() => {
                 hasCompletedInitialPositionLoad = true;
-                console.log(
-                  "[Collection] Initial position loaded (fallback), selectId:",
-                  selectId,
-                );
                 // Emit event to select item after initial load if selectId is provided
                 if (selectId !== undefined) {
-                  console.log(
-                    "[Collection] Emitting collection:initial-load-complete (fallback) with selectId:",
-                    selectId,
-                  );
                   component.emit?.("collection:initial-load-complete", {
                     selectId,
                     initialScrollIndex,
