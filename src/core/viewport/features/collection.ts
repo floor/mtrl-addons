@@ -300,17 +300,17 @@ export function withCollection(config: CollectionConfig = {}) {
             cursorMap.set(page, responseCursor);
             pageToOffsetMap.set(page, offset);
             highestLoadedPage = Math.max(highestLoadedPage, page);
-            console.log(
-              `[Collection] Stored cursor for page ${page}: ${responseCursor}`,
-            );
+            // console.log(
+            //   `[Collection] Stored cursor for page ${page}: ${responseCursor}`,
+            // );
           }
 
           // Check if we've reached the end
           if (strategy === "cursor" && meta.hasNext === false) {
             hasReachedEnd = true;
-            console.log(
-              `[Collection] Reached end of cursor pagination at page ${page}`,
-            );
+            // console.log(
+            //   `[Collection] Reached end of cursor pagination at page ${page}`,
+            // );
           }
 
           // Update discovered total if provided
@@ -348,15 +348,15 @@ export function withCollection(config: CollectionConfig = {}) {
               minVirtualItems,
             );
 
-            console.log(
-              `[Collection] Cursor mode virtual size: loaded=${loadedItemsCount}, margin=${marginItems}, total=${newTotal}, hasReachedEnd=${hasReachedEnd}`,
-            );
+            // console.log(
+            //   `[Collection] Cursor mode virtual size: loaded=${loadedItemsCount}, margin=${marginItems}, total=${newTotal}, hasReachedEnd=${hasReachedEnd}`,
+            // );
 
             // Update total if it has grown
             if (newTotal > totalItems) {
-              console.log(
-                `[Collection] Updating cursor virtual size from ${totalItems} to ${newTotal}`,
-              );
+              // console.log(
+              //   `[Collection] Updating cursor virtual size from ${totalItems} to ${newTotal}`,
+              // );
               totalItems = newTotal;
               setTotalItems(newTotal);
             }
@@ -484,9 +484,9 @@ export function withCollection(config: CollectionConfig = {}) {
           currentHighestPage + maxPagesToLoad,
         );
 
-        console.log(
-          `[Collection] Cursor mode: need to load pages ${startPage} to ${endPage}, limited to ${limitedEndPage}`,
-        );
+        // console.log(
+        //   `[Collection] Cursor mode: need to load pages ${startPage} to ${endPage}, limited to ${limitedEndPage}`,
+        // );
 
         // Check if we need to load pages sequentially
         for (let page = startPage; page <= limitedEndPage; page++) {
@@ -507,9 +507,9 @@ export function withCollection(config: CollectionConfig = {}) {
               for (let prevPage = 1; prevPage < page; prevPage++) {
                 const prevRangeId = prevPage - 1;
                 if (!loadedRanges.has(prevRangeId)) {
-                  console.log(
-                    `[Collection] Cannot load page ${page} - need to load page ${prevPage} first`,
-                  );
+                  // console.log(
+                  //   `[Collection] Cannot load page ${page} - need to load page ${prevPage} first`,
+                  // );
                   canLoad = false;
 
                   // Try to load the missing page
@@ -543,9 +543,9 @@ export function withCollection(config: CollectionConfig = {}) {
         }
 
         if (endPage > limitedEndPage) {
-          console.log(
-            `[Collection] Stopped at page ${limitedEndPage} to prevent excessive loading (requested up to ${endPage})`,
-          );
+          // console.log(
+          //   `[Collection] Stopped at page ${limitedEndPage} to prevent excessive loading (requested up to ${endPage})`,
+          // );
         }
 
         return;
@@ -694,7 +694,11 @@ export function withCollection(config: CollectionConfig = {}) {
     // Hook into viewport initialization
     const originalInitialize = component.viewport.initialize;
     component.viewport.initialize = () => {
-      originalInitialize();
+      const result = originalInitialize();
+      // Skip if already initialized
+      if (result === false) {
+        return false;
+      }
 
       // Set initial total if provided
       if (component.totalItems) {
@@ -763,9 +767,9 @@ export function withCollection(config: CollectionConfig = {}) {
           );
 
           if (dynamicTotal !== totalItems) {
-            console.log(
-              `[Collection] Updating cursor virtual size from ${totalItems} to ${dynamicTotal}`,
-            );
+            // console.log(
+            //   `[Collection] Updating cursor virtual size from ${totalItems} to ${dynamicTotal}`,
+            // );
             setTotalItems(dynamicTotal);
           }
         }
@@ -815,9 +819,9 @@ export function withCollection(config: CollectionConfig = {}) {
               requestStart <= visibleRange.end + buffer;
 
             if (!isRelevant) {
-              console.log(
-                `[Collection] Removing stale queued request: ${requestStart}-${requestEnd}`,
-              );
+              // console.log(
+              //   `[Collection] Removing stale queued request: ${requestStart}-${requestEnd}`,
+              // );
               request.resolve(); // Resolve to avoid hanging promises
             }
             return isRelevant;
@@ -903,6 +907,8 @@ export function withCollection(config: CollectionConfig = {}) {
             console.error("[Collection] Failed to load initial data:", error);
           });
       }
+
+      return result;
     };
 
     // Add collection API to viewport

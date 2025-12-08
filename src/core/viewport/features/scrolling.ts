@@ -116,9 +116,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         if (viewportState.scrollPosition > 0) {
           scrollPosition = viewportState.scrollPosition;
         }
-        console.log(
-          `[Scrolling:Init] viewportState.scrollPosition=${viewportState.scrollPosition}, local scrollPosition=${scrollPosition}, totalVirtualSize=${totalVirtualSize}, containerSize=${containerSize}`,
-        );
       }
 
       // Listen for virtual size changes
@@ -130,9 +127,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       // Listen for scroll position changes from other features (e.g., virtual.ts after item size detection)
       component.on?.("viewport:scroll-position-sync", (data: any) => {
         if (data.position !== undefined && data.position !== scrollPosition) {
-          console.log(
-            `[Scrolling:Sync] Syncing scrollPosition from ${scrollPosition} to ${data.position}`,
-          );
           scrollPosition = data.position;
           // Also update local tracking vars
           totalVirtualSize =
@@ -256,14 +250,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       }
 
       newPosition = clamp(newPosition, 0, maxScroll);
-
-      // DEBUG: Log scroll attempt details
-      console.log(
-        `[Scrolling:Wheel] delta=${delta.toFixed(1)}, scrollDelta=${scrollDelta.toFixed(1)}, ` +
-          `localScrollPos=${scrollPosition.toFixed(1)}, viewportStateScrollPos=${viewportState?.scrollPosition?.toFixed(1)}, ` +
-          `newPosition=${newPosition.toFixed(1)}, maxScroll=${maxScroll.toFixed(1)}, ` +
-          `totalVirtualSize=${totalVirtualSize}, containerSize=${containerSize}`,
-      );
 
       if (newPosition !== scrollPosition) {
         scrollPosition = newPosition;
@@ -471,11 +457,11 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
             const currentOffset = highestLoadedPage * limit;
 
             // Load pages sequentially up to the limited target
-            console.log(
-              `[Scrolling] Initiating sequential load from page ${
-                highestLoadedPage + 1
-              } to ${targetPage}`,
-            );
+            // console.log(
+            //   `[Scrolling] Initiating sequential load from page ${
+            //     highestLoadedPage + 1
+            //   } to ${targetPage}`,
+            // );
 
             // Scroll to the last loaded position first
             const lastLoadedIndex = highestLoadedPage * limit;
@@ -509,6 +495,14 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       if (viewportState) {
         viewportState.virtualTotalSize = newTotalSize;
         viewportState.containerSize = newContainerSize;
+      }
+
+      // Don't clamp scroll position until we have real data loaded
+      // This prevents resetting initialScrollIndex position before data arrives
+      // Check totalItems instead of totalVirtualSize since virtualSize can be non-zero from padding
+      const totalItems = viewportState?.totalItems || 0;
+      if (totalItems <= 0) {
+        return;
       }
 
       // Clamp current position to new bounds

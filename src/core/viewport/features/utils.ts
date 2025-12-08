@@ -13,12 +13,18 @@ import type { ViewportContext, ViewportComponent } from "../types";
  */
 export function wrapInitialize<T extends ViewportContext & ViewportComponent>(
   component: T,
-  featureInit: () => void
+  featureInit: () => void,
 ): void {
   const originalInitialize = component.viewport.initialize;
   component.viewport.initialize = () => {
-    originalInitialize();
-    featureInit();
+    // Check if already initialized (returns false if already done)
+    const result = originalInitialize();
+    // Only run feature init if base init actually ran (didn't return false)
+    if (result !== false) {
+      featureInit();
+    }
+    // Propagate the result through the chain so outer wrappers know to skip
+    return result;
   };
 }
 
@@ -28,7 +34,7 @@ export function wrapInitialize<T extends ViewportContext & ViewportComponent>(
  */
 export function wrapDestroy<T extends Record<string, any>>(
   component: T,
-  cleanup: () => void
+  cleanup: () => void,
 ): void {
   if ("destroy" in component && typeof component.destroy === "function") {
     const originalDestroy = component.destroy;
@@ -82,7 +88,7 @@ export function clamp(value: number, min: number, max: number): number {
 export function storeFeatureFunction<T extends Record<string, any>>(
   component: T,
   name: string,
-  fn: Function
+  fn: Function,
 ): void {
   (component as any)[name] = fn;
 }

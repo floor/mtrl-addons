@@ -235,10 +235,19 @@ export const withRendering = (config: RenderingConfig = {}) => {
       itemSize: number,
       virtualTotalSize: number,
       containerSize: number,
+      targetScrollIndex?: number,
     ): number => {
       const actualTotalSize = totalItems * itemSize;
       const isCompressed =
         actualTotalSize > virtualTotalSize && virtualTotalSize > 0;
+
+      // If we have a targetScrollIndex (from initialScrollIndex), use it directly
+      // This ensures items are positioned correctly even with compression
+      if (targetScrollIndex !== undefined && targetScrollIndex > 0) {
+        // Position items relative to the target index
+        // The target index should appear at the top of the viewport
+        return (index - targetScrollIndex) * itemSize;
+      }
 
       if (!isCompressed || totalItems === 0) {
         return index * itemSize - scrollPosition;
@@ -421,22 +430,10 @@ export const withRendering = (config: RenderingConfig = {}) => {
         virtualTotalSize,
       } = viewportState;
 
-      // DEBUG: Log rendering state on first render or when scrollPosition seems wrong
-      const firstVisibleIndex = visibleRange?.start || 0;
-      if (
-        firstVisibleIndex > 10 &&
-        scrollPosition < firstVisibleIndex * itemSize * 0.5
-      ) {
-        console.log(
-          `[Rendering:Mismatch] visibleRange=${visibleRange?.start}-${visibleRange?.end}, ` +
-            `scrollPosition=${scrollPosition}, expectedScrollPos~=${firstVisibleIndex * itemSize}, ` +
-            `itemSize=${itemSize}, totalItems=${totalItems}, virtualTotalSize=${virtualTotalSize}`,
-        );
-      }
-
-      // Validate range
+      // Validate range - skip rendering if no items or range is invalid
       if (
         !visibleRange ||
+        totalItems <= 0 ||
         visibleRange.start < 0 ||
         visibleRange.start >= totalItems ||
         visibleRange.end < visibleRange.start ||
@@ -498,6 +495,8 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
         const element = renderItem(item, i);
         if (element) {
+          // Get targetScrollIndex from viewportState if available
+          const targetScrollIndex = (viewportState as any)?.targetScrollIndex;
           const position = calculateItemPosition(
             i,
             scrollPosition,
@@ -505,16 +504,8 @@ export const withRendering = (config: RenderingConfig = {}) => {
             itemSize,
             virtualTotalSize,
             containerSize,
+            targetScrollIndex,
           );
-
-          // DEBUG: Log when position is suspiciously 0 for non-zero index
-          if (i > 10 && Math.abs(position) < 1) {
-            console.log(
-              `[Rendering:Position0] index=${i}, position=${position.toFixed(1)}, ` +
-                `scrollPosition=${scrollPosition}, itemSize=${itemSize}, ` +
-                `expected~=${i * itemSize - scrollPosition}`,
-            );
-          }
 
           Object.assign(element.style, {
             position: "absolute",

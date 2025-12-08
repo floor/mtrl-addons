@@ -12,15 +12,9 @@ import { createViewport } from "../../../core/viewport";
  * Adds viewport functionality to VList
  */
 export const withViewport = <T extends VListItem = VListItem>(
-  config: VListConfig<T>
+  config: VListConfig<T>,
 ) => {
   return (component: any) => {
-    // console.log("📋 [VList] Applying viewport feature", {
-    //   hasElement: !!component.element,
-    //   hasItems: !!config.items,
-    //   itemCount: config.items?.length || 0,
-    // });
-
     // Set initial items if provided
     if (config.items) {
       component.items = config.items;

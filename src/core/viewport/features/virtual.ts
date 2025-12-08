@@ -40,6 +40,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
     const MAX_VIRTUAL_SIZE = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.MAX_VIRTUAL_SIZE;
     let viewportState: any;
     let hasCalculatedItemSize = false;
+    let hasRecalculatedScrollForCompression = false; // Track if we've recalculated scroll position for compression
 
     // Initialize using shared wrapper
     wrapInitialize(component, () => {
@@ -57,19 +58,19 @@ export const withVirtual = (config: VirtualConfig = {}) => {
 
       updateTotalVirtualSize(viewportState.totalItems);
 
-      // If we have an initial scroll index, use it instead of 0
-      // This prevents loading page 1 when we want to start elsewhere
-      const initialScrollPosition =
-        initialScrollIndex > 0
-          ? initialScrollIndex * (viewportState.itemSize || initialItemSize)
-          : viewportState.scrollPosition || 0;
+      // If we have an initial scroll index, calculate initial scroll position
+      // Note: We store the initialScrollIndex to use directly in range calculations
+      // because scroll position may be compressed for large lists
+      let initialScrollPosition = viewportState.scrollPosition || 0;
 
       if (initialScrollIndex > 0) {
+        // Store the target index for use in range calculations
+        (viewportState as any).targetScrollIndex = initialScrollIndex;
+
+        // Calculate scroll position (may be compressed for large lists)
+        initialScrollPosition =
+          initialScrollIndex * (viewportState.itemSize || initialItemSize);
         viewportState.scrollPosition = initialScrollPosition;
-        console.log(
-          `[Virtual:Init] initialScrollIndex=${initialScrollIndex}, itemSize=${viewportState.itemSize || initialItemSize}, ` +
-            `setting viewportState.scrollPosition=${initialScrollPosition}`,
-        );
 
         // Notify scrolling feature to sync its local scroll position
         // Use setTimeout to ensure scrolling feature has initialized
@@ -140,12 +141,27 @@ export const withVirtual = (config: VirtualConfig = {}) => {
 
       let start: number, end: number;
 
+      // Check if we have a target scroll index (for initialScrollIndex with compression)
+      const targetScrollIndex = (viewportState as any).targetScrollIndex;
+
       if (compressionRatio < 1) {
         // Compressed space calculation
-        const scrollRatio = scrollPosition / virtualSize;
-        const exactIndex = scrollRatio * totalItems;
-        start = Math.floor(exactIndex);
-        end = Math.ceil(exactIndex) + visibleCount;
+        // If we have a targetScrollIndex, use it directly instead of calculating from scroll position
+        // This ensures we show the correct items even when virtual space is compressed
+        if (targetScrollIndex !== undefined && targetScrollIndex > 0) {
+          start = Math.max(0, targetScrollIndex - overscan);
+          end = Math.min(
+            totalItems - 1,
+            targetScrollIndex + visibleCount + overscan,
+          );
+          // Clear targetScrollIndex after first use so normal scrolling works
+          delete (viewportState as any).targetScrollIndex;
+        } else {
+          const scrollRatio = scrollPosition / virtualSize;
+          const exactIndex = scrollRatio * totalItems;
+          start = Math.floor(exactIndex);
+          end = Math.ceil(exactIndex) + visibleCount;
+        }
 
         // Near-bottom handling
         const maxScroll = virtualSize - containerSize;
@@ -257,6 +273,8 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       if (!viewportState) return;
       viewportState.visibleRange = calculateVisibleRange(scrollPosition);
 
+      // DEBUG: Log who calls updateVisibleRange with 0 when it should be non-zero
+
       // Calculate actual visible range (without overscan) for UI display
       const actualVisibleRange = calculateActualVisibleRange(scrollPosition);
 
@@ -348,20 +366,55 @@ export const withVirtual = (config: VirtualConfig = {}) => {
     });
 
     // Listen for total items changes (important for cursor pagination)
+    // Note: setTotalItems() updates viewportState.totalItems BEFORE emitting this event,
+    // so we can't rely on viewportState.totalItems to detect the first total.
+    // Instead we use the hasRecalculatedScrollForCompression flag.
     component.on?.("viewport:total-items-changed", (data: any) => {
-      if (
-        data.total !== undefined &&
-        data.total !== viewportState?.totalItems
-      ) {
-        log(
-          `Total items changed from ${viewportState?.totalItems} to ${data.total}`,
-        );
-        updateTotalVirtualSize(data.total);
-        updateVisibleRange(viewportState?.scrollPosition || 0);
+      if (data.total === undefined) return;
 
-        // Trigger a render to update the view
-        component.viewport?.renderItems?.();
+      // FIX: When we first receive totalItems with initialScrollIndex and compression,
+      // recalculate scroll position to account for compression.
+      // Without this, initialScrollIndex calculates position as index * itemSize,
+      // but rendering uses compressed space, causing items to appear off-screen.
+      //
+      // We check this BEFORE updateTotalVirtualSize because we need to recalculate
+      // scroll position based on the new total, and the flag ensures we only do this once.
+      if (
+        initialScrollIndex > 0 &&
+        !hasRecalculatedScrollForCompression &&
+        data.total > 0
+      ) {
+        const actualTotalSize = data.total * viewportState.itemSize;
+        const isCompressed = actualTotalSize > MAX_VIRTUAL_SIZE;
+
+        if (isCompressed) {
+          // Recalculate scroll position using compression-aware formula
+          // Same formula used in scrollToIndex
+          const ratio = initialScrollIndex / data.total;
+          const compressedPosition = ratio * MAX_VIRTUAL_SIZE;
+
+          viewportState.scrollPosition = compressedPosition;
+
+          // Notify scrolling feature to sync its local scroll position
+          component.emit?.("viewport:scroll-position-sync", {
+            position: compressedPosition,
+            source: "compression-recalculation",
+          });
+
+          // Clear targetScrollIndex since we've now correctly calculated the scroll position
+          // The normal compressed scrolling formula will now work correctly
+          delete (viewportState as any).targetScrollIndex;
+        }
+
+        // Mark as done even if not compressed - we only want to do this check once
+        hasRecalculatedScrollForCompression = true;
       }
+
+      updateTotalVirtualSize(data.total);
+      updateVisibleRange(viewportState?.scrollPosition || 0);
+
+      // Trigger a render to update the view
+      component.viewport?.renderItems?.();
     });
 
     // Listen for container size changes to recalculate virtual size
@@ -409,7 +462,6 @@ export const withVirtual = (config: VirtualConfig = {}) => {
             const avgSize = Math.round(
               sizes.reduce((sum, size) => sum + size, 0) / sizes.length,
             );
-
             const previousItemSize = viewportState.itemSize;
             viewportState.itemSize = avgSize;
 

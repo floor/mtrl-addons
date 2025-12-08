@@ -9,7 +9,7 @@ export interface ItemSizeManager {
   measureItem(
     element: HTMLElement,
     index: number,
-    orientation?: "vertical" | "horizontal"
+    orientation?: "vertical" | "horizontal",
   ): number;
 
   // Cache management
@@ -44,7 +44,7 @@ export interface ItemSizeConfig {
  * Creates an item size manager for measuring and caching item dimensions
  */
 export const createItemSizeManager = (
-  config: ItemSizeConfig = {}
+  config: ItemSizeConfig = {},
 ): ItemSizeManager => {
   const {
     initialEstimate = 60,
@@ -116,7 +116,7 @@ export const createItemSizeManager = (
   const measureItem = (
     element: HTMLElement,
     index: number,
-    measureOrientation?: "vertical" | "horizontal"
+    measureOrientation?: "vertical" | "horizontal",
   ): number => {
     if (!element || index < 0) {
       return currentItemSize;
@@ -182,7 +182,7 @@ export const createItemSizeManager = (
       // Calculate based on measured items only
       return Array.from(measuredSizes.values()).reduce(
         (sum, size) => sum + size,
-        0
+        0,
       );
     }
 

@@ -115,6 +115,7 @@ mtrl-addons/
 - ❌ **NEVER run `git push` automatically** - Always ask first
 - ❌ **NEVER assume user wants changes committed** - Testing does not mean committing
 - ❌ **NEVER assume user wants changes pushed** - Committing does not mean pushing
+- ❌ **NEVER repeatedly ask to push after commits** - User will ask when ready
 - ❌ **NEVER create markdown files without asking first** - No .md files without permission
 
 **MANDATORY WORKFLOW:**
@@ -126,8 +127,8 @@ mtrl-addons/
 6. ✅ **STOP and ASK**: "Should I commit these changes?"
 7. ✅ Wait for explicit "yes" or "commit" from user
 8. ✅ Only then run `git commit`
-9. ✅ **STOP and ASK**: "Should I push to remote?"
-10. ✅ Wait for explicit "yes" or "push" from user
+9. ✅ **DO NOT ASK to push** - Wait for user to request it
+10. ✅ User will say "push" when they want to push to remote
 11. ✅ Only then run `git push`
 
 ### Initial Setup

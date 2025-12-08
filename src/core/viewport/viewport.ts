@@ -40,6 +40,9 @@ interface ViewportState {
  */
 export const createViewport = (config: ViewportConfig = {}) => {
   return <T extends ViewportContext>(component: T): T & ViewportComponent => {
+    // Track if viewport has been initialized to prevent multiple initializations
+    let isInitialized = false;
+
     // No normalization needed - we'll use the nested structure directly
 
     // Create shared viewport state
@@ -59,6 +62,12 @@ export const createViewport = (config: ViewportConfig = {}) => {
     const viewportAPI = {
       // Core API
       initialize: () => {
+        // Prevent multiple initializations
+        if (isInitialized) {
+          return false;
+        }
+        isInitialized = true;
+
         // console.log("[Viewport] Initializing with state:", {
         //   element: !!component.element,
         //   totalItems: component.totalItems,
@@ -96,12 +105,18 @@ export const createViewport = (config: ViewportConfig = {}) => {
         // Will be implemented by rendering feature
       },
 
+      // Check if already initialized
+      isInitialized: () => isInitialized,
+
+      // Allow features to check if init should proceed
+      _shouldInit: () => !isInitialized,
+
       // Scrolling API (will be overridden by scrolling feature)
       scrollToIndex: (
         index: number,
         alignment?: "start" | "center" | "end",
       ) => {
-        // Will be implemented by scrolling feature
+        // Placeholder - will be implemented by scrolling feature
       },
 
       scrollToPosition: (position: number) => {

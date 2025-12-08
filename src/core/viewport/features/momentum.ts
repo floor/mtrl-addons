@@ -45,11 +45,16 @@ export const withMomentum = (config: MomentumConfig = {}) => {
     // Get references after initialization
     const originalInitialize = component.viewport.initialize;
     component.viewport.initialize = () => {
-      originalInitialize();
+      const result = originalInitialize();
+      // Skip if already initialized
+      if (result === false) {
+        return false;
+      }
 
       // Get viewport and scrolling states
       viewportState = (component.viewport as any).state;
       scrollingState = (component.viewport as any).scrollingState;
+      return result;
     };
 
     // Start momentum animation
@@ -200,7 +205,11 @@ export const withMomentum = (config: MomentumConfig = {}) => {
     // Override initialize to add event listeners
     const originalInit = component.viewport.initialize;
     component.viewport.initialize = () => {
-      originalInit();
+      const result = originalInit();
+      // Skip if already initialized
+      if (result === false) {
+        return false;
+      }
 
       const viewportElement =
         (component as any).viewportElement ||
