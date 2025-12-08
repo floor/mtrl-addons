@@ -19,6 +19,7 @@ export interface CollectionConfig {
   maxQueueSize?: number;
   loadOnDragEnd?: boolean; // Enable loading when drag ends (safety measure)
   initialScrollIndex?: number; // Initial scroll position (0-based index)
+  selectId?: string | number; // ID of item to select after initial load completes
   autoLoad?: boolean; // Whether to automatically load data on initialization (default: true)
 }
 
@@ -60,8 +61,16 @@ export function withCollection(config: CollectionConfig = {}) {
       maxQueueSize = VIEWPORT_CONSTANTS.REQUEST_QUEUE.MAX_QUEUE_SIZE,
       loadOnDragEnd = true, // Default to true as safety measure
       initialScrollIndex = 0, // Start from beginning by default
+      selectId, // ID of item to select after initial load
       autoLoad = true, // Auto-load initial data by default
     } = config;
+
+    // Debug: trace selectId
+    console.log("[Collection] Config received:", {
+      initialScrollIndex,
+      selectId,
+      autoLoad,
+    });
 
     // Track if we've completed the initial load for initialScrollIndex
     // This prevents the viewport:range-changed listener from loading page 1
@@ -847,6 +856,21 @@ export function withCollection(config: CollectionConfig = {}) {
             loadMissingRanges(visibleRange, "initial-position")
               .then(() => {
                 hasCompletedInitialPositionLoad = true;
+                console.log(
+                  "[Collection] Initial position loaded, selectId:",
+                  selectId,
+                );
+                // Emit event to select item after initial load if selectId is provided
+                if (selectId !== undefined) {
+                  console.log(
+                    "[Collection] Emitting collection:initial-load-complete with selectId:",
+                    selectId,
+                  );
+                  component.emit?.("collection:initial-load-complete", {
+                    selectId,
+                    initialScrollIndex,
+                  });
+                }
               })
               .catch((error) => {
                 console.error(
@@ -866,6 +890,21 @@ export function withCollection(config: CollectionConfig = {}) {
             loadMissingRanges({ start, end }, "initial-position-fallback")
               .then(() => {
                 hasCompletedInitialPositionLoad = true;
+                console.log(
+                  "[Collection] Initial position loaded (fallback), selectId:",
+                  selectId,
+                );
+                // Emit event to select item after initial load if selectId is provided
+                if (selectId !== undefined) {
+                  console.log(
+                    "[Collection] Emitting collection:initial-load-complete (fallback) with selectId:",
+                    selectId,
+                  );
+                  component.emit?.("collection:initial-load-complete", {
+                    selectId,
+                    initialScrollIndex,
+                  });
+                }
               })
               .catch((error) => {
                 console.error(

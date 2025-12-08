@@ -193,6 +193,30 @@ export const withSelection = <T extends VListItem = VListItem>(
     // Initialize after component is ready
     setTimeout(setup, 0);
 
+    // Listen for initial load complete to auto-select item
+    // This must be in withSelection because selectById is defined here
+    (component as any).on?.(
+      "collection:initial-load-complete",
+      (data: { selectId: string | number }) => {
+        console.log(
+          "[Selection] Received collection:initial-load-complete:",
+          data,
+        );
+        if (data?.selectId !== undefined) {
+          // Use requestAnimationFrame to ensure rendering is complete
+          requestAnimationFrame(() => {
+            console.log("[Selection] Calling selectById with:", data.selectId);
+            if (state.mode === "single") {
+              state.selectedIds.clear();
+            }
+            state.selectedIds.add(data.selectId);
+            applySelectionToElements();
+            emitSelectionChange();
+          });
+        }
+      },
+    );
+
     // Cleanup on destroy
     const originalDestroy = component.destroy;
     component.destroy = () => {

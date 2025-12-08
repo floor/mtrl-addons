@@ -539,6 +539,10 @@ export interface VListConfig<T extends ListItem = ListItem> {
   // When set, VList will start loading from this position instead of 0
   initialScrollIndex?: number;
 
+  // ID of item to select after initial load completes
+  // Works with initialScrollIndex to scroll to position and then select the item
+  selectId?: string | number;
+
   // Whether to automatically load data on initialization (default: true)
   // Set to false to defer loading until manually triggered
   autoLoad?: boolean;

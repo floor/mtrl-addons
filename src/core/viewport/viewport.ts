@@ -209,6 +209,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
           maxConcurrentRequests: config.performance?.maxConcurrentRequests,
           enableRequestQueue: config.performance?.enableRequestQueue !== false,
           initialScrollIndex: (config as any).initialScrollIndex,
+          selectId: (config as any).selectId,
           autoLoad: (config as any).autoLoad !== false,
         }),
       );

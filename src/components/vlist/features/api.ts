@@ -9,7 +9,7 @@ import type { VListConfig, VListItem } from "../types";
  * Adds public API methods to VList
  */
 export const withAPI = <T extends VListItem = VListItem>(
-  config: VListConfig<T>
+  config: VListConfig<T>,
 ) => {
   return (component: any) => {
     // Initialize viewport on creation
@@ -74,7 +74,7 @@ export const withAPI = <T extends VListItem = VListItem>(
         page: number,
         limit: number,
         strategy: string = "page",
-        alignment?: string
+        alignment?: string,
       ) {
         isLoading = true;
 
@@ -118,7 +118,7 @@ export const withAPI = <T extends VListItem = VListItem>(
           if (nextOffset < totalItems) {
             await component.viewport.collection.loadRange(
               nextOffset,
-              config.pagination?.limit || 20
+              config.pagination?.limit || 20,
             );
           }
         }
@@ -201,7 +201,7 @@ export const withAPI = <T extends VListItem = VListItem>(
       scrollToIndex: (
         index: number,
         alignment: "start" | "center" | "end" = "start",
-        animate?: boolean
+        animate?: boolean,
       ) => {
         if (component.viewport) {
           component.viewport.scrollToIndex(index, alignment);
@@ -209,14 +209,50 @@ export const withAPI = <T extends VListItem = VListItem>(
         return Promise.resolve();
       },
 
+      /**
+       * Scroll to index and select item after data loads
+       * Useful for runtime scroll+select when VList is already created
+       */
+      scrollToIndexAndSelect: async function (
+        index: number,
+        selectId: string | number,
+        alignment: "start" | "center" | "end" = "start",
+      ) {
+        if (component.viewport) {
+          component.viewport.scrollToIndex(index, alignment);
+        }
+
+        // Listen for range load to complete, then select
+        const onRangeLoaded = () => {
+          component.off?.("viewport:range-loaded", onRangeLoaded);
+          requestAnimationFrame(() => {
+            if (component.selectById) {
+              component.selectById(selectId);
+            }
+          });
+        };
+
+        component.on?.("viewport:range-loaded", onRangeLoaded);
+
+        // Fallback timeout in case event doesn't fire (data already loaded)
+        setTimeout(() => {
+          component.off?.("viewport:range-loaded", onRangeLoaded);
+          if (component.selectById) {
+            component.selectById(selectId);
+          }
+        }, 300);
+
+        return Promise.resolve();
+      },
+
       scrollToItem: async function (
         itemId: string,
         alignment: "start" | "center" | "end" = "start",
-        animate?: boolean
+        animate?: boolean,
       ) {
         const items = this.getItems();
         const index = items.findIndex(
-          (item: any) => String(item.id) === String(itemId)
+          (item: any) => String(item.id) === String(itemId),
         );
 
         if (index >= 0) {
@@ -242,7 +278,7 @@ export const withAPI = <T extends VListItem = VListItem>(
       scrollToPage: async function (
         pageNum: number,
         alignment: "start" | "center" | "end" = "start",
-        animate?: boolean
+        animate?: boolean,
       ) {
         // console.log(`[VList] scrollToPage(${pageNum})`);
 
@@ -262,7 +298,7 @@ export const withAPI = <T extends VListItem = VListItem>(
                 `[VList] Cannot jump to page ${pageNum} in cursor mode. ` +
                   `Loading pages sequentially from ${
                     highestLoadedPage + 1
-                  } to ${pageNum}`
+                  } to ${pageNum}`,
               );
             }
           }
