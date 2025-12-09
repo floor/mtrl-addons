@@ -967,6 +967,11 @@ export function withCollection(config: CollectionConfig = {}) {
     return {
       ...component,
       collection: {
+        // Data access methods
+        items,
+        getItems: () => items,
+        getItem: (index: number) => items[index],
+        // Loading methods
         loadRange,
         loadMissingRanges: (
           range: { start: number; end: number },

@@ -325,6 +325,14 @@ export interface ListEvents<T = any> {
   "render:complete": {
     renderRange: { start: number; end: number; count: number };
   };
+
+  /** Item updated */
+  "item:updated": {
+    item: T;
+    index: number;
+    previousItem: T;
+    wasVisible: boolean;
+  };
 }
 
 /**
@@ -349,6 +357,26 @@ export interface ListAPI<T extends ListItem = ListItem> {
 
   /** Update item at index */
   updateItem(index: number, item: T): void;
+
+  /**
+   * Update item by ID
+   * Finds the item in the collection by its ID and updates it with new data
+   * Re-renders the item if currently visible in the viewport
+   * @param id - The item ID to find
+   * @param data - Partial data to merge with existing item, or full item replacement
+   * @param options - Update options
+   * @returns true if item was found and updated, false otherwise
+   */
+  updateItemById(
+    id: string | number,
+    data: Partial<T>,
+    options?: {
+      /** If true, replace the entire item instead of merging (default: false) */
+      replace?: boolean;
+      /** If true, re-render even if not visible (default: false) */
+      forceRender?: boolean;
+    },
+  ): boolean;
 
   /** Get item at index */
   getItem(index: number): T | undefined;

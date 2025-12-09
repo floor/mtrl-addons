@@ -93,6 +93,79 @@ export const withRendering = (config: RenderingConfig = {}) => {
     wrapInitialize(component, () => {
       viewportState = getViewportState(component) as ViewportState;
 
+      // Listen for item update requests from API
+      component.on?.("item:update-request", (data: any) => {
+        const { index, item, previousItem } = data;
+
+        // Update the item in collectionItems
+        collectionItems[index] = item;
+
+        // Check if this item is currently rendered
+        const existingElement = renderedElements.get(index);
+        const wasVisible = !!existingElement;
+
+        // Check if item was selected before update
+        const wasSelected = existingElement
+          ? hasClass(
+              existingElement,
+              VIEWPORT_CONSTANTS.SELECTION.SELECTED_CLASS,
+            ) || hasClass(existingElement, "mtrl-viewport-item--selected")
+          : false;
+
+        if (existingElement && existingElement.parentNode) {
+          // Re-render the item
+          const newElement = renderItem(item, index);
+
+          if (newElement) {
+            // Copy position styles from existing element
+            Object.assign(newElement.style, {
+              position: existingElement.style.position,
+              transform: existingElement.style.transform,
+              width: existingElement.style.width,
+            });
+
+            // Preserve selected state
+            if (wasSelected) {
+              addClass(newElement, VIEWPORT_CONSTANTS.SELECTION.SELECTED_CLASS);
+              addClass(newElement, "mtrl-viewport-item--selected");
+            }
+
+            // Add update animation class to inner content for visibility
+            addClass(newElement, "viewport-item--updated");
+            // Also try to add to first child if it exists (the actual item content)
+            const innerItem = newElement.firstElementChild as HTMLElement;
+            if (innerItem) {
+              addClass(innerItem, "item--updated");
+            }
+
+            // Replace in DOM
+            existingElement.parentNode.replaceChild(
+              newElement,
+              existingElement,
+            );
+            renderedElements.set(index, newElement);
+            releaseElement(existingElement);
+
+            // Remove the animation class after transition
+            setTimeout(() => {
+              removeClass(newElement, "viewport-item--updated");
+              if (innerItem) {
+                removeClass(innerItem, "item--updated");
+              }
+            }, 500);
+          }
+        }
+
+        // Emit completion event
+        component.emit?.("item:updated", {
+          item,
+          index,
+          previousItem,
+          wasVisible,
+          wasSelected,
+        });
+      });
+
       // Listen for collection data loaded
       component.on?.("collection:range-loaded", (data: any) => {
         if (!data.items?.length) return;

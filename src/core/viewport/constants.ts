@@ -86,6 +86,11 @@ export const VIEWPORT_CONSTANTS = {
     LOADING_DELAY: 100, // ms - delay before showing loading state
   },
 
+  // Selection settings
+  SELECTION: {
+    SELECTED_CLASS: "viewport-item--selected",
+  },
+
   // Scrollbar settings (from list-manager)
   SCROLLBAR: {
     // CSS classes
@@ -131,7 +136,7 @@ export type ViewportConstants = typeof VIEWPORT_CONSTANTS;
  * Helper function to merge user constants with defaults
  */
 export function mergeConstants(
-  userConstants: Partial<ViewportConstants> = {}
+  userConstants: Partial<ViewportConstants> = {},
 ): ViewportConstants {
   return {
     ...VIEWPORT_CONSTANTS,

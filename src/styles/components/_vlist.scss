@@ -29,22 +29,33 @@ $opacity-transition: opacity $transition-duration $transition-easing;
 // ===========================
 
 @keyframes placeholder-pulse {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 0.4;
-  }
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 0.4;
+    }
 }
 
 @keyframes fade-in {
-  from {
-    opacity: 0.6;
-  }
-  to {
-    opacity: 1;
-  }
+    from {
+        opacity: 0.6;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes item-updated {
+    0% {
+        background-color: t.alpha("primary", 0.25);
+        box-shadow: inset 0 0 0 2px t.alpha("primary", 0.4);
+    }
+    100% {
+        background-color: transparent;
+        box-shadow: inset 0 0 0 2px transparent;
+    }
 }
 
 // ===========================
@@ -52,58 +63,58 @@ $opacity-transition: opacity $transition-duration $transition-easing;
 // ===========================
 
 .#{$component} {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 100px;
-  background-color: t.color("surface");
-  border: 2px solid var(--mtrl-sys-color-outline-variant);
-  border-radius: 3px;
-  transition: $bg-transition;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 100px;
+    background-color: t.color("surface");
+    border: 2px solid var(--mtrl-sys-color-outline-variant);
+    border-radius: 3px;
+    transition: $bg-transition;
 
-  // Performance optimizations
-  contain: layout style paint;
-  transform: translateZ(0);
-  backface-visibility: hidden;
+    // Performance optimizations
+    contain: layout style paint;
+    transform: translateZ(0);
+    backface-visibility: hidden;
 
-  // Selection mode
-  &--selection {
-    cursor: pointer;
-    .#{$viewport-item}:hover {
-      background-color: t.alpha("on-surface-variant", 0.1);
-    }
-    // Selected state
-    .#{$viewport-item}--selected,
-    .#{$viewport-item}--selected:hover {
-      background-color: t.color("secondary-container");
-      color: t.color("on-secondary-container");
-      transition: $bg-transition, $color-transition;
-
-      // // Update state layer color for selected state
-      // &::before {
-      //   background-color: t.color("on-secondary-container");
-      // }
-
-      // Update text and icon colors for selected state
-      .#{$component}-item {
-        &-leading,
-        &-trailing,
-        &-supporting,
-        &-overline,
-        &-meta {
-          color: t.color("on-secondary-container");
-          transition: $color-transition;
+    // Selection mode
+    &--selection {
+        cursor: pointer;
+        .#{$viewport-item}:hover {
+            background-color: t.alpha("on-surface-variant", 0.1);
         }
-      }
-    }
-  }
+        // Selected state
+        .#{$viewport-item}--selected,
+        .#{$viewport-item}--selected:hover {
+            background-color: t.color("secondary-container");
+            color: t.color("on-secondary-container");
+            transition: $bg-transition, $color-transition;
 
-  // Disabled state
-  &--disabled {
-    pointer-events: none;
-    opacity: 0.38;
-    transition: $opacity-transition;
-  }
+            // // Update state layer color for selected state
+            // &::before {
+            //   background-color: t.color("on-secondary-container");
+            // }
+
+            // Update text and icon colors for selected state
+            .#{$component}-item {
+                &-leading,
+                &-trailing,
+                &-supporting,
+                &-overline,
+                &-meta {
+                    color: t.color("on-secondary-container");
+                    transition: $color-transition;
+                }
+            }
+        }
+    }
+
+    // Disabled state
+    &--disabled {
+        pointer-events: none;
+        opacity: 0.38;
+        transition: $opacity-transition;
+    }
 }
 
 // ===========================
@@ -111,86 +122,96 @@ $opacity-transition: opacity $transition-duration $transition-easing;
 // ===========================
 
 .#{$viewport} {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-
-  // Items container
-  &-items {
     position: relative;
     width: 100%;
     height: 100%;
-    padding: 8px 0;
+    overflow: hidden;
+
+    // Items container
+    &-items {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        padding: 8px 0;
+        will-change: transform;
+    }
+}
+
+.#{$viewport-item} {
+    user-select: none;
+    opacity: 1;
+    transition: $opacity-transition;
     will-change: transform;
-  }
+    // Apply fade-in animation to items that replace placeholders
+    &--replaced {
+        animation: fade-in 0.3s ease-out;
+    }
+    // Apply highlight animation when item is updated
+    &--updated,
+    &--updated > * {
+        animation: item-updated 0.6s ease-out;
+    }
+
+    // Inner item update animation (applied to template's root element)
+    .item--updated {
+        animation: item-updated 0.6s ease-out;
+    }
 }
 
 .#{$viewport-item} {
-  user-select: none;
-  opacity: 1;
-  transition: $opacity-transition;
-  will-change: transform;
-  // Apply fade-in animation to items that replace placeholders
-  &--replaced {
-    animation: fade-in 0.3s ease-out;
-  }
-}
-
-.#{$viewport-item} {
-  padding: 11px 12px;
-  display: flex;
-  align-items: start;
-  transition: background-color 0.2s ease;
-  // align-items: center;
-  min-height: 48px;
-  left: 0;
-  right: 0;
-  width: 100%;
-  will-change: transform;
-  contain: layout style;
-  gap: 16px;
-  color: var(--mtrl-sys-color-on-surface);
-  overflow: hidden;
+    padding: 11px 12px;
+    display: flex;
+    align-items: start;
+    transition: background-color 0.2s ease;
+    // align-items: center;
+    min-height: 48px;
+    left: 0;
+    right: 0;
+    width: 100%;
+    will-change: transform;
+    contain: layout style;
+    gap: 16px;
+    color: var(--mtrl-sys-color-on-surface);
+    overflow: hidden;
 }
 
 .#{$viewport-item}__avatar,
 .#{$viewport-item}__image {
-  width: 40px;
-  height: 40px;
-  margin-top: 4px;
-  border-radius: 50%;
-  background-color: var(--mtrl-sys-color-primary-container);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    margin-top: 4px;
+    border-radius: 50%;
+    background-color: var(--mtrl-sys-color-primary-container);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    flex-shrink: 0;
 }
 
 .#{$viewport-item}__details {
-  flex: 1;
-  min-width: 0;
-  margin-left: 12px;
+    flex: 1;
+    min-width: 0;
+    margin-left: 12px;
 }
 
 .#{$viewport-item}__headline {
-  font-weight: 500;
+    font-weight: 500;
 }
 
 .#{$viewport-item}__text {
-  // color: #666;
-  font-size: 14px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+    // color: #666;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .#{$viewport-item}__meta {
-  color: var(--mtrl-sys-color-on-surface-variant);
-  font-size: 12px;
-  margin-top: 2px;
+    color: var(--mtrl-sys-color-on-surface-variant);
+    font-size: 12px;
+    margin-top: 2px;
 }
 
 // ===========================
@@ -198,48 +219,48 @@ $opacity-transition: opacity $transition-duration $transition-easing;
 // ===========================
 
 .#{$viewport-item}--placeholder {
-  opacity: 0.6; // Match the animation start/end opacity
-  animation: placeholder-pulse 2s ease-in-out infinite;
+    opacity: 0.6; // Match the animation start/end opacity
+    animation: placeholder-pulse 2s ease-in-out infinite;
 
-  // Placeholder content blocks - style any text elements within
-  .#{$viewport-item}__headline,
-  .#{$viewport-item}__text,
-  .#{$viewport-item}__meta {
-    position: relative;
-    display: inline-block;
-    font-size: 0.8em;
-    color: transparent;
-    background-color: var(--mtrl-sys-color-on-surface);
-    border-radius: 0.1em;
-    opacity: 0.4;
-    text-decoration: none;
-    line-height: 1;
-    padding: 0 0 0.05em;
-    vertical-align: middle;
-  }
+    // Placeholder content blocks - style any text elements within
+    .#{$viewport-item}__headline,
+    .#{$viewport-item}__text,
+    .#{$viewport-item}__meta {
+        position: relative;
+        display: inline-block;
+        font-size: 0.8em;
+        color: transparent;
+        background-color: var(--mtrl-sys-color-on-surface);
+        border-radius: 0.1em;
+        opacity: 0.4;
+        text-decoration: none;
+        line-height: 1;
+        padding: 0 0 0.05em;
+        vertical-align: middle;
+    }
 
-  // Layout adjustments
-  .#{$viewport-item}__text,
-  .#{$viewport-item}__meta {
-    margin-top: 0.2em;
-  }
+    // Layout adjustments
+    .#{$viewport-item}__text,
+    .#{$viewport-item}__meta {
+        margin-top: 0.2em;
+    }
 
-  .#{$viewport-item}__meta {
-    font-size: 10px;
-  }
+    .#{$viewport-item}__meta {
+        font-size: 10px;
+    }
 
-  // User-specific placeholder elements
-  .#{$viewport-item}__user-headline,
-  .#{$viewport-item}__user-text {
-    text-transform: capitalize;
-  }
+    // User-specific placeholder elements
+    .#{$viewport-item}__user-headline,
+    .#{$viewport-item}__user-text {
+        text-transform: capitalize;
+    }
 
-  // Avatar placeholder
-  .#{$viewport-item}__avatar {
-    background-color: var(--mtrl-sys-color-primary-container);
-    color: var(--mtrl-sys-color-primary-container);
-    opacity: 1;
-  }
+    // Avatar placeholder
+    .#{$viewport-item}__avatar {
+        background-color: var(--mtrl-sys-color-primary-container);
+        color: var(--mtrl-sys-color-primary-container);
+        opacity: 1;
+    }
 }
 
 // ===========================
@@ -247,51 +268,51 @@ $opacity-transition: opacity $transition-duration $transition-easing;
 // ===========================
 
 .#{$viewport}__scrollbar {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 8px;
-  height: 100%;
-  padding: 0;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  cursor: pointer;
-  z-index: 10;
-
-  // Visibility states
-  &--visible,
-  &--dragging,
-  &:hover {
-    opacity: 1;
-  }
-
-  &:hover {
-    background: rgba(0, 0, 0, 0.05);
-  }
-
-  // Scrollbar thumb
-  &-thumb {
     position: absolute;
     top: 0;
-    width: 6px;
-    padding: 1px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 4px;
-    will-change: transform;
-    cursor: grab;
-    transition: background 0.2s ease;
+    right: 0;
+    width: 8px;
+    height: 100%;
+    padding: 0;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    cursor: pointer;
+    z-index: 10;
+
+    // Visibility states
+    &--visible,
+    &--dragging,
+    &:hover {
+        opacity: 1;
+    }
 
     &:hover {
-      background: rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.05);
     }
 
-    &:active,
-    &--dragging {
-      cursor: grabbing;
-      background: rgba(0, 0, 0, 0.6);
-      transition: none;
+    // Scrollbar thumb
+    &-thumb {
+        position: absolute;
+        top: 0;
+        width: 6px;
+        padding: 1px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 4px;
+        will-change: transform;
+        cursor: grab;
+        transition: background 0.2s ease;
+
+        &:hover {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        &:active,
+        &--dragging {
+            cursor: grabbing;
+            background: rgba(0, 0, 0, 0.6);
+            transition: none;
+        }
     }
-  }
 }
 
 // ===========================
@@ -299,22 +320,22 @@ $opacity-transition: opacity $transition-duration $transition-easing;
 // ===========================
 
 @media (prefers-color-scheme: dark) {
-  .#{$viewport}__scrollbar {
-    background: transparent;
+    .#{$viewport}__scrollbar {
+        background: transparent;
 
-    &-thumb {
-      background: rgba(255, 255, 255, 0.4);
+        &-thumb {
+            background: rgba(255, 255, 255, 0.4);
 
-      &:hover {
-        background: rgba(255, 255, 255, 0.6);
-      }
+            &:hover {
+                background: rgba(255, 255, 255, 0.6);
+            }
 
-      &:active,
-      &--dragging {
-        background: rgba(255, 255, 255, 0.4);
-      }
+            &:active,
+            &--dragging {
+                background: rgba(255, 255, 255, 0.4);
+            }
+        }
     }
-  }
 }
 
 // ===========================
@@ -323,9 +344,9 @@ $opacity-transition: opacity $transition-duration $transition-easing;
 
 // High-density displays
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-  .#{$viewport-item} {
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
+    .#{$viewport-item} {
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
 }

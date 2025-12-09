@@ -69,6 +69,109 @@ export const withAPI = <T extends VListItem = VListItem>(
         return component.totalItems || component.items?.length || 0;
       },
 
+      /**
+       * Get item at a specific index
+       * @param index - The index of the item to retrieve
+       * @returns The item at the index, or undefined if not found
+       */
+      getItem(index: number): T | undefined {
+        if ((component as any).collection?.getItem) {
+          return (component as any).collection.getItem(index);
+        }
+        const items = this.getItems();
+        return items[index];
+      },
+
+      /**
+       * Update item at a specific index
+       * @param index - The index of the item to update
+       * @param item - The new item data (full replacement)
+       */
+      updateItem(index: number, item: T): void {
+        const items = this.getItems();
+
+        if (index < 0 || index >= items.length) {
+          console.warn(`[VList] updateItem: index ${index} out of bounds`);
+          return;
+        }
+
+        const previousItem = items[index];
+
+        // Update in collection items array
+        if ((component as any).collection?.items) {
+          (component as any).collection.items[index] = item;
+        }
+
+        // Emit event for rendering feature to handle DOM update
+        component.emit?.("item:update-request", {
+          index,
+          item,
+          previousItem,
+        });
+      },
+
+      /**
+       * Update item by ID
+       * Finds the item in the collection by its ID and updates it with new data
+       * Re-renders the item if currently visible in the viewport
+       * @param id - The item ID to find
+       * @param data - Partial data to merge with existing item, or full item replacement
+       * @param options - Update options
+       * @returns true if item was found and updated, false otherwise
+       */
+      updateItemById(
+        id: string | number,
+        data: Partial<T>,
+        options: {
+          /** If true, replace the entire item instead of merging (default: false) */
+          replace?: boolean;
+          /** If true, re-render even if not visible (default: false) */
+          forceRender?: boolean;
+        } = {},
+      ): boolean {
+        const { replace = false } = options;
+        const items = this.getItems();
+
+        // Find the item by ID (handle sparse arrays from pagination)
+        // Check all possible ID fields since items may have different ID structures
+        const index = items.findIndex((item: any) => {
+          if (!item) return false;
+          // Check all possible ID fields - user_id is important for profile/contact items
+          const idsToCheck = [item.id, item._id, item.user_id].filter(
+            (v) => v !== undefined && v !== null,
+          );
+          return idsToCheck.some(
+            (itemId) => itemId === id || String(itemId) === String(id),
+          );
+        });
+
+        if (index === -1) {
+          console.warn(`[VList] updateItemById: item with id ${id} not found`);
+          return false;
+        }
+
+        const previousItem = items[index];
+
+        // Create updated item - either replace entirely or merge
+        const updatedItem = replace
+          ? ({ ...data, id: previousItem.id ?? id } as T)
+          : ({ ...previousItem, ...data } as T);
+
+        // Update in collection items array
+        if ((component as any).collection?.items) {
+          (component as any).collection.items[index] = updatedItem;
+        }
+
+        // Emit event for rendering feature to handle DOM update
+        component.emit?.("item:update-request", {
+          index,
+          item: updatedItem,
+          previousItem,
+        });
+
+        return true;
+      },
+
       // Loading operations
       async loadRange(
         page: number,
