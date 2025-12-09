@@ -153,9 +153,19 @@ export const withAPI = <T extends VListItem = VListItem>(
         const previousItem = items[index];
 
         // Create updated item - either replace entirely or merge
-        const updatedItem = replace
-          ? ({ ...data, id: previousItem.id ?? id } as T)
-          : ({ ...previousItem, ...data } as T);
+        let updatedItem: T;
+        if (replace) {
+          updatedItem = { ...data, id: previousItem.id ?? id } as T;
+        } else {
+          // Only merge properties that have actual values (not undefined)
+          // This prevents partial updates from overwriting existing data
+          updatedItem = { ...previousItem } as T;
+          for (const [key, value] of Object.entries(data)) {
+            if (value !== undefined) {
+              (updatedItem as any)[key] = value;
+            }
+          }
+        }
 
         // Update in collection items array
         if ((component as any).collection?.items) {
