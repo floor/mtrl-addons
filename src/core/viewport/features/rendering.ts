@@ -93,6 +93,11 @@ export const withRendering = (config: RenderingConfig = {}) => {
     wrapInitialize(component, () => {
       viewportState = getViewportState(component) as ViewportState;
 
+      // Set initial items container height from current virtual size
+      if (viewportState?.itemsContainer && viewportState.virtualTotalSize > 0) {
+        viewportState.itemsContainer.style.height = `${viewportState.virtualTotalSize}px`;
+      }
+
       // Listen for item update requests from API
       component.on?.("item:update-request", (data: any) => {
         const { index, item, previousItem } = data;
@@ -317,6 +322,16 @@ export const withRendering = (config: RenderingConfig = {}) => {
       // Listen for events
       component.on?.("viewport:range-changed", renderItems);
       component.on?.("viewport:scroll", updateItemPositions);
+
+      // Update items container height when virtual size changes
+      component.on?.("viewport:virtual-size-changed", (data: any) => {
+        if (
+          viewportState?.itemsContainer &&
+          data.totalVirtualSize !== undefined
+        ) {
+          viewportState.itemsContainer.style.height = `${data.totalVirtualSize}px`;
+        }
+      });
     });
 
     // Template helpers
