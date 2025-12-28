@@ -948,6 +948,9 @@ export function withCollection(config: CollectionConfig = {}) {
         canLoad: canLoad(),
         queuedRequests: loadRequestQueue.length,
       }),
+      // Total items management
+      getTotalItems: () => totalItems,
+      setTotalItems,
       // Cursor methods
       getCurrentCursor: () => currentCursor,
       getCursorForPage: (page: number) => cursorMap.get(page) || null,

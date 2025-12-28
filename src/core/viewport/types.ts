@@ -49,7 +49,7 @@ export interface ViewportConfig {
   // Template for rendering items
   template?: (
     item: any,
-    index: number
+    index: number,
   ) => string | HTMLElement | any[] | Record<string, any>;
 
   // Collection/data source configuration
@@ -109,7 +109,7 @@ export interface ViewportConfig {
 export interface ViewportComponent extends ViewportContext {
   viewport: {
     // Core API
-    initialize(): void;
+    initialize(): boolean | void;
     destroy(): void;
     updateViewport(): void;
 

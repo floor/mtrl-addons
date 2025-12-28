@@ -166,6 +166,76 @@ export const withRendering = (config: RenderingConfig = {}) => {
         });
       });
 
+      // Listen for item remove requests from API
+      component.on?.("item:remove-request", (data: any) => {
+        const { index, item } = data;
+
+        // Remove the item from collectionItems and shift subsequent items
+        const keys = Object.keys(collectionItems)
+          .map(Number)
+          .filter((k) => !isNaN(k))
+          .sort((a, b) => a - b);
+
+        // Delete the item at index
+        delete collectionItems[index];
+
+        // Shift all items after the removed index down by 1
+        for (const key of keys) {
+          if (key > index) {
+            collectionItems[key - 1] = collectionItems[key];
+            delete collectionItems[key];
+          }
+        }
+
+        // Remove the rendered element at this index
+        const existingElement = renderedElements.get(index);
+        if (existingElement && existingElement.parentNode) {
+          releaseElement(existingElement);
+        }
+        renderedElements.delete(index);
+
+        // Shift rendered elements indices down
+        const renderedKeys = Array.from(renderedElements.keys()).sort(
+          (a, b) => a - b,
+        );
+        const newRenderedElements = new Map<number, HTMLElement>();
+        for (const key of renderedKeys) {
+          if (key > index) {
+            const element = renderedElements.get(key);
+            if (element) {
+              // Update data-index attribute
+              element.dataset.index = String(key - 1);
+              newRenderedElements.set(key - 1, element);
+            }
+          } else if (key < index) {
+            const element = renderedElements.get(key);
+            if (element) {
+              newRenderedElements.set(key, element);
+            }
+          }
+        }
+        renderedElements.clear();
+        for (const [key, element] of newRenderedElements) {
+          renderedElements.set(key, element);
+        }
+
+        // Note: totalItems is already updated by API's setTotalItems() which emits
+        // viewport:total-items-changed to trigger virtual size recalculation.
+        // We don't update it here to avoid double-counting the removal.
+
+        // Reset visible range to force re-render
+        currentVisibleRange = { start: -1, end: -1 };
+
+        // Emit completion event
+        component.emit?.("item:removed", {
+          item,
+          index,
+        });
+
+        // Trigger re-render
+        renderItems();
+      });
+
       // Listen for collection data loaded
       component.on?.("collection:range-loaded", (data: any) => {
         if (!data.items?.length) return;

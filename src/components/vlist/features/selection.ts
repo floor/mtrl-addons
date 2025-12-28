@@ -188,6 +188,28 @@ export const withSelection = <T extends VListItem = VListItem>(
         applySelectionToElements,
       );
       (component as any).on?.("viewport:rendered", applySelectionToElements);
+
+      // Clean up selection when item is removed
+      (component as any).on?.(
+        "item:removed",
+        (data: { item: any; index: number }) => {
+          const itemId = getItemId(data.item);
+          if (itemId !== undefined && state.selectedIds.has(itemId)) {
+            state.selectedIds.delete(itemId);
+            // If the removed item was the last selected index, clear it
+            if (state.lastSelectedIndex === data.index) {
+              state.lastSelectedIndex = undefined;
+            } else if (
+              state.lastSelectedIndex !== undefined &&
+              state.lastSelectedIndex > data.index
+            ) {
+              // Adjust lastSelectedIndex since items shifted down
+              state.lastSelectedIndex--;
+            }
+            emitSelectionChange();
+          }
+        },
+      );
     };
 
     // Initialize after component is ready

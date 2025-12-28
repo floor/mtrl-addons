@@ -355,6 +355,23 @@ export interface ListAPI<T extends ListItem = ListItem> {
   /** Remove items by indices */
   removeItems(indices: number[]): void;
 
+  /**
+   * Remove item at a specific index
+   * Removes the item from the collection, updates totalItems, and triggers re-render
+   * @param index - The index of the item to remove
+   * @returns true if item was found and removed, false otherwise
+   */
+  removeItem(index: number): boolean;
+
+  /**
+   * Remove item by ID
+   * Finds the item in the collection by its ID and removes it
+   * Updates totalItems and triggers re-render of visible items
+   * @param id - The item ID to find and remove
+   * @returns true if item was found and removed, false otherwise
+   */
+  removeItemById(id: string | number): boolean;
+
   /** Update item at index */
   updateItem(index: number, item: T): void;
 

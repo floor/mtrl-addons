@@ -182,6 +182,92 @@ export const withAPI = <T extends VListItem = VListItem>(
         return true;
       },
 
+      /**
+       * Remove item at a specific index
+       * Removes the item from the collection, updates totalItems, and triggers re-render
+       * @param index - The index of the item to remove
+       * @returns true if item was found and removed, false otherwise
+       */
+      removeItem(index: number): boolean {
+        const items = this.getItems();
+
+        if (index < 0 || index >= items.length) {
+          console.warn(`[VList] removeItem: index ${index} out of bounds`);
+          return false;
+        }
+
+        const removedItem = items[index];
+
+        // Remove from collection items array (component.collection.items is the actual array)
+        if ((component as any).collection?.items) {
+          (component as any).collection.items.splice(index, 1);
+        }
+
+        // Update totalItems - the collection returned from withCollection has setTotalItems
+        // Access it through component.collection which is set up by the collection feature
+        const collection = (component as any).collection;
+        if (collection?.getTotalItems && collection?.setTotalItems) {
+          const currentTotal = collection.getTotalItems();
+          collection.setTotalItems(Math.max(0, currentTotal - 1));
+        } else if (component.viewport?.collection?.setTotalItems) {
+          // Fallback to viewport.collection if available
+          const currentTotal = component.viewport.collection.getTotalItems();
+          component.viewport.collection.setTotalItems(
+            Math.max(0, currentTotal - 1),
+          );
+        } else {
+          // Last resort: update component.totalItems directly
+          if (component.totalItems !== undefined) {
+            component.totalItems = Math.max(0, component.totalItems - 1);
+          }
+        }
+
+        // Emit event for rendering feature to handle re-render
+        // The rendering feature will update collectionItems, shift indices, and re-render
+        component.emit?.("item:remove-request", {
+          index,
+          item: removedItem,
+        });
+
+        return true;
+      },
+
+      /**
+       * Remove item by ID
+       * Finds the item in the collection by its ID and removes it
+       * Updates totalItems and triggers re-render of visible items
+       * @param id - The item ID to find and remove
+       * @returns true if item was found and removed, false otherwise
+       */
+      removeItemById(id: string | number): boolean {
+        if (id === undefined || id === null) {
+          console.warn(`[VList] removeItemById: invalid id`);
+          return false;
+        }
+
+        const items = this.getItems();
+
+        // Find the item by ID (handle sparse arrays from pagination)
+        // Check all possible ID fields since items may have different ID structures
+        const index = items.findIndex((item: any) => {
+          if (!item) return false;
+          // Check all possible ID fields
+          const idsToCheck = [item.id, item._id, item.user_id].filter(
+            (v) => v !== undefined && v !== null,
+          );
+          return idsToCheck.some(
+            (itemId) => itemId === id || String(itemId) === String(id),
+          );
+        });
+
+        if (index === -1) {
+          console.warn(`[VList] removeItemById: item with id ${id} not found`);
+          return false;
+        }
+
+        return this.removeItem(index);
+      },
+
       // Loading operations
       async loadRange(
         page: number,
