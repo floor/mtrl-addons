@@ -52,7 +52,21 @@ export const withRendering = (config: RenderingConfig = {}) => {
     const renderedElements = new Map<number, HTMLElement>();
     const collectionItems: Record<number, any> = {};
     const elementPool: HTMLElement[] = [];
-    const poolStats = { created: 0, recycled: 0, poolSize: 0 };
+    const poolStats = { created: 0, recycled: 0, poolSize: 0, released: 0 };
+
+    // DOM diagnostics
+    const logDOMStats = (caller: string) => {
+      const viewportItems = document.querySelectorAll(".viewport-item").length;
+      const allDivs = document.querySelectorAll("div").length;
+      const allImages = document.querySelectorAll("img").length;
+      const bgImages = document.querySelectorAll(
+        '[style*="background-image"]',
+      ).length;
+
+      console.log(
+        `[DOM:${caller}] rendered=${renderedElements.size}, viewportItems=${viewportItems}, divs=${allDivs}, imgs=${allImages}, bgImages=${bgImages}, pool=${elementPool.length}, created=${poolStats.created}, recycled=${poolStats.recycled}, released=${poolStats.released}`,
+      );
+    };
 
     let viewportState: ViewportState | null = null;
     let currentVisibleRange = { start: 0, end: 0 };
@@ -72,6 +86,8 @@ export const withRendering = (config: RenderingConfig = {}) => {
     };
 
     const releaseElement = (element: HTMLElement): void => {
+      poolStats.released++;
+
       if (!enableRecycling) {
         element.remove();
         return;
@@ -344,6 +360,29 @@ export const withRendering = (config: RenderingConfig = {}) => {
         // Trigger re-render
         renderItems();
         isRemovingItem = false;
+      });
+
+      // Listen for collection items evicted - clean up our cache too
+      component.on?.("collection:items-evicted", (data: any) => {
+        const { keepStart, keepEnd, evictedCount } = data;
+        let cleanedCount = 0;
+
+        // Remove evicted items from our cache
+        for (const key in collectionItems) {
+          const index = parseInt(key, 10);
+          if (index < keepStart || index > keepEnd) {
+            delete collectionItems[index];
+            cleanedCount++;
+          }
+        }
+
+        if (cleanedCount > 0) {
+          console.log(
+            `[Rendering:evict] Cleaned ${cleanedCount} items from collectionItems cache`,
+          );
+          // Log DOM stats after eviction
+          logDOMStats("after-eviction");
+        }
       });
 
       // Listen for collection data loaded
@@ -839,6 +878,11 @@ export const withRendering = (config: RenderingConfig = {}) => {
       }
 
       currentVisibleRange = visibleRange;
+
+      // Log DOM stats periodically (every 10 renders)
+      if (poolStats.created % 50 === 0 && poolStats.created > 0) {
+        logDOMStats(`render:${poolStats.created}`);
+      }
 
       // Emit items rendered event with elements for size calculation
       const renderedElementsArray = Array.from(renderedElements.values());

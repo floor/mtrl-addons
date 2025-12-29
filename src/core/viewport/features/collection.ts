@@ -94,6 +94,77 @@ export function withCollection(config: CollectionConfig = {}) {
     let cancelledLoads = 0;
     let isDragging = false; // Track drag state
 
+    // Cache eviction configuration
+    const MAX_CACHED_ITEMS = 500; // Maximum items to keep in memory
+    const EVICTION_BUFFER = 100; // Extra items to keep around visible range
+
+    // Memory diagnostics
+    const logMemoryStats = (caller: string) => {
+      const itemCount = items.filter(Boolean).length;
+      const loadedRangeCount = loadedRanges.size;
+      const pendingRangeCount = pendingRanges.size;
+      const abortControllerCount = abortControllers.size;
+
+      console.log(
+        `[Memory:${caller}] items=${itemCount}, loaded=${loadedRangeCount}, pending=${pendingRangeCount}, abortControllers=${abortControllerCount}, totalItems=${totalItems}`,
+      );
+    };
+
+    /**
+     * Evict items far from the current visible range to prevent memory bloat
+     * Keeps items within EVICTION_BUFFER of the visible range
+     */
+    const evictDistantItems = (visibleStart: number, visibleEnd: number) => {
+      const itemCount = items.filter(Boolean).length;
+
+      // Only evict if we have more than MAX_CACHED_ITEMS
+      if (itemCount <= MAX_CACHED_ITEMS) {
+        return;
+      }
+
+      const keepStart = Math.max(0, visibleStart - EVICTION_BUFFER);
+      const keepEnd = visibleEnd + EVICTION_BUFFER;
+
+      let evictedCount = 0;
+      const rangesToRemove: number[] = [];
+
+      // Find items to evict
+      for (let i = 0; i < items.length; i++) {
+        if (items[i] !== undefined && (i < keepStart || i > keepEnd)) {
+          delete items[i];
+          evictedCount++;
+        }
+      }
+
+      // Update loadedRanges to reflect evicted data
+      loadedRanges.forEach((rangeId) => {
+        const rangeStart = rangeId * rangeSize;
+        const rangeEnd = rangeStart + rangeSize - 1;
+
+        // If this range is completely outside the keep window, remove it
+        if (rangeEnd < keepStart || rangeStart > keepEnd) {
+          rangesToRemove.push(rangeId);
+        }
+      });
+
+      rangesToRemove.forEach((rangeId) => {
+        loadedRanges.delete(rangeId);
+      });
+
+      if (evictedCount > 0) {
+        console.log(
+          `[Memory:evict] Evicted ${evictedCount} items, removed ${rangesToRemove.length} ranges. Keep window: ${keepStart}-${keepEnd}`,
+        );
+
+        // Emit event for rendering to also clean up
+        component.emit?.("collection:items-evicted", {
+          keepStart,
+          keepEnd,
+          evictedCount,
+        });
+      }
+    };
+
     const activeLoadRanges = new Set<string>();
     let loadRequestQueue: QueuedRequest[] = [];
 
@@ -420,6 +491,11 @@ export function withCollection(config: CollectionConfig = {}) {
           // console.log(
           //   `[Collection] Range ${rangeId} loaded successfully with ${transformedItems.length} items`
           // );
+
+          // Log memory stats periodically (every 5 loads)
+          if (completedLoads % 5 === 0) {
+            logMemoryStats(`load:${completedLoads}`);
+          }
 
           // Emit events
           component.emit?.("viewport:range-loaded", {
@@ -801,6 +877,9 @@ export function withCollection(config: CollectionConfig = {}) {
         // Load missing ranges if needed
         await loadMissingRanges({ start, end }, "viewport:range-changed");
 
+        // Evict distant items to prevent memory bloat
+        evictDistantItems(start, end);
+
         // For cursor mode, check if we need to update virtual size
         if (strategy === "cursor" && !hasReachedEnd) {
           const loadedItemsCount = items.filter(
@@ -1041,6 +1120,8 @@ export function withCollection(config: CollectionConfig = {}) {
 
     // Cleanup function - comprehensive memory cleanup
     const destroy = () => {
+      logMemoryStats("destroy:before");
+
       // Abort all in-flight requests
       abortControllers.forEach((controller) => {
         try {
@@ -1073,6 +1154,8 @@ export function withCollection(config: CollectionConfig = {}) {
       if (component.items === items) {
         component.items = [];
       }
+
+      logMemoryStats("destroy:after");
     };
 
     // Wire destroy into the component's destroy chain
