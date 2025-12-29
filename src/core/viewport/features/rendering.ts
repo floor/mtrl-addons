@@ -76,18 +76,23 @@ export const withRendering = (config: RenderingConfig = {}) => {
         element.remove();
         return;
       }
-      // Clean and clone for reuse
+      // Clean element for reuse (no cloning - reuse the actual element)
       element.className = "mtrl-viewport-item";
       element.removeAttribute("data-index");
       element.style.cssText = "";
       element.innerHTML = "";
-      const cleanElement = element.cloneNode(false) as HTMLElement;
 
+      // Remove from DOM first
+      if (element.parentNode) {
+        element.parentNode.removeChild(element);
+      }
+
+      // Add to pool if not full
       if (elementPool.length < maxPoolSize) {
-        elementPool.push(cleanElement);
+        elementPool.push(element);
         poolStats.poolSize = elementPool.length;
       }
-      element.remove();
+      // If pool is full, element is just dereferenced and GC'd
     };
 
     // Initialize
@@ -394,6 +399,10 @@ export const withRendering = (config: RenderingConfig = {}) => {
                 setTimeout(() => {
                   removeClass(newElement, "viewport-item--replaced");
                 }, 300);
+              } else {
+                // renderItem returned null - still release the old element
+                releaseElement(element);
+                renderedElements.delete(index);
               }
             }
           } else if (wasPlaceholder && !hasElement) {
@@ -866,11 +875,31 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
     // Cleanup
     wrapDestroy(component, () => {
+      // Release all rendered elements
       renderedElements.forEach((element) => {
-        if (element.parentNode) releaseElement(element);
+        if (element.parentNode) {
+          element.parentNode.removeChild(element);
+        }
       });
       renderedElements.clear();
+
+      // Clear element pool
       elementPool.length = 0;
+
+      // Clear collection items cache - this is critical for memory!
+      for (const key in collectionItems) {
+        delete collectionItems[key];
+      }
+
+      // Reset state
+      currentVisibleRange = { start: -1, end: -1 };
+      viewportState = null;
+      lastRenderTime = 0;
+
+      // Reset pool stats
+      poolStats.created = 0;
+      poolStats.recycled = 0;
+      poolStats.poolSize = 0;
     });
 
     return component;

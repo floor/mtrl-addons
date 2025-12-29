@@ -7,6 +7,7 @@
 
 import type { ViewportContext, ViewportComponent } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
+import { wrapDestroy } from "./utils";
 
 export interface CollectionConfig {
   collection?: any; // Collection adapter
@@ -1038,12 +1039,44 @@ export function withCollection(config: CollectionConfig = {}) {
     // Also ensure component.items is updated
     component.items = items;
 
-    // Cleanup function
+    // Cleanup function - comprehensive memory cleanup
     const destroy = () => {
-      // Cancel pending requests
-      activeRequests.clear();
+      // Abort all in-flight requests
+      abortControllers.forEach((controller) => {
+        try {
+          controller.abort();
+        } catch (e) {
+          // Ignore abort errors
+        }
+      });
+      abortControllers.clear();
+
+      // Clear all data structures
+      items.length = 0;
+      loadRequestQueue.length = 0;
+      loadedRanges.clear();
       pendingRanges.clear();
+      failedRanges.clear();
+      activeLoadRanges.clear();
+      activeRequests.clear();
+      cursorMap.clear();
+      pageToOffsetMap.clear();
+
+      // Reset state
+      totalItems = 0;
+      currentCursor = null;
+      highestLoadedPage = 0;
+      discoveredTotal = null;
+      hasReachedEnd = false;
+
+      // Clear component reference
+      if (component.items === items) {
+        component.items = [];
+      }
     };
+
+    // Wire destroy into the component's destroy chain
+    wrapDestroy(component, destroy);
 
     // Return enhanced component
     return {
