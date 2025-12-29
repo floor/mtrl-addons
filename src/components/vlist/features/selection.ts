@@ -331,6 +331,102 @@ export const withSelection = <T extends VListItem = VListItem>(
         emitSelectionChange();
         return true;
       },
+
+      /**
+       * Select item at index, scrolling and waiting for data if needed
+       * Handles virtual scrolling by loading data before selecting
+       */
+      async selectAtIndex(index: number): Promise<boolean> {
+        const enhancedComponent = component as any;
+        const totalItems = enhancedComponent.getItemCount?.() || 0;
+
+        if (index < 0 || index >= totalItems) {
+          return false;
+        }
+
+        // First scroll to the index (triggers data loading if needed)
+        if (enhancedComponent.viewport?.scrollToIndex) {
+          enhancedComponent.viewport.scrollToIndex(index);
+        }
+
+        // Try to select immediately - works if item is already loaded
+        const items = enhancedComponent.getItems?.() || [];
+        if (items[index]) {
+          this.selectItems([index]);
+          return true;
+        }
+
+        // Item not loaded yet - wait for data to load then select
+        return new Promise<boolean>((resolve) => {
+          let resolved = false;
+
+          const onRangeLoaded = () => {
+            if (resolved) return;
+            resolved = true;
+            component.off?.("viewport:range-loaded", onRangeLoaded);
+            requestAnimationFrame(() => {
+              this.selectItems([index]);
+              resolve(true);
+            });
+          };
+
+          component.on?.("viewport:range-loaded", onRangeLoaded);
+
+          // Fallback timeout in case event doesn't fire (data already loaded)
+          setTimeout(() => {
+            if (resolved) return;
+            resolved = true;
+            component.off?.("viewport:range-loaded", onRangeLoaded);
+            this.selectItems([index]);
+            resolve(true);
+          }, 300);
+        });
+      },
+
+      /**
+       * Select next item relative to current selection
+       * Handles virtual scrolling by loading data before selecting
+       */
+      async selectNext(): Promise<boolean> {
+        const enhancedComponent = component as any;
+        const selectedIndices = this.getSelectedIndices();
+
+        if (selectedIndices.length === 0) {
+          // Select first item
+          return this.selectAtIndex(0);
+        }
+
+        const currentIndex = selectedIndices[0];
+        const nextIndex = currentIndex + 1;
+        const totalItems = enhancedComponent.getItemCount?.() || 0;
+
+        if (nextIndex < totalItems) {
+          return this.selectAtIndex(nextIndex);
+        }
+
+        return false;
+      },
+
+      /**
+       * Select previous item relative to current selection
+       * Handles virtual scrolling by loading data before selecting
+       */
+      async selectPrevious(): Promise<boolean> {
+        const selectedIndices = this.getSelectedIndices();
+
+        if (selectedIndices.length === 0) {
+          return false;
+        }
+
+        const currentIndex = selectedIndices[0];
+        const prevIndex = currentIndex - 1;
+
+        if (prevIndex >= 0) {
+          return this.selectAtIndex(prevIndex);
+        }
+
+        return false;
+      },
     };
   };
 };

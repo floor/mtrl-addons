@@ -333,6 +333,11 @@ export interface ListEvents<T = any> {
     previousItem: T;
     wasVisible: boolean;
   };
+
+  /** Viewport range loaded (data available for range) */
+  "viewport:range-loaded": {
+    range: { start: number; end: number };
+  };
 }
 
 /**
@@ -451,6 +456,26 @@ export interface ListAPI<T extends ListItem = ListItem> {
 
   /** Select an item by its ID */
   selectById(id: string | number): boolean;
+
+  /**
+   * Select item at index, scrolling and waiting for data if needed
+   * Handles virtual scrolling by loading data before selecting
+   */
+  selectAtIndex(index: number): Promise<boolean>;
+
+  /**
+   * Select next item relative to current selection
+   * Handles virtual scrolling by loading data before selecting
+   * @returns Promise resolving to true if selection changed, false if at end
+   */
+  selectNext(): Promise<boolean>;
+
+  /**
+   * Select previous item relative to current selection
+   * Handles virtual scrolling by loading data before selecting
+   * @returns Promise resolving to true if selection changed, false if at start
+   */
+  selectPrevious(): Promise<boolean>;
 
   // State
   /** Get current list state */
