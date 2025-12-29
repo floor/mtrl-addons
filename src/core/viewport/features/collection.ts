@@ -104,10 +104,6 @@ export function withCollection(config: CollectionConfig = {}) {
       const loadedRangeCount = loadedRanges.size;
       const pendingRangeCount = pendingRanges.size;
       const abortControllerCount = abortControllers.size;
-
-      console.log(
-        `[Memory:${caller}] items=${itemCount}, loaded=${loadedRangeCount}, pending=${pendingRangeCount}, abortControllers=${abortControllerCount}, totalItems=${totalItems}`,
-      );
     };
 
     /**
@@ -152,10 +148,6 @@ export function withCollection(config: CollectionConfig = {}) {
       });
 
       if (evictedCount > 0) {
-        console.log(
-          `[Memory:evict] Evicted ${evictedCount} items, removed ${rangesToRemove.length} ranges. Keep window: ${keepStart}-${keepEnd}`,
-        );
-
         // Emit event for rendering to also clean up
         component.emit?.("collection:items-evicted", {
           keepStart,

@@ -32,7 +32,7 @@ export const VIEWPORT_CONSTANTS = {
 
   // Loading settings
   LOADING: {
-    CANCEL_THRESHOLD: 2, // px/ms - velocity above which loads cancel
+    CANCEL_THRESHOLD: 25, // px/ms - velocity above which loads cancel
     MAX_CONCURRENT_REQUESTS: 1, // Parallel requests allowed
     DEFAULT_RANGE_SIZE: 20, // Items per request
     DEBOUNCE_LOADING: 150, // Debounce delay (ms)

@@ -129,7 +129,7 @@ const PREFIX_WITH_DASH = `${PREFIX}-`;
 function getCachedClassName(
   type: string,
   property: string,
-  value: string | number
+  value: string | number,
 ): string {
   const key = `${type}-${property}-${value}`;
   if (!classCache.has(key)) {
@@ -138,7 +138,7 @@ function getCachedClassName(
         key,
         property === ""
           ? `layout__item--${value}`
-          : `layout__item--${property}-${value}`
+          : `layout__item--${property}-${value}`,
       );
     } else {
       // For layout classes, align uses layout--{type}-{value}
@@ -184,7 +184,7 @@ function releaseFragment(fragment: DocumentFragment): void {
  */
 function processClassNames(
   options: Record<string, any>,
-  skipPrefix = false
+  skipPrefix = false,
 ): Record<string, any> {
   if (!options) return options;
 
@@ -231,7 +231,7 @@ function processClassNames(
         .split(/\s+/)
         .filter(Boolean)
         .map((cls) =>
-          cls.startsWith(PREFIX_WITH_DASH) ? cls : PREFIX_WITH_DASH + cls
+          cls.startsWith(PREFIX_WITH_DASH) ? cls : PREFIX_WITH_DASH + cls,
         )
         .join(" ");
     }
@@ -271,7 +271,7 @@ interface ExtractedParameters {
 function extractParameters(
   schema: SchemaItem[],
   startIndex: number,
-  defaultCreator: Function
+  defaultCreator: Function,
 ): ExtractedParameters {
   const items = schema.slice(startIndex, startIndex + 3);
   let creator, name, options;
@@ -379,7 +379,7 @@ function hasClass(element: HTMLElement, className: string): boolean {
  */
 function createComponentInstance(
   Component: any,
-  options: Record<string, any> = {}
+  options: Record<string, any> = {},
 ): any {
   try {
     // Destructure special configs in one operation
@@ -453,7 +453,7 @@ function createComponentInstance(
             }
           } else {
             for (const [eventName, handler] of Object.entries(
-              finalEventsConfig
+              finalEventsConfig,
             )) {
               if (typeof handler === "function") {
                 element.addEventListener(eventName, handler);
@@ -481,7 +481,7 @@ function createComponentInstance(
  */
 function applyLayoutClasses(
   element: HTMLElement,
-  layoutConfig: LayoutConfig
+  layoutConfig: LayoutConfig,
 ): void {
   if (!element || !layoutConfig) return;
 
@@ -497,21 +497,21 @@ function applyLayoutClasses(
       addClass(
         element,
         PREFIX_WITH_DASH +
-          getCachedClassName(layoutType, "gap", layoutConfig.gap)
+          getCachedClassName(layoutType, "gap", layoutConfig.gap),
       );
     }
     if (layoutConfig.align) {
       addClass(
         element,
         PREFIX_WITH_DASH +
-          getCachedClassName(layoutType, "align", layoutConfig.align)
+          getCachedClassName(layoutType, "align", layoutConfig.align),
       );
     }
     if (layoutConfig.justify) {
       addClass(
         element,
         PREFIX_WITH_DASH +
-          getCachedClassName(layoutType, "justify", layoutConfig.justify)
+          getCachedClassName(layoutType, "justify", layoutConfig.justify),
       );
     }
   }
@@ -522,17 +522,17 @@ function applyLayoutClasses(
       addClass(
         element,
         PREFIX_WITH_DASH +
-          getCachedClassName("grid", "cols", layoutConfig.columns)
+          getCachedClassName("grid", "cols", layoutConfig.columns),
       );
     } else if (layoutConfig.columns === "auto-fill") {
       addClass(
         element,
-        PREFIX_WITH_DASH + getCachedClassName("grid", "fill", "auto")
+        PREFIX_WITH_DASH + getCachedClassName("grid", "fill", "auto"),
       );
     } else if (layoutConfig.columns === "auto-fit") {
       addClass(
         element,
-        PREFIX_WITH_DASH + getCachedClassName("grid", "cols", "auto-fit")
+        PREFIX_WITH_DASH + getCachedClassName("grid", "cols", "auto-fit"),
       );
     }
     if (layoutConfig.dense)
@@ -569,7 +569,7 @@ function applyLayoutClasses(
  */
 function applyLayoutItemClasses(
   element: HTMLElement,
-  itemConfig: LayoutItemConfig
+  itemConfig: LayoutItemConfig,
 ): void {
   if (!element || !itemConfig) return;
 
@@ -579,53 +579,53 @@ function applyLayoutItemClasses(
   if (itemConfig.width && itemConfig.width >= 1 && itemConfig.width <= 12) {
     addClass(
       element,
-      PREFIX_WITH_DASH + getCachedClassName("item", "", itemConfig.width)
+      PREFIX_WITH_DASH + getCachedClassName("item", "", itemConfig.width),
     );
   }
   if (itemConfig.sm)
     addClass(
       element,
-      PREFIX_WITH_DASH + getCachedClassName("item", "sm", itemConfig.sm)
+      PREFIX_WITH_DASH + getCachedClassName("item", "sm", itemConfig.sm),
     );
   if (itemConfig.md)
     addClass(
       element,
-      PREFIX_WITH_DASH + getCachedClassName("item", "md", itemConfig.md)
+      PREFIX_WITH_DASH + getCachedClassName("item", "md", itemConfig.md),
     );
   if (itemConfig.lg)
     addClass(
       element,
-      PREFIX_WITH_DASH + getCachedClassName("item", "lg", itemConfig.lg)
+      PREFIX_WITH_DASH + getCachedClassName("item", "lg", itemConfig.lg),
     );
   if (itemConfig.xl)
     addClass(
       element,
-      PREFIX_WITH_DASH + getCachedClassName("item", "xl", itemConfig.xl)
+      PREFIX_WITH_DASH + getCachedClassName("item", "xl", itemConfig.xl),
     );
 
   // Grid span classes
   if (itemConfig.span)
     addClass(
       element,
-      PREFIX_WITH_DASH + getCachedClassName("item", "span", itemConfig.span)
+      PREFIX_WITH_DASH + getCachedClassName("item", "span", itemConfig.span),
     );
   if (itemConfig.rowSpan)
     addClass(
       element,
       PREFIX_WITH_DASH +
-        getCachedClassName("item", "row-span", itemConfig.rowSpan)
+        getCachedClassName("item", "row-span", itemConfig.rowSpan),
     );
 
   // Order and alignment
   if (itemConfig.order)
     addClass(
       element,
-      PREFIX_WITH_DASH + getCachedClassName("item", "order", itemConfig.order)
+      PREFIX_WITH_DASH + getCachedClassName("item", "order", itemConfig.order),
     );
   if (itemConfig.align)
     addClass(
       element,
-      PREFIX_WITH_DASH + getCachedClassName("item", "self", itemConfig.align)
+      PREFIX_WITH_DASH + getCachedClassName("item", "self", itemConfig.align),
     );
   if (itemConfig.auto)
     addClass(element, `${PREFIX_WITH_DASH}layout__item--auto`);
@@ -638,10 +638,10 @@ function getLayoutType(element: HTMLElement): string {
   return hasClass(element, `${PREFIX_WITH_DASH}layout--stack`)
     ? "stack"
     : hasClass(element, `${PREFIX_WITH_DASH}layout--row`)
-    ? "row"
-    : hasClass(element, `${PREFIX_WITH_DASH}layout--grid`)
-    ? "grid"
-    : "";
+      ? "row"
+      : hasClass(element, `${PREFIX_WITH_DASH}layout--grid`)
+        ? "grid"
+        : "";
 }
 
 // ============================================================================
@@ -656,7 +656,7 @@ function processArraySchema(
   schema: SchemaItem[] | any,
   parentElement: HTMLElement | null = null,
   level: number = 0,
-  options: LayoutOptions = {}
+  options: LayoutOptions = {},
 ): LayoutResult {
   level++;
   const layout: Record<string, any> = {};
@@ -678,6 +678,11 @@ function processArraySchema(
     if (Array.isArray(item)) {
       const container = component || parentElement;
       const result = processArraySchema(item, container, level, options);
+      // Merge nested components array instead of overwriting
+      if (Array.isArray(result.layout.components)) {
+        components.push(...result.layout.components);
+        delete result.layout.components;
+      }
       Object.assign(layout, result.layout);
       continue;
     }
@@ -774,7 +779,7 @@ function processArraySchema(
 function processObjectSchema(
   schema: Record<string, any> | string,
   parentElement: HTMLElement | null = null,
-  options: LayoutOptions = {}
+  options: LayoutOptions = {},
 ): LayoutResult {
   const layout: Record<string, any> = {};
   const defaultCreator = options.creator || createElement;
@@ -792,7 +797,7 @@ function processObjectSchema(
 
     const rootComponent = createComponentInstance(
       createElementFn,
-      processedOptions
+      processedOptions,
     );
     layout.element = rootComponent;
     if (elementDef.name) layout[elementDef.name] = rootComponent;
@@ -805,7 +810,7 @@ function processObjectSchema(
       const childResult = processObjectSchema(
         elementDef.children,
         rootElement,
-        options
+        options,
       );
       Object.assign(layout, childResult.layout);
     }
@@ -908,12 +913,45 @@ function createLayoutResult(layout: Record<string, any>): LayoutResult {
     },
 
     destroy(): void {
-      // Call destroy on components
-      for (const key in layout) {
-        const component = layout[key];
-        if (component && typeof component.destroy === "function") {
-          component.destroy();
+      // Track destroyed components to avoid double-destroy
+      const destroyed = new Set<any>();
+
+      // Helper to safely destroy a component
+      const destroyComponent = (component: any): void => {
+        if (!component || destroyed.has(component)) return;
+
+        // Skip plain HTML elements and non-objects
+        if (component instanceof HTMLElement || typeof component !== "object")
+          return;
+
+        // Check if it's a component with destroy method
+        if (typeof component.destroy === "function") {
+          destroyed.add(component);
+          try {
+            component.destroy();
+          } catch (e) {
+            // Ignore destroy errors - component may already be cleaned up
+          }
         }
+      };
+
+      // First destroy components from the components array (if present)
+      // This ensures all named components are destroyed even if nested
+      if (Array.isArray(layout.components)) {
+        for (const [name, component] of layout.components) {
+          destroyComponent(component);
+        }
+      }
+
+      // Then iterate over all layout keys for any missed components
+      for (const key in layout) {
+        if (key === "element" || key === "components") continue;
+        destroyComponent(layout[key]);
+      }
+
+      // Clear the components array
+      if (Array.isArray(layout.components)) {
+        layout.components.length = 0;
       }
 
       // Remove root element from DOM
@@ -924,6 +962,11 @@ function createLayoutResult(layout: Record<string, any>): LayoutResult {
         if (element && element.parentNode) {
           element.parentNode.removeChild(element);
         }
+      }
+
+      // Clear references to help GC
+      for (const key in layout) {
+        delete layout[key];
       }
     },
   };
@@ -940,7 +983,7 @@ function createLayoutResult(layout: Record<string, any>): LayoutResult {
 export function createLayout(
   schema: any,
   parentElement: HTMLElement | null = null,
-  options: LayoutOptions = {}
+  options: LayoutOptions = {},
 ): LayoutResult {
   // Handle function schemas
   if (typeof schema === "function") {

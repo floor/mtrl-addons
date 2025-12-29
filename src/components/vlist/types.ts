@@ -657,6 +657,8 @@ export interface VListConfig<T extends ListItem = ListItem> {
     bufferSize?: number;
     renderDebounce?: number;
     maxConcurrentRequests?: number;
+    /** Velocity threshold (px/ms) above which data loading is cancelled and placeholders are shown. Default: 2 */
+    cancelLoadThreshold?: number;
   };
 
   // Selection configuration

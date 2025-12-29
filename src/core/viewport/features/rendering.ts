@@ -54,22 +54,11 @@ export const withRendering = (config: RenderingConfig = {}) => {
     const elementPool: HTMLElement[] = [];
     const poolStats = { created: 0, recycled: 0, poolSize: 0, released: 0 };
 
+    // Store layout results for proper cleanup (prevents memory leak)
+    const layoutResults = new WeakMap<HTMLElement, { destroy: () => void }>();
+
     // Reusable template element for HTML string parsing (more efficient than div)
     const templateParser = document.createElement("template");
-
-    // DOM diagnostics
-    const logDOMStats = (caller: string) => {
-      const viewportItems = document.querySelectorAll(".viewport-item").length;
-      const allDivs = document.querySelectorAll("div").length;
-      const allImages = document.querySelectorAll("img").length;
-      const bgImages = document.querySelectorAll(
-        '[style*="background-image"]',
-      ).length;
-
-      console.log(
-        `[DOM:${caller}] rendered=${renderedElements.size}, viewportItems=${viewportItems}, divs=${allDivs}, imgs=${allImages}, bgImages=${bgImages}, pool=${elementPool.length}, created=${poolStats.created}, recycled=${poolStats.recycled}, released=${poolStats.released}`,
-      );
-    };
 
     let viewportState: ViewportState | null = null;
     let currentVisibleRange = { start: 0, end: 0 };
@@ -90,6 +79,18 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
     const releaseElement = (element: HTMLElement): void => {
       poolStats.released++;
+
+      // CRITICAL: Call destroy on layoutResult to clean up components and event listeners
+      // This fixes the memory leak when using layout templates
+      const layoutResult = layoutResults.get(element);
+      if (layoutResult && typeof layoutResult.destroy === "function") {
+        try {
+          layoutResult.destroy();
+        } catch (e) {
+          // Ignore destroy errors - element may already be cleaned up
+        }
+        layoutResults.delete(element);
+      }
 
       if (!enableRecycling) {
         element.remove();
@@ -275,11 +276,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
             badIndices.push(k);
           }
         }
-        if (badIndices.length > 0) {
-          console.log(
-            `[RENDER-FIX] WARNING: Bad/placeholder items at indices: [${badIndices.join(", ")}]`,
-          );
-        }
 
         // Remove the rendered element at this index
         const existingElement = renderedElements.get(index);
@@ -377,14 +373,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
             delete collectionItems[index];
             cleanedCount++;
           }
-        }
-
-        if (cleanedCount > 0) {
-          console.log(
-            `[Rendering:evict] Cleaned ${cleanedCount} items from collectionItems cache`,
-          );
-          // Log DOM stats after eviction
-          logDOMStats("after-eviction");
         }
       });
 
@@ -639,28 +627,33 @@ export const withRendering = (config: RenderingConfig = {}) => {
           // If the layout created a wrapper, use it directly
           if (element && element.nodeType === 1) {
             // Element is already created by layout system
+            // Store layoutResult for cleanup when element is released (prevents memory leak)
+            layoutResults.set(element, layoutResult);
           } else {
             // Fallback if layout didn't create a proper element
             element = getPooledElement();
             if (layoutResult.element) {
               element.appendChild(layoutResult.element);
+              // Store layoutResult on wrapper element for cleanup
+              layoutResults.set(element, layoutResult);
             }
           }
         } else if (typeof result === "string") {
-          // Parse HTML using reusable template element (faster than creating new div each time)
+          // Parse HTML using template element - optimized path
+          // Move nodes directly instead of cloning - much faster, no memory overhead
           templateParser.innerHTML = result;
           const content = templateParser.content;
 
-          // If single child element, extract it directly (no cloning - much faster)
           if (content.children.length === 1) {
+            // Single root element - move directly (faster than cloneNode)
             element = content.firstElementChild as HTMLElement;
-            content.removeChild(element); // Remove from template so it can be reused
+            content.removeChild(element);
             addClass(element, "mtrl-viewport-item");
             if (isPlaceholder(item)) {
               addClass(element, VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS);
             }
           } else {
-            // Multiple children - use wrapper and move content (no cloning)
+            // Multiple children - move all into pooled element
             element = getPooledElement();
             while (content.firstChild) {
               element.appendChild(content.firstChild);
@@ -842,11 +835,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
         let item = items[i];
         if (!item) {
           // Only log during removal to avoid spam during scroll
-          if (isRemovingItem) {
-            console.log(
-              `[RENDER-FIX] Missing item at index ${i} (renderStart=${renderStart}, renderEnd=${renderEnd}, cacheSize=${Object.keys(collectionItems).length}, totalItems=${totalItems})`,
-            );
-          }
+
           missingItems.push(i);
           // Generate placeholder
           const placeholders = (component as any).placeholders;
@@ -943,11 +932,9 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
     // Cleanup
     wrapDestroy(component, () => {
-      // Release all rendered elements
+      // Release all rendered elements - use releaseElement to properly destroy layoutResults
       renderedElements.forEach((element) => {
-        if (element.parentNode) {
-          element.parentNode.removeChild(element);
-        }
+        releaseElement(element);
       });
       renderedElements.clear();
 
