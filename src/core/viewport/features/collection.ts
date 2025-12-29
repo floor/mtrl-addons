@@ -200,7 +200,7 @@ export function withCollection(config: CollectionConfig = {}) {
      */
     const loadRange = async (offset: number, limit: number): Promise<any[]> => {
       // console.log(
-      //   `[Collection] loadRange called: offset=${offset}, limit=${limit}`
+      //   `[Collection] loadRange called: offset=${offset}, limit=${limit}`,
       // );
 
       if (!collection) {
@@ -209,12 +209,12 @@ export function withCollection(config: CollectionConfig = {}) {
       }
 
       const rangeId = getRangeId(offset, limit);
-      //console.log(`[Collection] Range ID: ${rangeId}`);
+      // console.log(`[Collection] Range ID: ${rangeId}`);
 
       // Check if already loaded
       if (loadedRanges.has(rangeId)) {
         // console.log(
-        //   `[Collection] Range ${rangeId} already loaded, returning cached data`
+        //   `[Collection] Range ${rangeId} already loaded, returning cached data`,
         // );
         return items.slice(offset, offset + limit);
       }
@@ -225,7 +225,7 @@ export function withCollection(config: CollectionConfig = {}) {
         const existingRequest = activeRequests.get(rangeId);
         if (existingRequest) {
           // console.log(
-          //   `[Collection] Returning existing request for range ${rangeId}`
+          //   `[Collection] Returning existing request for range ${rangeId}`,
           // );
           return existingRequest;
         }
@@ -233,7 +233,7 @@ export function withCollection(config: CollectionConfig = {}) {
 
       // Mark as pending
       // console.log(
-      //   `[Collection] Marking range ${rangeId} as pending and loading...`
+      //   `[Collection] Marking range ${rangeId} as pending and loading...`,
       // );
       pendingRanges.add(rangeId);
 
@@ -314,9 +314,13 @@ export function withCollection(config: CollectionConfig = {}) {
           }
 
           // Update discovered total if provided
+          // console.log(
+          //   `[Collection] meta.total: ${meta.total}, discoveredTotal before: ${discoveredTotal}`,
+          // );
           if (meta.total !== undefined) {
             discoveredTotal = meta.total;
           }
+          // console.log(`[Collection] discoveredTotal after: ${discoveredTotal}`);
 
           // Transform items
           const transformedItems = transformItems(rawItems);
@@ -327,7 +331,22 @@ export function withCollection(config: CollectionConfig = {}) {
           });
 
           // For cursor strategy, calculate dynamic total based on loaded data
-          let newTotal = discoveredTotal || totalItems;
+          // Use nullish coalescing (??) instead of || to handle discoveredTotal = 0 correctly
+          let newTotal = discoveredTotal ?? totalItems;
+
+          // CRITICAL FIX: When API returns 0 items on page 1 (offset 0), the list is empty.
+          // We must set totalItems to 0 regardless of meta.total being undefined.
+          // This handles the case where count=false is sent but the list is actually empty.
+          if (offset === 0 && transformedItems.length === 0) {
+            // console.log(
+            //   `[Collection] Empty result on page 1 - forcing totalItems to 0`,
+            // );
+            newTotal = 0;
+            discoveredTotal = 0;
+          }
+          // console.log(
+          //   `[Collection] newTotal initial: ${newTotal}, totalItems: ${totalItems}, strategy: ${strategy}`,
+          // );
 
           if (strategy === "cursor") {
             // Calculate total based on loaded items + margin
@@ -362,11 +381,16 @@ export function withCollection(config: CollectionConfig = {}) {
             }
           } else {
             // For other strategies, use discovered total or current total
-            newTotal = discoveredTotal || totalItems;
+            // Use nullish coalescing (??) instead of || to handle discoveredTotal = 0 correctly
+            newTotal = discoveredTotal ?? totalItems;
           }
 
           // Update state
+          // console.log(
+          //   `[Collection] Before state update: newTotal=${newTotal}, totalItems=${totalItems}, will update: ${newTotal !== totalItems}`,
+          // );
           if (newTotal !== totalItems) {
+            // console.log(`[Collection] Calling setTotalItems(${newTotal})`);
             totalItems = newTotal;
             setTotalItems(newTotal);
           }
@@ -383,7 +407,8 @@ export function withCollection(config: CollectionConfig = {}) {
           // Update viewport state
           const viewportState = (component.viewport as any).state;
           if (viewportState) {
-            viewportState.totalItems = newTotal || items.length;
+            // Use nullish coalescing (??) instead of || to handle newTotal = 0 correctly
+            viewportState.totalItems = newTotal ?? items.length;
           }
 
           // Mark as loaded
@@ -471,6 +496,10 @@ export function withCollection(config: CollectionConfig = {}) {
     }): Promise<void> => {
       if (!collection) return;
 
+      // console.log(
+      //   `[Collection] loadMissingRangesInternal - range: ${start}-${end}, strategy: ${strategy}`,
+      // );
+
       // For cursor pagination, we need to load sequentially
       if (strategy === "cursor") {
         const startPage = Math.floor(range.start / rangeSize) + 1;
@@ -556,6 +585,10 @@ export function withCollection(config: CollectionConfig = {}) {
       const startRange = Math.floor(range.start / rangeSize);
       const endRange = Math.floor(range.end / rangeSize);
 
+      // console.log(
+      //   `[Collection] page strategy - startRange: ${startRange}, endRange: ${endRange}, loadedRanges: [${Array.from(loadedRanges).join(", ")}]`,
+      // );
+
       // Collect ranges that need loading
       const rangesToLoad: number[] = [];
       for (let rangeId = startRange; rangeId <= endRange; rangeId++) {
@@ -564,7 +597,12 @@ export function withCollection(config: CollectionConfig = {}) {
         }
       }
 
+      // console.log(
+      //   `[Collection] rangesToLoad: [${rangesToLoad.join(", ")}], pendingRanges: [${Array.from(pendingRanges).join(", ")}]`,
+      // );
+
       if (rangesToLoad.length === 0) {
+        // console.log(`[Collection] No ranges to load - all loaded or pending`);
         // All ranges are already loaded or pending
         // Check if there are queued requests we should process
         if (
@@ -575,6 +613,10 @@ export function withCollection(config: CollectionConfig = {}) {
         }
         return;
       }
+
+      // console.log(
+      //   `[Collection] Loading ${rangesToLoad.length} ranges: [${rangesToLoad.join(", ")}]`,
+      // );
 
       // Load ranges individually - no merging to avoid loading old ranges
       const promises = rangesToLoad.map((rangeId) =>
@@ -596,8 +638,16 @@ export function withCollection(config: CollectionConfig = {}) {
       return new Promise((resolve, reject) => {
         const rangeKey = getRangeKey(range);
 
+        console.log(
+          `[Collection] loadMissingRanges called - range: ${range.start}-${range.end}, caller: ${caller}`,
+        );
+        console.log(
+          `[Collection] loadedRanges: [${Array.from(loadedRanges).join(", ")}]`,
+        );
+
         // Check if already loading
         if (activeLoadRanges.has(rangeKey)) {
+          // console.log(`[Collection] Range already being loaded, skipping`);
           // Range already being loaded
           resolve();
           return;
@@ -833,6 +883,39 @@ export function withCollection(config: CollectionConfig = {}) {
 
         // Also process any queued requests
         processQueue();
+      });
+
+      // Listen for item removal - DON'T clear loadedRanges to prevent unnecessary reload
+      // The data is already shifted locally in api.ts and rendering.ts
+      // Reloading would cause race conditions and overwrite the correct totalItems
+      component.on?.("item:removed", (data: any) => {
+        const { index } = data;
+
+        // console.log(`[Collection] item:removed event - index: ${index}`);
+        // console.log(`[Collection] items.length: ${items.length}`);
+
+        // Update discoveredTotal to match the new count
+        // This prevents stale discoveredTotal from being used on next load
+        if (discoveredTotal !== null && discoveredTotal > 0) {
+          discoveredTotal = discoveredTotal - 1;
+          // console.log(
+          //   `[Collection] Updated discoveredTotal to: ${discoveredTotal}`,
+          // );
+        }
+
+        // Update local totalItems tracking
+        if (totalItems > 0) {
+          totalItems = totalItems - 1;
+          // console.log(`[Collection] Updated totalItems to: ${totalItems}`);
+        }
+
+        // DON'T clear loadedRanges - we want to keep using the local data
+        // The data has been shifted locally and is still valid
+        // Clearing would trigger a reload which causes race conditions
+        // console.log(
+        //   `[Collection] Keeping loadedRanges intact:`,
+        //   Array.from(loadedRanges),
+        // );
       });
 
       // Load initial data if collection is available and autoLoad is enabled

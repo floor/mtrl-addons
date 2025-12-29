@@ -249,8 +249,12 @@ export const withSelection = <T extends VListItem = VListItem>(
         const items = (this as any).getItems?.();
         if (!items) return;
 
-        if (state.mode === "single" && indices.length > 1) {
-          indices = [indices[0]];
+        if (state.mode === "single") {
+          // In single mode, clear previous selection before adding new one
+          state.selectedIds.clear();
+          if (indices.length > 1) {
+            indices = [indices[0]];
+          }
         }
 
         indices.forEach((index) => {

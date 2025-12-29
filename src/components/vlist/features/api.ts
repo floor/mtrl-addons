@@ -197,15 +197,22 @@ export const withAPI = <T extends VListItem = VListItem>(
         }
 
         const removedItem = items[index];
+        const collection = (component as any).collection;
 
         // Remove from collection items array (component.collection.items is the actual array)
         if ((component as any).collection?.items) {
           (component as any).collection.items.splice(index, 1);
         }
 
-        // Update totalItems - the collection returned from withCollection has setTotalItems
-        // Access it through component.collection which is set up by the collection feature
-        const collection = (component as any).collection;
+        // IMPORTANT: Emit item:remove-request FIRST so rendering feature rebuilds collectionItems
+        // BEFORE setTotalItems triggers a render via viewport:total-items-changed
+        component.emit?.("item:remove-request", {
+          index,
+          item: removedItem,
+        });
+
+        // Update totalItems - this will trigger viewport:total-items-changed which calls renderItems
+        // By now, collectionItems has been rebuilt by the item:remove-request handler
         if (collection?.getTotalItems && collection?.setTotalItems) {
           const currentTotal = collection.getTotalItems();
           collection.setTotalItems(Math.max(0, currentTotal - 1));
@@ -221,13 +228,6 @@ export const withAPI = <T extends VListItem = VListItem>(
             component.totalItems = Math.max(0, component.totalItems - 1);
           }
         }
-
-        // Emit event for rendering feature to handle re-render
-        // The rendering feature will update collectionItems, shift indices, and re-render
-        component.emit?.("item:remove-request", {
-          index,
-          item: removedItem,
-        });
 
         return true;
       },
