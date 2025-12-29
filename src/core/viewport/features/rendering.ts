@@ -305,6 +305,37 @@ export const withRendering = (config: RenderingConfig = {}) => {
           index,
         });
 
+        // After item removal, clear ALL loadedRanges and collectionItems cache
+        // This forces a complete reload which is more reliable than trying to
+        // track shifted indices. The items array has been spliced and all indices
+        // are now different from what loadedRanges thinks they are.
+        const collection = (component.viewport as any)?.collection;
+        if (collection?.getLoadedRanges) {
+          const loadedRanges = collection.getLoadedRanges();
+          loadedRanges.clear();
+        }
+
+        // Clear the entire collectionItems cache - it's all stale after removal
+        // Keep only the items we actually have in the source array
+        const loadedItemsCount = collectionItemsSource.length;
+        const cacheKeys = Object.keys(collectionItems)
+          .map(Number)
+          .filter((k) => !isNaN(k));
+        cacheKeys.forEach((key) => {
+          if (key >= loadedItemsCount) {
+            delete collectionItems[key];
+          }
+        });
+
+        // Trigger reload of visible range
+        const visibleRange = component.viewport?.getVisibleRange?.();
+        if (visibleRange && collection?.loadMissingRanges) {
+          collection.loadMissingRanges(
+            { start: 0, end: Math.max(visibleRange.end, loadedItemsCount) },
+            "item-removal",
+          );
+        }
+
         // Trigger re-render
         renderItems();
         isRemovingItem = false;
@@ -369,11 +400,11 @@ export const withRendering = (config: RenderingConfig = {}) => {
             skippedCount++;
           }
         });
-        if (replacedCount > 0 || skippedCount > 0) {
-          console.log(
-            `[RENDER-FIX] Placeholder replacement: ${replacedCount} replaced, ${skippedCount} skipped (not rendered)`,
-          );
-        }
+        // if (replacedCount > 0 || skippedCount > 0) {
+        //   console.log(
+        //     `[RENDER-FIX] Placeholder replacement: ${replacedCount} replaced, ${skippedCount} skipped (not rendered)`,
+        //   );
+        // }
 
         // Check if we need to render
         const { visibleRange } = viewportState || {};

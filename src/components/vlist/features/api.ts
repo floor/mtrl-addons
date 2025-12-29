@@ -190,6 +190,7 @@ export const withAPI = <T extends VListItem = VListItem>(
        */
       removeItem(index: number): boolean {
         const items = this.getItems();
+        const collection = (component as any).collection;
 
         if (index < 0 || index >= items.length) {
           console.warn(`[VList] removeItem: index ${index} out of bounds`);
@@ -197,7 +198,6 @@ export const withAPI = <T extends VListItem = VListItem>(
         }
 
         const removedItem = items[index];
-        const collection = (component as any).collection;
 
         // Remove from collection items array (component.collection.items is the actual array)
         if ((component as any).collection?.items) {

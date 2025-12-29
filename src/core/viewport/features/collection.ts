@@ -638,12 +638,12 @@ export function withCollection(config: CollectionConfig = {}) {
       return new Promise((resolve, reject) => {
         const rangeKey = getRangeKey(range);
 
-        console.log(
-          `[Collection] loadMissingRanges called - range: ${range.start}-${range.end}, caller: ${caller}`,
-        );
-        console.log(
-          `[Collection] loadedRanges: [${Array.from(loadedRanges).join(", ")}]`,
-        );
+        // console.log(
+        //   `[Collection] loadMissingRanges called - range: ${range.start}-${range.end}, caller: ${caller}`,
+        // );
+        // console.log(
+        //   `[Collection] loadedRanges: [${Array.from(loadedRanges).join(", ")}]`,
+        // );
 
         // Check if already loading
         if (activeLoadRanges.has(rangeKey)) {
@@ -889,9 +889,7 @@ export function withCollection(config: CollectionConfig = {}) {
       // The data is already shifted locally in api.ts and rendering.ts
       // Reloading would cause race conditions and overwrite the correct totalItems
       component.on?.("item:removed", (data: any) => {
-        const { index } = data;
-
-        // console.log(`[Collection] item:removed event - index: ${index}`);
+        // console.log(`[Collection] item:removed event - index: ${data.index}`);
         // console.log(`[Collection] items.length: ${items.length}`);
 
         // Update discoveredTotal to match the new count
@@ -903,11 +901,9 @@ export function withCollection(config: CollectionConfig = {}) {
           // );
         }
 
-        // Update local totalItems tracking
-        if (totalItems > 0) {
-          totalItems = totalItems - 1;
-          // console.log(`[Collection] Updated totalItems to: ${totalItems}`);
-        }
+        // NOTE: Do NOT decrement totalItems here!
+        // api.ts already calls setTotalItems() after emitting item:remove-request,
+        // which properly updates totalItems. Decrementing here would cause a double-decrement.
 
         // DON'T clear loadedRanges - we want to keep using the local data
         // The data has been shifted locally and is still valid
