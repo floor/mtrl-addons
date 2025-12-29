@@ -54,6 +54,9 @@ export const withRendering = (config: RenderingConfig = {}) => {
     const elementPool: HTMLElement[] = [];
     const poolStats = { created: 0, recycled: 0, poolSize: 0, released: 0 };
 
+    // Reusable template element for HTML string parsing (more efficient than div)
+    const templateParser = document.createElement("template");
+
     // DOM diagnostics
     const logDOMStats = (caller: string) => {
       const viewportItems = document.querySelectorAll(".viewport-item").length;
@@ -418,8 +421,15 @@ export const withRendering = (config: RenderingConfig = {}) => {
             if (element) {
               const newElement = renderItem(item, index);
               if (newElement) {
-                // Remove placeholder classes
+                // Remove placeholder classes from wrapper
                 removeClass(newElement, VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS);
+                // Also remove from inner element (for string templates)
+                if (newElement.firstElementChild) {
+                  removeClass(
+                    newElement.firstElementChild as HTMLElement,
+                    VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS,
+                  );
+                }
 
                 // Add replaced class for fade-in animation
                 addClass(newElement, "viewport-item--replaced");
@@ -637,10 +647,24 @@ export const withRendering = (config: RenderingConfig = {}) => {
             }
           }
         } else if (typeof result === "string") {
-          element = getPooledElement();
-          element.innerHTML = result;
-          if (element.children.length === 1) {
-            addClass(element.firstElementChild as HTMLElement, "viewport-item");
+          // Parse HTML using reusable template element (faster than creating new div each time)
+          templateParser.innerHTML = result;
+          const content = templateParser.content;
+
+          // If single child element, extract it directly (no cloning - much faster)
+          if (content.children.length === 1) {
+            element = content.firstElementChild as HTMLElement;
+            content.removeChild(element); // Remove from template so it can be reused
+            addClass(element, "mtrl-viewport-item");
+            if (isPlaceholder(item)) {
+              addClass(element, VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS);
+            }
+          } else {
+            // Multiple children - use wrapper and move content (no cloning)
+            element = getPooledElement();
+            while (content.firstChild) {
+              element.appendChild(content.firstChild);
+            }
           }
         } else if (result instanceof HTMLElement) {
           element = getPooledElement();
