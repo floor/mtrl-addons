@@ -319,7 +319,7 @@ export const withSelection = <T extends VListItem = VListItem>(
         return itemId !== undefined && state.selectedIds.has(itemId);
       },
 
-      selectById(id: string | number): boolean {
+      selectById(id: string | number, silent: boolean = false): boolean {
         if (id === undefined || id === null) return false;
 
         if (state.mode === "single") {
@@ -328,7 +328,9 @@ export const withSelection = <T extends VListItem = VListItem>(
 
         state.selectedIds.add(id);
         applySelectionToElements();
-        emitSelectionChange();
+        if (!silent) {
+          emitSelectionChange();
+        }
         return true;
       },
 

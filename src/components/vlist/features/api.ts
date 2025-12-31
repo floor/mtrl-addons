@@ -261,7 +261,6 @@ export const withAPI = <T extends VListItem = VListItem>(
         });
 
         if (index === -1) {
-          console.warn(`[VList] removeItemById: item with id ${id} not found`);
           return false;
         }
 

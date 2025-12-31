@@ -454,8 +454,11 @@ export interface ListAPI<T extends ListItem = ListItem> {
   /** Check if item is selected */
   isSelected(index: number): boolean;
 
-  /** Select an item by its ID */
-  selectById(id: string | number): boolean;
+  /** Select an item by its ID
+   * @param id - The ID of the item to select
+   * @param silent - If true, selection won't emit change event (default: false)
+   */
+  selectById(id: string | number, silent?: boolean): boolean;
 
   /**
    * Select item at index, scrolling and waiting for data if needed
