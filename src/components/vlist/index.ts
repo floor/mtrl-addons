@@ -7,6 +7,7 @@
 
 export { createVList } from "./vlist";
 export type {
+  RemoveItemOptions,
   VListConfig,
   VListComponent,
   VListItem,

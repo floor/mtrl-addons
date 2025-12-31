@@ -3,11 +3,11 @@
  * Provides a clean public API for the VList component
  */
 
-import type { VListConfig, VListItem } from "../types";
+import type { VListConfig, VListItem, RemoveItemOptions } from "../types";
 
-/**
- * Adds public API methods to VList
- */
+// Re-export for convenience
+export type { RemoveItemOptions } from "../types";
+
 export const withAPI = <T extends VListItem = VListItem>(
   config: VListConfig<T>,
 ) => {
@@ -22,6 +22,10 @@ export const withAPI = <T extends VListItem = VListItem>(
     // Track loading state
     let isLoading = false;
     let selectedIds = new Set<string | number>();
+
+    // Track pending removals to filter out items from stale server responses
+    // This prevents race conditions where server returns old data before updates are committed
+    const pendingRemovals = new Set<string | number>();
 
     // Listen for collection events
     component.on?.("collection:range-loaded", () => {
@@ -236,13 +240,30 @@ export const withAPI = <T extends VListItem = VListItem>(
        * Remove item by ID
        * Finds the item in the collection by its ID and removes it
        * Updates totalItems and triggers re-render of visible items
+       * Optionally tracks as pending removal to filter from future fetches
        * @param id - The item ID to find and remove
+       * @param options - Remove options (trackPending, pendingTimeout)
        * @returns true if item was found and removed, false otherwise
        */
-      removeItemById(id: string | number): boolean {
+      removeItemById(
+        id: string | number,
+        options: RemoveItemOptions = {},
+      ): boolean {
+        const { trackPending = true, pendingTimeout = 5000 } = options;
+
         if (id === undefined || id === null) {
           console.warn(`[VList] removeItemById: invalid id`);
           return false;
+        }
+
+        // Add to pending removals to filter from future server responses
+        if (trackPending) {
+          pendingRemovals.add(id);
+
+          // Clear from pending removals after timeout (server should have updated by then)
+          setTimeout(() => {
+            pendingRemovals.delete(id);
+          }, pendingTimeout);
         }
 
         const items = this.getItems();
@@ -265,6 +286,55 @@ export const withAPI = <T extends VListItem = VListItem>(
         }
 
         return this.removeItem(index);
+      },
+
+      /**
+       * Check if an item ID is pending removal
+       * @param id - The item ID to check
+       * @returns true if the item is pending removal
+       */
+      isPendingRemoval(id: string | number): boolean {
+        return pendingRemovals.has(id);
+      },
+
+      /**
+       * Get all pending removal IDs
+       * @returns Set of pending removal IDs
+       */
+      getPendingRemovals(): Set<string | number> {
+        return new Set(pendingRemovals);
+      },
+
+      /**
+       * Clear a specific pending removal
+       * @param id - The item ID to clear from pending removals
+       */
+      clearPendingRemoval(id: string | number): void {
+        pendingRemovals.delete(id);
+      },
+
+      /**
+       * Clear all pending removals
+       */
+      clearAllPendingRemovals(): void {
+        pendingRemovals.clear();
+      },
+
+      /**
+       * Filter items array to exclude pending removals
+       * Utility method for use in collection adapters
+       * @param items - Array of items to filter
+       * @returns Filtered array without pending removal items
+       */
+      filterPendingRemovals<I extends { id?: any; _id?: any }>(
+        items: I[],
+      ): I[] {
+        if (pendingRemovals.size === 0) return items;
+
+        return items.filter((item) => {
+          const id = item._id || item.id;
+          return !pendingRemovals.has(id);
+        });
       },
 
       // Loading operations

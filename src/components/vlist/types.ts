@@ -3,6 +3,14 @@
  */
 
 import type { BaseComponent, ElementComponent } from "mtrl";
+
+/** Options for removeItemById */
+export interface RemoveItemOptions {
+  /** Track as pending removal to filter from future fetches (default: true) */
+  trackPending?: boolean;
+  /** Timeout in ms to clear pending removal (default: 5000) */
+  pendingTimeout?: number;
+}
 // Collection types are not exposed by mtrl; define minimal interfaces locally
 export interface CollectionItem {
   id: string | number;
@@ -372,10 +380,44 @@ export interface ListAPI<T extends ListItem = ListItem> {
    * Remove item by ID
    * Finds the item in the collection by its ID and removes it
    * Updates totalItems and triggers re-render of visible items
+   * Optionally tracks as pending removal to filter from future fetches
    * @param id - The item ID to find and remove
+   * @param options - Remove options (trackPending, pendingTimeout)
    * @returns true if item was found and removed, false otherwise
    */
-  removeItemById(id: string | number): boolean;
+  removeItemById(id: string | number, options?: RemoveItemOptions): boolean;
+
+  /**
+   * Check if an item ID is pending removal
+   * @param id - The item ID to check
+   * @returns true if the item is pending removal
+   */
+  isPendingRemoval(id: string | number): boolean;
+
+  /**
+   * Get all pending removal IDs
+   * @returns Set of pending removal IDs
+   */
+  getPendingRemovals(): Set<string | number>;
+
+  /**
+   * Clear a specific pending removal
+   * @param id - The item ID to clear from pending removals
+   */
+  clearPendingRemoval(id: string | number): void;
+
+  /**
+   * Clear all pending removals
+   */
+  clearAllPendingRemovals(): void;
+
+  /**
+   * Filter items array to exclude pending removals
+   * Utility method for use in collection adapters
+   * @param items - Array of items to filter
+   * @returns Filtered array without pending removal items
+   */
+  filterPendingRemovals<I extends { id?: any; _id?: any }>(items: I[]): I[];
 
   /** Update item at index */
   updateItem(index: number, item: T): void;
