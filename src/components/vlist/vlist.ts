@@ -41,7 +41,7 @@ import { withSelection } from "./features/selection";
  * ```
  */
 export const createVList = <T extends VListItem = VListItem>(
-  config: VListConfig<T> = {}
+  config: VListConfig<T> = {},
 ): VListComponent<T> => {
   try {
     // console.log(`📋 Creating VList component with direct viewport integration`);
@@ -64,7 +64,11 @@ export const createVList = <T extends VListItem = VListItem>(
       }),
 
       // 2. Viewport integration
-      withViewport(config),
+      // Pass autoSelectFirst from selection config to viewport level
+      withViewport({
+        ...config,
+        autoSelectFirst: config.selection?.autoSelectFirst,
+      }),
 
       // 3. Component lifecycle
       withLifecycle(),

@@ -22,6 +22,7 @@ export interface CollectionConfig {
   initialScrollIndex?: number; // Initial scroll position (0-based index)
   selectId?: string | number; // ID of item to select after initial load completes
   autoLoad?: boolean; // Whether to automatically load data on initialization (default: true)
+  autoSelectFirst?: boolean; // Automatically select first item after initial load (default: false)
 }
 
 export interface CollectionComponent {
@@ -64,6 +65,7 @@ export function withCollection(config: CollectionConfig = {}) {
       initialScrollIndex = 0, // Start from beginning by default
       selectId, // ID of item to select after initial load
       autoLoad = true, // Auto-load initial data by default
+      autoSelectFirst = false, // Automatically select first item after initial load
     } = config;
 
     // Track if we've completed the initial load for initialScrollIndex
@@ -991,7 +993,10 @@ export function withCollection(config: CollectionConfig = {}) {
         // If we have an initial scroll index OR a selectId, load data for that position directly
         // Don't use scrollToIndex() as it triggers animation/velocity tracking
         // virtual.ts has already set the scroll position and calculated the visible range
-        if (initialScrollIndex > 0 || selectId !== undefined) {
+        if (
+          initialScrollIndex > 0 ||
+          (selectId !== undefined && selectId !== null)
+        ) {
           // Get the visible range that was already calculated by virtual.ts
           // We missed the initial viewport:range-changed event because our listener wasn't ready yet
           const visibleRange = component.viewport?.getVisibleRange?.();
@@ -1052,7 +1057,17 @@ export function withCollection(config: CollectionConfig = {}) {
         // No initial scroll index - load from beginning as normal
         loadRange(0, rangeSize)
           .then(() => {
-            // console.log("[Collection] Initial data loaded");
+            // Handle autoSelectFirst - get first item ID and emit selection event
+            if (autoSelectFirst && items.length > 0) {
+              const firstItem = items[0];
+              const firstId = firstItem?._id || firstItem?.id;
+              if (firstId !== undefined) {
+                component.emit?.("collection:initial-load-complete", {
+                  selectId: firstId,
+                  initialScrollIndex: 0,
+                });
+              }
+            }
           })
           .catch((error) => {
             console.error("[Collection] Failed to load initial data:", error);

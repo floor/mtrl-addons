@@ -226,6 +226,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
           initialScrollIndex: (config as any).initialScrollIndex,
           selectId: (config as any).selectId,
           autoLoad: (config as any).autoLoad !== false,
+          autoSelectFirst: (config as any).autoSelectFirst,
         }),
       );
     }

@@ -675,6 +675,12 @@ export const withRendering = (config: RenderingConfig = {}) => {
         }
 
         element.dataset.index = String(index);
+
+        // Copy data-id from item to viewport element for selection support
+        const itemId = item?._id || item?.id;
+        if (itemId !== undefined && itemId !== null) {
+          element.dataset.id = String(itemId);
+        }
         return element;
       } catch (error) {
         console.error(`[Rendering] Error rendering item ${index}:`, error);

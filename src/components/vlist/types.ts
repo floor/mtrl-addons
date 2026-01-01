@@ -157,6 +157,8 @@ export interface ListSelectionConfig {
   onSelectionChange?: (selectedItems: any[], selectedIndices: number[]) => void;
   /** Require keyboard modifiers for multi-select (default: false) */
   requireModifiers?: boolean;
+  /** Automatically select first item after initial load (default: false) */
+  autoSelectFirst?: boolean;
 }
 
 /**
