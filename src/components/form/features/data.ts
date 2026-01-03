@@ -18,7 +18,7 @@ import {
   hasDataChanged,
   getModifiedFields,
 } from "../config";
-import { getFieldValue, setFieldValue } from "./fields";
+import { getFieldValue, setFieldValue, syncTrackedFieldValues } from "./fields";
 import { FORM_EVENTS, DATA_STATE } from "../constants";
 
 /**
@@ -200,13 +200,20 @@ export const withData = (config: FormConfig) => {
       /**
        * Set form data
        * @param data - Data object to set
-       * @param silent - If true, don't emit change events
+       * @param silent - If true, don't emit change events and update initial state
        */
       setData(data: FormData, silent: boolean = false): void {
         setFieldsData(component.fields, data, silent);
         state.currentData = collectFieldData(component.fields);
 
-        if (!silent) {
+        if (silent) {
+          // When setting data silently, also update initial data snapshot
+          // This is typically used when loading data from server
+          state.initialData = { ...state.currentData };
+          state.modified = false;
+          // Sync the field value tracker for event deduplication
+          syncTrackedFieldValues(component.fields);
+        } else {
           component.emit?.(FORM_EVENTS.DATA_SET, state.currentData);
         }
       },

@@ -37,26 +37,19 @@ const isFormField = (obj: unknown): obj is FormField => {
 
 /**
  * Gets the value from a field component
- * Handles different field APIs (getValue, get, isChecked, value property)
+ * All mtrl components now have unified getValue() API:
+ * - Textfield: returns string
+ * - Select: returns string or string[]
+ * - Chips: returns string[]
+ * - Switch/Checkbox: returns boolean (updated in mtrl core)
  */
 export const getFieldValue = (field: FormField): FieldValue => {
-  const fieldAny = field as unknown as Record<string, unknown>;
-
-  // Check for switch/checkbox components first (they have isChecked method)
-  if (typeof fieldAny.isChecked === "function") {
-    return (fieldAny.isChecked as () => boolean)();
-  }
-
   if (typeof field.getValue === "function") {
     return field.getValue();
   }
 
-  // Fallback: check for get method (old material API)
-  if (typeof fieldAny.get === "function") {
-    return (fieldAny.get as () => FieldValue)();
-  }
-
   // Fallback: check for value property
+  const fieldAny = field as unknown as Record<string, unknown>;
   if ("value" in fieldAny) {
     return fieldAny.value as FieldValue;
   }
@@ -66,7 +59,13 @@ export const getFieldValue = (field: FormField): FieldValue => {
 
 /**
  * Sets the value on a field component
- * Handles different field APIs (setValue, set, check/uncheck)
+ * All mtrl components now have unified setValue() API:
+ * - Textfield: accepts string
+ * - Select: accepts string or string[]
+ * - Chips: accepts string[]
+ * - Switch/Checkbox: accepts boolean or string ("true"/"false") (updated in mtrl core)
+ *
+ * For silent updates (no change events), we set directly on the input element
  */
 export const setFieldValue = (
   field: FormField,
@@ -75,22 +74,21 @@ export const setFieldValue = (
 ): void => {
   const fieldAny = field as unknown as Record<string, unknown>;
 
-  // Check for switch/checkbox components first (they have check/uncheck methods)
-  if (
-    typeof fieldAny.check === "function" &&
-    typeof fieldAny.uncheck === "function"
-  ) {
-    const shouldBeChecked = value === true || value === "true" || value === 1;
-
-    if (silent) {
-      // Set directly on the input to avoid triggering change events
-      const input = fieldAny.input as HTMLInputElement | undefined;
-      if (input) {
+  if (silent) {
+    // Silent update: set directly on input to avoid triggering change events
+    const input = fieldAny.input as
+      | HTMLInputElement
+      | HTMLTextAreaElement
+      | undefined;
+    if (input) {
+      // Check if this is a checkbox/switch (has checked property)
+      if (input.type === "checkbox") {
+        const shouldBeChecked =
+          value === true || value === "true" || value === 1;
         input.checked = shouldBeChecked;
         // Update visual state by toggling the checked class
         const element = fieldAny.element as HTMLElement | undefined;
         if (element) {
-          // Find the component class prefix (e.g., 'mtrl-switch')
           const classList = Array.from(element.classList);
           const baseClass = classList.find(
             (c) => c.startsWith("mtrl-") && !c.includes("--"),
@@ -99,28 +97,29 @@ export const setFieldValue = (
             element.classList.toggle(`${baseClass}--checked`, shouldBeChecked);
           }
         }
-      }
-    } else {
-      if (shouldBeChecked) {
-        (fieldAny.check as () => void)();
       } else {
-        (fieldAny.uncheck as () => void)();
+        // Text input - set value directly
+        input.value = (value as string) ?? "";
+        // Update visual state - toggle --empty class based on value
+        const element = fieldAny.element as HTMLElement | undefined;
+        if (element) {
+          const classList = Array.from(element.classList);
+          const baseClass = classList.find(
+            (c) => c.startsWith("mtrl-") && !c.includes("--"),
+          );
+          if (baseClass) {
+            const isEmpty = !input.value;
+            element.classList.toggle(`${baseClass}--empty`, isEmpty);
+          }
+        }
       }
     }
     return;
   }
 
+  // Normal update: use component's setValue method
   if (typeof field.setValue === "function") {
     field.setValue(value);
-    return;
-  }
-
-  // Fallback: check for set method (old material API)
-  if (typeof fieldAny.set === "function") {
-    (fieldAny.set as (value: FieldValue, silent?: boolean) => void)(
-      value,
-      silent,
-    );
     return;
   }
 
@@ -162,30 +161,97 @@ const extractFields = (
 };
 
 /**
+ * Compares two field values for equality
+ * Handles arrays (for chips/multi-select) and primitive values
+ */
+const valuesEqual = (a: FieldValue, b: FieldValue): boolean => {
+  // Handle null/undefined
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+
+  // Handle arrays (chips, multi-select)
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((val, i) => val === b[i]);
+  }
+
+  return false;
+};
+
+/**
  * Binds change and input events to fields
  * Calls the provided callback when any field changes
  *
  * Listens to both 'input' (for immediate feedback while typing)
  * and 'change' (for components that only emit on blur/selection)
+ *
+ * Deduplicates events to prevent double-firing when both input and change
+ * emit for the same value (e.g., textfield input followed by blur)
  */
+/**
+ * Tracks last emitted values per field for deduplication
+ * Exposed so that setData can update it when setting values silently
+ */
+let fieldValueTracker: Map<string, FieldValue> | null = null;
+
+/**
+ * Updates the tracked value for a field
+ * Called when setData is used with silent=true to keep deduplication in sync
+ */
+export const updateTrackedFieldValue = (
+  name: string,
+  value: FieldValue,
+): void => {
+  if (fieldValueTracker) {
+    fieldValueTracker.set(name, value);
+  }
+};
+
+/**
+ * Updates all tracked field values from a fields registry
+ * Called after silent setData to sync deduplication state
+ */
+export const syncTrackedFieldValues = (fields: FormFieldRegistry): void => {
+  if (fieldValueTracker) {
+    for (const [name, field] of fields) {
+      fieldValueTracker.set(name, getFieldValue(field));
+    }
+  }
+};
+
 const bindFieldEvents = (
   fields: FormFieldRegistry,
   onFieldChange: (name: string, value: FieldValue) => void,
 ): void => {
+  // Track last emitted value per field to dedupe events
+  const lastEmittedValues = new Map<string, FieldValue>();
+
+  // Expose the tracker so setData can update it
+  fieldValueTracker = lastEmittedValues;
+
   for (const [name, field] of fields) {
     if (typeof field.on === "function") {
-      // Listen to 'input' for immediate feedback (textfields emit this on every keystroke)
-      field.on("input", () => {
+      // Initialize with current value
+      lastEmittedValues.set(name, getFieldValue(field));
+
+      // Handler that dedupes based on value
+      const handleChange = () => {
         const value = getFieldValue(field);
-        onFieldChange(name, value);
-      });
+        const lastValue = lastEmittedValues.get(name);
+
+        // Only emit if value actually changed
+        if (!valuesEqual(value, lastValue)) {
+          lastEmittedValues.set(name, value);
+          onFieldChange(name, value);
+        }
+      };
+
+      // Listen to 'input' for immediate feedback (textfields emit this on every keystroke)
+      field.on("input", handleChange);
 
       // Also listen to 'change' for components that only emit on blur/selection
       // (e.g., select, chips, switch)
-      field.on("change", () => {
-        const value = getFieldValue(field);
-        onFieldChange(name, value);
-      });
+      field.on("change", handleChange);
     }
   }
 };
