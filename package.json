@@ -1,9 +1,13 @@
 {
   "name": "mtrl-addons",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Additional components and utilities for the mtrl system, featuring forms, specialized elements, and extended functionality for modern applications",
   "type": "module",
   "main": "index.ts",
+  "files": [
+    "dist",
+    "src/styles"
+  ],
   "scripts": {
     "build": "bun run ./build.js",
     "build:app": "bun run ../mtrl-app/build.js",
