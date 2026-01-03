@@ -2,38 +2,30 @@
 
 /**
  * Controller feature for Form component
- * Manages form modes (read/create/update) and control buttons (submit/cancel)
+ * Manages control buttons (submit/cancel) based on data state (pristine/dirty)
  */
 
 import type {
   FormConfig,
   BaseFormComponent,
-  FormMode,
   FormState,
   FormFieldRegistry,
   FormField,
 } from "../types";
-import { FORM_MODES, FORM_EVENTS } from "../constants";
-import { getModeClass, getAllModeClasses, FORM_DEFAULTS } from "../config";
+import { DATA_STATE, FORM_EVENTS, FORM_CLASSES } from "../constants";
+import { FORM_DEFAULTS } from "../config";
 
 /**
- * Updates the form's mode CSS classes
+ * Updates the form's state CSS class
  */
-const updateModeClasses = (
+const updateStateClass = (
   element: HTMLElement,
-  mode: FormMode,
+  modified: boolean,
   prefix: string,
   componentName: string,
 ): void => {
-  // Remove all mode classes
-  const allModeClasses = getAllModeClasses(prefix, componentName);
-  for (const cls of allModeClasses) {
-    element.classList.remove(cls);
-  }
-
-  // Add current mode class
-  const modeClass = getModeClass(mode, prefix, componentName);
-  element.classList.add(modeClass);
+  const modifiedClass = `${prefix}-${componentName}--${FORM_CLASSES.MODIFIED}`;
+  element.classList.toggle(modifiedClass, modified);
 };
 
 /**
@@ -89,7 +81,7 @@ const setControlsEnabled = (
 
 /**
  * withController feature
- * Adds mode management and control button handling to the form
+ * Adds control button handling based on data state (pristine/dirty)
  */
 export const withController = (config: FormConfig) => {
   return <
@@ -103,8 +95,7 @@ export const withController = (config: FormConfig) => {
     component: T,
   ): T & {
     controls: Map<string, FormField>;
-    getMode: () => FormMode;
-    setMode: (mode: FormMode) => void;
+    getDataState: () => string;
     enableControls: () => void;
     disableControls: () => void;
     enableFields: () => void;
@@ -121,7 +112,7 @@ export const withController = (config: FormConfig) => {
       ? getControlButtons(component.ui || {}, controlNames)
       : new Map<string, FormField>();
 
-    // Initialize controls as disabled
+    // Initialize controls as disabled (pristine state)
     if (controls.size > 0) {
       setControlsEnabled(controls, false);
     }
@@ -131,48 +122,12 @@ export const withController = (config: FormConfig) => {
       controls,
 
       /**
-       * Get current form mode
+       * Get current data state (pristine or dirty)
        */
-      getMode(): FormMode {
-        return component.state.mode;
-      },
-
-      /**
-       * Set form mode
-       * Triggers mode:change event and updates UI accordingly
-       */
-      setMode(mode: FormMode): void {
-        const previousMode = component.state.mode;
-        component.state.mode = mode;
-
-        // Update CSS classes
-        if (component.element) {
-          updateModeClasses(component.element, mode, prefix, componentName);
-        }
-
-        // Handle mode-specific behavior
-        switch (mode) {
-          case FORM_MODES.READ:
-            // In read mode, disable controls
-            setControlsEnabled(controls, false);
-            break;
-
-          case FORM_MODES.CREATE:
-            // In create mode, enable controls
-            setControlsEnabled(controls, true);
-            break;
-
-          case FORM_MODES.UPDATE:
-            // In update mode, enable controls
-            setControlsEnabled(controls, true);
-            break;
-        }
-
-        // Emit mode change event
-        component.emit?.(FORM_EVENTS.MODE_CHANGE, {
-          mode,
-          previousMode,
-        });
+      getDataState(): string {
+        return component.state.modified
+          ? DATA_STATE.DIRTY
+          : DATA_STATE.PRISTINE;
       },
 
       /**
@@ -206,31 +161,27 @@ export const withController = (config: FormConfig) => {
       },
     };
 
-    // Listen for change events to auto-switch to update mode
+    // Listen for state changes to enable/disable controls
     if (config.useChanges !== false && component.on) {
-      component.on("field:change", () => {
-        if (component.state.mode === FORM_MODES.READ) {
-          enhanced.setMode(FORM_MODES.UPDATE);
-        }
-      });
-
-      // Listen for modified:change to enable/disable controls when data reverts
-      // This handles the case where user changes a field then reverts to original value
       component.on(
-        FORM_EVENTS.MODIFIED_CHANGE,
-        (event: { modified: boolean }) => {
-          console.log(
-            "[Form:controller] modified:change event:",
-            event.modified,
-          );
+        FORM_EVENTS.STATE_CHANGE,
+        (event: { modified: boolean; state: string }) => {
           if (event.modified) {
-            // Data has been modified - enable controls and switch to UPDATE mode
-            enhanced.setMode(FORM_MODES.UPDATE);
+            // Data is dirty - enable controls
             setControlsEnabled(controls, true);
           } else {
-            // Data reverted to initial state - disable controls and switch to READ mode
-            enhanced.setMode(FORM_MODES.READ);
+            // Data is pristine - disable controls
             setControlsEnabled(controls, false);
+          }
+
+          // Update CSS class
+          if (component.element) {
+            updateStateClass(
+              component.element,
+              event.modified,
+              prefix,
+              componentName,
+            );
           }
         },
       );

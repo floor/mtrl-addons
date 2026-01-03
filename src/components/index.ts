@@ -15,18 +15,20 @@ export type {
   FormComponent,
   FormField,
   FormData,
-  FormMode,
+  DataState,
   FormState,
   FormValidationRule,
   FormValidationResult,
   FormSubmitOptions,
   FormEventHandlers,
   FieldValue,
+  SubmitHandler,
+  CancelHandler,
 } from "./form/types";
 
 // Form constants
 export {
-  FORM_MODES,
+  DATA_STATE,
   FORM_EVENTS,
   FORM_CLASSES,
   FORM_DEFAULTS,

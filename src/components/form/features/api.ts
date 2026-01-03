@@ -3,6 +3,7 @@
 /**
  * API feature for Form component
  * Provides a clean, unified public API for the form
+ * Also wires up control button click handlers (submit/cancel)
  */
 
 import type {
@@ -10,68 +11,115 @@ import type {
   BaseFormComponent,
   FormComponent,
   FormData,
-  FormMode,
+  DataState,
   FormState,
   FormField,
   FormFieldRegistry,
   FormValidationResult,
   FormSubmitOptions,
-  FieldValue
-} from '../types'
-import { FORM_EVENTS } from '../constants'
+  FieldValue,
+} from "../types";
+import { FORM_EVENTS } from "../constants";
+
+/**
+ * Wires up click handlers for control buttons (submit, cancel)
+ */
+const wireControlButtons = (
+  controls: Map<string, FormField>,
+  api: FormComponent,
+  config: FormConfig,
+): void => {
+  // Wire submit button
+  const submitButton = controls.get("submit");
+  if (submitButton?.element) {
+    submitButton.element.addEventListener("click", async () => {
+      if (config.onSubmit) {
+        // Use custom submit handler
+        try {
+          const data = api.getData();
+          await config.onSubmit(data, api);
+          // After successful submit, disable controls (form is now pristine)
+          api.disableControls();
+        } catch (error) {
+          console.error("Form submit error:", error);
+          // On error, also disable controls to prevent repeated clicks
+          api.disableControls();
+        }
+      } else {
+        // Use default form submit (handles disabling internally)
+        await api.submit();
+      }
+    });
+  }
+
+  // Wire cancel button
+  const cancelButton = controls.get("cancel");
+  if (cancelButton?.element) {
+    cancelButton.element.addEventListener("click", () => {
+      if (config.onCancel) {
+        // Use custom cancel handler
+        config.onCancel(api);
+      } else {
+        // Default: reset form to initial state
+        api.reset();
+      }
+      // After cancel, disable controls (form is now pristine)
+      api.disableControls();
+    });
+  }
+};
 
 /**
  * Extended component interface before API is applied
  */
 interface EnhancedFormComponent extends BaseFormComponent {
-  form: HTMLFormElement
-  ui: Record<string, unknown>
-  fields: FormFieldRegistry
-  files: FormFieldRegistry
-  state: FormState
-  controls: Map<string, FormField>
+  form: HTMLFormElement;
+  ui: Record<string, unknown>;
+  fields: FormFieldRegistry;
+  files: FormFieldRegistry;
+  state: FormState;
+  controls: Map<string, FormField>;
 
   // Data methods
-  getData: () => FormData
-  setData: (data: FormData, silent?: boolean) => void
-  getFieldValue: (name: string) => FieldValue
-  setFieldValue: (name: string, value: FieldValue, silent?: boolean) => void
-  isModified: () => boolean
-  getModifiedData: () => FormData
-  snapshot: () => void
-  reset: () => void
-  clear: () => void
+  getData: () => FormData;
+  setData: (data: FormData, silent?: boolean) => void;
+  getFieldValue: (name: string) => FieldValue;
+  setFieldValue: (name: string, value: FieldValue, silent?: boolean) => void;
+  isModified: () => boolean;
+  getModifiedData: () => FormData;
+  snapshot: () => void;
+  reset: () => void;
+  clear: () => void;
 
   // Field methods
-  getField: (name: string) => FormField | undefined
-  getFieldNames: () => string[]
-  hasField: (name: string) => boolean
+  getField: (name: string) => FormField | undefined;
+  getFieldNames: () => string[];
+  hasField: (name: string) => boolean;
 
   // Controller methods
-  getMode: () => FormMode
-  setMode: (mode: FormMode) => void
-  enableControls: () => void
-  disableControls: () => void
-  enableFields: () => void
-  disableFields: () => void
+  getDataState: () => DataState;
+  enableControls: () => void;
+  disableControls: () => void;
+  enableFields: () => void;
+  disableFields: () => void;
 
   // Submit methods
-  validate: () => FormValidationResult
-  submit: (options?: FormSubmitOptions) => Promise<unknown>
-  setValidationRules: (rules: import('../types').FormValidationRule[]) => void
-  clearErrors: () => void
-  setFieldError: (field: string, error: string) => void
-  getFieldError: (field: string) => string | undefined
+  validate: () => FormValidationResult;
+  submit: (options?: FormSubmitOptions) => Promise<unknown>;
+  setValidationRules: (rules: import("../types").FormValidationRule[]) => void;
+  clearErrors: () => void;
+  setFieldError: (field: string, error: string) => void;
+  getFieldError: (field: string) => string | undefined;
 
   // Event methods
-  on?: (event: string, handler: Function) => void
-  off?: (event: string, handler: Function) => void
-  emit?: (event: string, data?: unknown) => void
+  on?: (event: string, handler: Function) => void;
+  off?: (event: string, handler: Function) => void;
+  emit?: (event: string, data?: unknown) => void;
 
   // Lifecycle
   lifecycle?: {
-    destroy: () => void
-  }
+    destroy: () => void;
+  };
 }
 
 /**
@@ -83,8 +131,8 @@ export const withAPI = (config: FormConfig) => {
     // Register event handlers from config
     if (config.on && component.on) {
       for (const [event, handler] of Object.entries(config.on)) {
-        if (typeof handler === 'function') {
-          component.on(event, handler)
+        if (typeof handler === "function") {
+          component.on(event, handler);
         }
       }
     }
@@ -106,7 +154,7 @@ export const withAPI = (config: FormConfig) => {
        * Get all form data as a key-value object
        */
       getData(): FormData {
-        return component.getData()
+        return component.getData();
       },
 
       /**
@@ -115,8 +163,8 @@ export const withAPI = (config: FormConfig) => {
        * @param silent - If true, don't emit change events
        */
       setData(data: FormData, silent?: boolean): FormComponent {
-        component.setData(data, silent)
-        return api
+        component.setData(data, silent);
+        return api;
       },
 
       /**
@@ -124,7 +172,7 @@ export const withAPI = (config: FormConfig) => {
        * @param name - Field name
        */
       getFieldValue(name: string): FieldValue {
-        return component.getFieldValue(name)
+        return component.getFieldValue(name);
       },
 
       /**
@@ -133,9 +181,13 @@ export const withAPI = (config: FormConfig) => {
        * @param value - Value to set
        * @param silent - If true, don't emit change events
        */
-      setFieldValue(name: string, value: FieldValue, silent?: boolean): FormComponent {
-        component.setFieldValue(name, value, silent)
-        return api
+      setFieldValue(
+        name: string,
+        value: FieldValue,
+        silent?: boolean,
+      ): FormComponent {
+        component.setFieldValue(name, value, silent);
+        return api;
       },
 
       /**
@@ -143,41 +195,32 @@ export const withAPI = (config: FormConfig) => {
        * @param name - Field name
        */
       getField(name: string): FormField | undefined {
-        return component.getField(name)
+        return component.getField(name);
       },
 
       /**
        * Get all field names
        */
       getFieldNames(): string[] {
-        return component.getFieldNames()
+        return component.getFieldNames();
       },
 
       /**
        * Check if form has been modified from initial/snapshot state
        */
       isModified(): boolean {
-        return component.isModified()
+        return component.isModified();
       },
 
       // ==========================================
-      // Mode API
+      // State API
       // ==========================================
 
       /**
-       * Get the current form mode
+       * Get the current data state (pristine or dirty)
        */
-      getMode(): FormMode {
-        return component.getMode()
-      },
-
-      /**
-       * Set the form mode
-       * @param mode - Mode to set ('read', 'create', 'update')
-       */
-      setMode(mode: FormMode): FormComponent {
-        component.setMode(mode)
-        return api
+      getDataState(): DataState {
+        return component.getDataState();
       },
 
       // ==========================================
@@ -189,7 +232,7 @@ export const withAPI = (config: FormConfig) => {
        * @returns Validation result with valid flag and errors
        */
       validate(): FormValidationResult {
-        return component.validate()
+        return component.validate();
       },
 
       // ==========================================
@@ -201,7 +244,7 @@ export const withAPI = (config: FormConfig) => {
        * @param options - Optional submit configuration
        */
       async submit(options?: FormSubmitOptions): Promise<unknown> {
-        return component.submit(options)
+        return component.submit(options);
       },
 
       // ==========================================
@@ -212,48 +255,48 @@ export const withAPI = (config: FormConfig) => {
        * Reset form to initial/snapshot state
        */
       reset(): FormComponent {
-        component.reset()
-        return api
+        component.reset();
+        return api;
       },
 
       /**
        * Clear all form fields
        */
       clear(): FormComponent {
-        component.clear()
-        return api
+        component.clear();
+        return api;
       },
 
       /**
        * Enable all form fields
        */
       enable(): FormComponent {
-        component.enableFields()
-        return api
+        component.enableFields();
+        return api;
       },
 
       /**
        * Disable all form fields
        */
       disable(): FormComponent {
-        component.disableFields()
-        return api
+        component.disableFields();
+        return api;
       },
 
       /**
        * Enable control buttons (submit, cancel, etc.)
        */
       enableControls(): FormComponent {
-        component.enableControls()
-        return api
+        component.enableControls();
+        return api;
       },
 
       /**
        * Disable control buttons
        */
       disableControls(): FormComponent {
-        component.disableControls()
-        return api
+        component.disableControls();
+        return api;
       },
 
       // ==========================================
@@ -266,8 +309,8 @@ export const withAPI = (config: FormConfig) => {
        * @param handler - Event handler function
        */
       on(event: string, handler: Function): FormComponent {
-        component.on?.(event, handler)
-        return api
+        component.on?.(event, handler);
+        return api;
       },
 
       /**
@@ -276,8 +319,8 @@ export const withAPI = (config: FormConfig) => {
        * @param handler - Event handler function
        */
       off(event: string, handler: Function): FormComponent {
-        component.off?.(event, handler)
-        return api
+        component.off?.(event, handler);
+        return api;
       },
 
       /**
@@ -286,7 +329,7 @@ export const withAPI = (config: FormConfig) => {
        * @param data - Event data
        */
       emit(event: string, data?: unknown): void {
-        component.emit?.(event, data)
+        component.emit?.(event, data);
       },
 
       // ==========================================
@@ -299,35 +342,38 @@ export const withAPI = (config: FormConfig) => {
       destroy(): void {
         // Clear all field event listeners
         for (const [, field] of component.fields) {
-          if (typeof field.destroy === 'function') {
-            field.destroy()
+          if (typeof field.destroy === "function") {
+            field.destroy();
           }
         }
 
         // Clear control event listeners
         for (const [, control] of component.controls) {
-          if (typeof control.destroy === 'function') {
-            control.destroy()
+          if (typeof control.destroy === "function") {
+            control.destroy();
           }
         }
 
         // Call lifecycle destroy if available
         if (component.lifecycle?.destroy) {
-          component.lifecycle.destroy()
+          component.lifecycle.destroy();
         }
 
         // Remove form element from DOM
         if (component.element?.parentNode) {
-          component.element.parentNode.removeChild(component.element)
+          component.element.parentNode.removeChild(component.element);
         }
 
         // Emit destroy event
-        component.emit?.(FORM_EVENTS.RESET)
-      }
-    }
+        component.emit?.(FORM_EVENTS.RESET);
+      },
+    };
 
-    return api
-  }
-}
+    // Wire up control button click handlers
+    wireControlButtons(component.controls, api, config);
 
-export default withAPI
+    return api;
+  };
+};
+
+export default withAPI;

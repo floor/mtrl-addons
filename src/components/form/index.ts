@@ -6,20 +6,20 @@
  */
 
 // Main component factory
-export { createForm, default } from './form'
+export { createForm, default } from "./form";
 
 // Constants
 export {
-  FORM_MODES,
+  DATA_STATE,
   FORM_EVENTS,
   FORM_CLASSES,
   FORM_DEFAULTS,
-  FIELD_PREFIXES
-} from './constants'
+  FIELD_PREFIXES,
+} from "./constants";
 
 // Types
 export type {
-  FormMode,
+  DataState,
   FormEvent,
   FieldValue,
   FormData,
@@ -36,16 +36,16 @@ export type {
   FormState,
   FormAPI,
   FormComponent,
-  BaseFormComponent
-} from './types'
+  BaseFormComponent,
+  SubmitHandler,
+  CancelHandler,
+} from "./types";
 
 // Configuration utilities
 export {
   createBaseConfig,
   createInitialState,
   getElementConfig,
-  getModeClass,
-  getAllModeClasses,
   extractFieldName,
   getFieldPath,
   isFieldName,
@@ -53,8 +53,7 @@ export {
   isValueEqual,
   hasDataChanged,
   getModifiedFields,
-  normalizeValue
-} from './config'
+} from "./config";
 
 // Features (for advanced customization)
 export {
@@ -70,5 +69,5 @@ export {
   getNestedValue,
   setNestedValue,
   validateData,
-  performRequest
-} from './features'
+  performRequest,
+} from "./features";

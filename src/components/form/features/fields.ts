@@ -37,15 +37,21 @@ const isFormField = (obj: unknown): obj is FormField => {
 
 /**
  * Gets the value from a field component
- * Handles different field APIs (getValue, get, value property)
+ * Handles different field APIs (getValue, get, isChecked, value property)
  */
 export const getFieldValue = (field: FormField): FieldValue => {
+  const fieldAny = field as unknown as Record<string, unknown>;
+
+  // Check for switch/checkbox components first (they have isChecked method)
+  if (typeof fieldAny.isChecked === "function") {
+    return (fieldAny.isChecked as () => boolean)();
+  }
+
   if (typeof field.getValue === "function") {
     return field.getValue();
   }
 
   // Fallback: check for get method (old material API)
-  const fieldAny = field as unknown as Record<string, unknown>;
   if (typeof fieldAny.get === "function") {
     return (fieldAny.get as () => FieldValue)();
   }
@@ -60,20 +66,56 @@ export const getFieldValue = (field: FormField): FieldValue => {
 
 /**
  * Sets the value on a field component
- * Handles different field APIs (setValue, set)
+ * Handles different field APIs (setValue, set, check/uncheck)
  */
 export const setFieldValue = (
   field: FormField,
   value: FieldValue,
   silent: boolean = false,
 ): void => {
+  const fieldAny = field as unknown as Record<string, unknown>;
+
+  // Check for switch/checkbox components first (they have check/uncheck methods)
+  if (
+    typeof fieldAny.check === "function" &&
+    typeof fieldAny.uncheck === "function"
+  ) {
+    const shouldBeChecked = value === true || value === "true" || value === 1;
+
+    if (silent) {
+      // Set directly on the input to avoid triggering change events
+      const input = fieldAny.input as HTMLInputElement | undefined;
+      if (input) {
+        input.checked = shouldBeChecked;
+        // Update visual state by toggling the checked class
+        const element = fieldAny.element as HTMLElement | undefined;
+        if (element) {
+          // Find the component class prefix (e.g., 'mtrl-switch')
+          const classList = Array.from(element.classList);
+          const baseClass = classList.find(
+            (c) => c.startsWith("mtrl-") && !c.includes("--"),
+          );
+          if (baseClass) {
+            element.classList.toggle(`${baseClass}--checked`, shouldBeChecked);
+          }
+        }
+      }
+    } else {
+      if (shouldBeChecked) {
+        (fieldAny.check as () => void)();
+      } else {
+        (fieldAny.uncheck as () => void)();
+      }
+    }
+    return;
+  }
+
   if (typeof field.setValue === "function") {
     field.setValue(value);
     return;
   }
 
   // Fallback: check for set method (old material API)
-  const fieldAny = field as unknown as Record<string, unknown>;
   if (typeof fieldAny.set === "function") {
     (fieldAny.set as (value: FieldValue, silent?: boolean) => void)(
       value,
@@ -130,23 +172,10 @@ const bindFieldEvents = (
   fields: FormFieldRegistry,
   onFieldChange: (name: string, value: FieldValue) => void,
 ): void => {
-  console.log(
-    "[Form:fields] Binding events to fields:",
-    Array.from(fields.keys()),
-  );
-
   for (const [name, field] of fields) {
-    console.log(`[Form:fields] Field "${name}":`, {
-      hasOn: typeof field.on === "function",
-      hasElement: !!field.element,
-      fieldType: field.element?.tagName,
-      fieldClass: field.element?.className,
-    });
-
     if (typeof field.on === "function") {
       // Listen to 'input' for immediate feedback (textfields emit this on every keystroke)
       field.on("input", () => {
-        console.log(`[Form:fields] INPUT event from "${name}"`);
         const value = getFieldValue(field);
         onFieldChange(name, value);
       });
@@ -154,7 +183,6 @@ const bindFieldEvents = (
       // Also listen to 'change' for components that only emit on blur/selection
       // (e.g., select, chips, switch)
       field.on("change", () => {
-        console.log(`[Form:fields] CHANGE event from "${name}"`);
         const value = getFieldValue(field);
         onFieldChange(name, value);
       });

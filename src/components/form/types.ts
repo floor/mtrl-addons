@@ -1,63 +1,69 @@
 // src/components/form/types.ts
 
-import type { FORM_MODES, FORM_EVENTS } from './constants'
+import type { DATA_STATE, FORM_EVENTS } from "./constants";
 
 /**
- * Form mode type
+ * Data state type (pristine or dirty)
  */
-export type FormMode = typeof FORM_MODES[keyof typeof FORM_MODES]
+export type DataState = (typeof DATA_STATE)[keyof typeof DATA_STATE];
 
 /**
  * Form event type
  */
-export type FormEvent = typeof FORM_EVENTS[keyof typeof FORM_EVENTS]
+export type FormEvent = (typeof FORM_EVENTS)[keyof typeof FORM_EVENTS];
 
 /**
  * Field value types supported by the form
  */
-export type FieldValue = string | number | boolean | string[] | null | undefined
+export type FieldValue =
+  | string
+  | number
+  | boolean
+  | string[]
+  | null
+  | undefined;
 
 /**
  * Form data object - key-value pairs of field names and values
  */
-export type FormData = Record<string, FieldValue>
+export type FormData = Record<string, FieldValue>;
 
 /**
  * Form field interface - represents a form field component
  */
 export interface FormField {
   /** The field's DOM element */
-  element: HTMLElement
+  element: HTMLElement;
 
   /** Get the field's current value */
-  getValue?: () => FieldValue
+  getValue?: () => FieldValue;
 
   /** Set the field's value */
-  setValue?: (value: FieldValue) => void
+  setValue?: (value: FieldValue) => void;
 
   /** Enable the field */
-  enable?: () => void
+  enable?: () => void;
 
   /** Disable the field */
-  disable?: () => void
+  disable?: () => void;
 
   /** Check if field is disabled */
-  isDisabled?: () => boolean
+  isDisabled?: () => boolean;
 
   /** Add event listener */
-  on?: (event: string, handler: Function) => void
+  on?: (event: string, handler: Function) => void;
 
   /** Remove event listener */
-  off?: (event: string, handler: Function) => void
+  off?: (event: string, handler: Function) => void;
 
   /** Destroy the field */
-  destroy?: () => void
+  destroy?: () => void;
 }
 
 /**
  * Form field registry - maps field names to field components
  */
-export type FormFieldRegistry = Map<string, FormField>
+export type FormFieldRegistry = Map<string, FormField>;
 
 /**
  * Layout schema item - can be a component factory, string, or nested array
@@ -66,25 +72,25 @@ export type LayoutSchemaItem =
   | Function
   | string
   | Record<string, unknown>
-  | LayoutSchema
+  | LayoutSchema;
 
 /**
  * Layout schema - array-based layout definition
  */
-export type LayoutSchema = LayoutSchemaItem[]
+export type LayoutSchema = LayoutSchemaItem[];
 
 /**
  * Form section configuration
  */
 export interface FormSectionConfig {
   /** Section title */
-  title?: string
+  title?: string;
 
   /** Section CSS class */
-  class?: string
+  class?: string;
 
   /** Section layout schema */
-  layout?: LayoutSchema
+  layout?: LayoutSchema;
 }
 
 /**
@@ -92,13 +98,13 @@ export interface FormSectionConfig {
  */
 export interface FormValidationRule {
   /** Field name to validate */
-  field: string
+  field: string;
 
   /** Validation function - returns true if valid, string error message if invalid */
-  validate: (value: FieldValue, data: FormData) => boolean | string
+  validate: (value: FieldValue, data: FormData) => boolean | string;
 
   /** Error message if validation returns false */
-  message?: string
+  message?: string;
 }
 
 /**
@@ -106,10 +112,10 @@ export interface FormValidationRule {
  */
 export interface FormValidationResult {
   /** Whether the form is valid */
-  valid: boolean
+  valid: boolean;
 
   /** Validation errors by field name */
-  errors: Record<string, string>
+  errors: Record<string, string>;
 }
 
 /**
@@ -117,16 +123,16 @@ export interface FormValidationResult {
  */
 export interface FormSubmitOptions {
   /** HTTP method */
-  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
   /** Request headers */
-  headers?: Record<string, string>
+  headers?: Record<string, string>;
 
   /** Whether to validate before submit */
-  validate?: boolean
+  validate?: boolean;
 
   /** Custom submit handler - if provided, replaces default fetch */
-  handler?: (data: FormData, form: FormComponent) => Promise<unknown>
+  handler?: (data: FormData, form: FormComponent) => Promise<unknown>;
 }
 
 /**
@@ -134,104 +140,115 @@ export interface FormSubmitOptions {
  */
 export interface FormEventHandlers {
   /** Called when any field value changes */
-  change?: (data: FormData, fieldName: string) => void
+  change?: (data: FormData, fieldName: string) => void;
 
   /** Called when form is submitted */
-  submit?: (data: FormData) => void
+  submit?: (data: FormData) => void;
 
   /** Called when form submit succeeds */
-  'submit:success'?: (response: unknown) => void
+  "submit:success"?: (response: unknown) => void;
 
   /** Called when form submit fails */
-  'submit:error'?: (error: Error) => void
+  "submit:error"?: (error: Error) => void;
 
-  /** Called when form mode changes */
-  'mode:change'?: (mode: FormMode) => void
+  /** Called when data state changes (pristine <-> dirty) */
+  "state:change"?: (event: { modified: boolean; state: DataState }) => void;
 
   /** Called when form data is set */
-  'data:set'?: (data: FormData) => void
+  "data:set"?: (data: FormData) => void;
 
   /** Called when form is reset */
-  reset?: () => void
-
-  /** Called when form is cancelled */
-  cancel?: () => void
+  reset?: () => void;
 }
+
+/**
+ * Submit button handler - called when submit button is clicked
+ * Return a promise that resolves with the result or rejects with an error
+ */
+export type SubmitHandler = (
+  data: FormData,
+  form: FormComponent,
+) => Promise<unknown>;
+
+/**
+ * Cancel button handler - called when cancel button is clicked
+ */
+export type CancelHandler = (form: FormComponent) => void;
 
 /**
  * Form configuration
  */
 export interface FormConfig {
   /** Component prefix for class names */
-  prefix?: string
+  prefix?: string;
 
   /** Component name */
-  componentName?: string
+  componentName?: string;
 
   /** Additional CSS class for the form container */
-  class?: string
+  class?: string;
 
   /** Form action URL for submission */
-  action?: string
+  action?: string;
 
   /** HTTP method for form submission */
-  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
   /** Form autocomplete attribute */
-  autocomplete?: 'on' | 'off'
-
-  /** Initial form mode */
-  mode?: FormMode
+  autocomplete?: "on" | "off";
 
   /** Layout schema defining form structure */
-  layout?: LayoutSchema
+  layout?: LayoutSchema;
 
   /** System info fields (excluded from form data) */
-  sysinfo?: string[]
+  sysinfo?: string[];
 
-  /** Whether to track changes */
-  useChanges?: boolean
+  /** Whether to track changes and auto-enable/disable controls */
+  useChanges?: boolean;
 
-  /** Control button names */
-  controls?: string[] | null
+  /** Control button names (default: ['submit', 'cancel']) */
+  controls?: string[] | null;
+
+  /** Handler called when submit button is clicked */
+  onSubmit?: SubmitHandler;
+
+  /** Handler called when cancel button is clicked */
+  onCancel?: CancelHandler;
 
   /** Initial form data */
-  data?: FormData
+  data?: FormData;
 
   /** Validation rules */
-  validation?: FormValidationRule[]
+  validation?: FormValidationRule[];
 
   /** Event handlers */
-  on?: FormEventHandlers
+  on?: FormEventHandlers;
 
   /** Container element to append form to */
-  container?: HTMLElement
+  container?: HTMLElement;
 }
 
 /**
  * Form state
  */
 export interface FormState {
-  /** Current form mode */
-  mode: FormMode
-
-  /** Whether form has been modified */
-  modified: boolean
+  /** Whether form has been modified from initial data */
+  modified: boolean;
 
   /** Whether form is currently submitting */
-  submitting: boolean
+  submitting: boolean;
 
   /** Whether form is disabled */
-  disabled: boolean
+  disabled: boolean;
 
   /** Initial data snapshot for change detection */
-  initialData: FormData
+  initialData: FormData;
 
   /** Current form data */
-  currentData: FormData
+  currentData: FormData;
 
   /** Validation errors */
-  errors: Record<string, string>
+  errors: Record<string, string>;
 }
 
 /**
@@ -239,55 +256,56 @@ export interface FormState {
  */
 export interface FormAPI {
   /** Get all form data */
-  getData: () => FormData
+  getData: () => FormData;
 
   /** Set form data */
-  setData: (data: FormData, silent?: boolean) => FormComponent
+  setData: (data: FormData, silent?: boolean) => FormComponent;
 
   /** Get a specific field value */
-  getFieldValue: (name: string) => FieldValue
+  getFieldValue: (name: string) => FieldValue;
 
   /** Set a specific field value */
-  setFieldValue: (name: string, value: FieldValue, silent?: boolean) => FormComponent
+  setFieldValue: (
+    name: string,
+    value: FieldValue,
+    silent?: boolean,
+  ) => FormComponent;
 
   /** Get a field component by name */
-  getField: (name: string) => FormField | undefined
+  getField: (name: string) => FormField | undefined;
 
   /** Get all field names */
-  getFieldNames: () => string[]
+  getFieldNames: () => string[];
 
   /** Check if form has been modified */
-  isModified: () => boolean
+  isModified: () => boolean;
 
-  /** Get current form mode */
-  getMode: () => FormMode
-
-  /** Set form mode */
-  setMode: (mode: FormMode) => FormComponent
+  /** Get current data state (pristine or dirty) */
+  getDataState: () => DataState;
 
   /** Validate the form */
-  validate: () => FormValidationResult
+  validate: () => FormValidationResult;
 
   /** Submit the form */
-  submit: (options?: FormSubmitOptions) => Promise<unknown>
+  submit: (options?: FormSubmitOptions) => Promise<unknown>;
 
   /** Reset form to initial data */
-  reset: () => FormComponent
+  reset: () => FormComponent;
 
   /** Clear all form fields */
-  clear: () => FormComponent
+  clear: () => FormComponent;
 
   /** Enable all form fields */
-  enable: () => FormComponent
+  enable: () => FormComponent;
 
   /** Disable all form fields */
-  disable: () => FormComponent
+  disable: () => FormComponent;
 
   /** Enable control buttons */
-  enableControls: () => FormComponent
+  enableControls: () => FormComponent;
 
   /** Disable control buttons */
-  disableControls: () => FormComponent
+  disableControls: () => FormComponent;
 }
 
 /**
@@ -295,47 +313,49 @@ export interface FormAPI {
  */
 export interface FormComponent extends FormAPI {
   /** The form container element */
-  element: HTMLElement
+  element: HTMLElement;
 
   /** The form element */
-  form: HTMLFormElement
+  form: HTMLFormElement;
 
   /** Layout result with named components */
-  ui: Record<string, unknown>
+  ui: Record<string, unknown>;
 
   /** Field registry */
-  fields: FormFieldRegistry
+  fields: FormFieldRegistry;
 
   /** Current form state */
-  state: FormState
+  state: FormState;
 
   /** Add event listener */
-  on: (event: string, handler: Function) => FormComponent
+  on: (event: string, handler: Function) => FormComponent;
 
   /** Remove event listener */
-  off: (event: string, handler: Function) => FormComponent
+  off: (event: string, handler: Function) => FormComponent;
 
   /** Emit an event */
-  emit: (event: string, data?: unknown) => void
+  emit: (event: string, data?: unknown) => void;
 
   /** Destroy the form and clean up */
-  destroy: () => void
+  destroy: () => void;
 }
 
 /**
  * Internal component structure before API is applied
  */
 export interface BaseFormComponent {
-  element: HTMLElement
-  form?: HTMLFormElement
-  ui?: Record<string, unknown>
-  fields?: FormFieldRegistry
-  state?: FormState
-  config?: FormConfig
-  on?: (event: string, handler: Function) => void
-  off?: (event: string, handler: Function) => void
-  emit?: (event: string, data?: unknown) => void
+  element: HTMLElement;
+  form?: HTMLFormElement;
+  ui?: Record<string, unknown>;
+  fields?: FormFieldRegistry;
+  state?: FormState;
+  config?: FormConfig;
+  componentName?: string;
+  getClass?: (name: string) => string;
+  on?: (event: string, handler: Function) => void;
+  off?: (event: string, handler: Function) => void;
+  emit?: (event: string, data?: unknown) => void;
   lifecycle?: {
-    destroy: () => void
-  }
+    destroy: () => void;
+  };
 }

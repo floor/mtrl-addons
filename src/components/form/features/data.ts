@@ -17,10 +17,9 @@ import {
   createInitialState,
   hasDataChanged,
   getModifiedFields,
-  normalizeValue,
 } from "../config";
 import { getFieldValue, setFieldValue } from "./fields";
-import { FORM_EVENTS } from "../constants";
+import { FORM_EVENTS, DATA_STATE } from "../constants";
 
 /**
  * Collects current values from all fields
@@ -169,11 +168,12 @@ export const withData = (config: FormConfig) => {
           const wasModified = state.modified;
           state.modified = hasDataChanged(state.initialData, state.currentData);
 
-          // Emit modified:change event when modified state changes
+          // Emit state:change event when modified state changes
           // This allows the controller to enable/disable controls accordingly
           if (wasModified !== state.modified) {
-            component.emit?.(FORM_EVENTS.MODIFIED_CHANGE, {
+            component.emit?.(FORM_EVENTS.STATE_CHANGE, {
               modified: state.modified,
+              state: state.modified ? DATA_STATE.DIRTY : DATA_STATE.PRISTINE,
               name: event.name,
               value: event.value,
             });

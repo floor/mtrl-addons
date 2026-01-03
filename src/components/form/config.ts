@@ -1,7 +1,7 @@
 // src/components/form/config.ts
 
 import type { FormConfig, FormState, FormData } from "./types";
-import { FORM_DEFAULTS, FORM_MODES } from "./constants";
+import { FORM_DEFAULTS } from "./constants";
 
 // Re-export FORM_DEFAULTS for use in other modules
 export { FORM_DEFAULTS };
@@ -15,7 +15,6 @@ export const createBaseConfig = (config: FormConfig = {}): FormConfig => {
     ...config,
     prefix: config.prefix || FORM_DEFAULTS.prefix,
     componentName: config.componentName || FORM_DEFAULTS.componentName,
-    mode: config.mode || FORM_DEFAULTS.mode,
     controls:
       config.controls !== undefined
         ? config.controls
@@ -33,7 +32,6 @@ export const createInitialState = (config: FormConfig): FormState => {
   const initialData = config.data ? { ...config.data } : {};
 
   return {
-    mode: config.mode || FORM_MODES.READ,
     modified: false,
     submitting: false,
     disabled: false,
@@ -56,55 +54,12 @@ export const getElementConfig = (config: FormConfig) => {
     classNames.push(config.class);
   }
 
-  // Add initial mode class
-  const modeClass = getModeClass(
-    config.mode || FORM_MODES.READ,
-    prefix,
-    componentName,
-  );
-  if (modeClass) {
-    classNames.push(modeClass);
-  }
-
   return {
     tag: "div",
     className: classNames.join(" "),
     attributes: {
       "data-component": componentName,
     },
-  };
-};
-
-/**
- * Gets the CSS class for a form mode
- */
-export const getModeClass = (
-  mode: string,
-  prefix: string = FORM_DEFAULTS.prefix,
-  componentName: string = FORM_DEFAULTS.componentName,
-): string => {
-  return `${prefix}-${componentName}--${mode}`;
-};
-
-/**
- * Gets all mode classes for removal
- */
-export const getAllModeClasses = (
-  prefix: string = FORM_DEFAULTS.prefix,
-  componentName: string = FORM_DEFAULTS.componentName,
-): string[] => {
-  return Object.values(FORM_MODES).map((mode) =>
-    getModeClass(mode, prefix, componentName),
-  );
-};
-
-/**
- * Gets the API configuration based on the enhanced component
- */
-export const getApiConfig = (component: unknown) => {
-  return {
-    component,
-    // Additional API config can be added here
   };
 };
 
@@ -207,14 +162,4 @@ export const getModifiedFields = (
   }
 
   return modified;
-};
-
-/**
- * Normalizes a value for comparison (handles empty strings, null, undefined)
- */
-export const normalizeValue = (value: unknown): unknown => {
-  if (value === "" || value === null || value === undefined) {
-    return null;
-  }
-  return value;
 };

@@ -1,51 +1,52 @@
 // src/components/form/constants.ts
 
 /**
- * Form mode constants
+ * Data state constants
+ * Tracks whether form data has been modified from initial state
  */
-export const FORM_MODES = {
-  READ: "read",
-  CREATE: "create",
-  UPDATE: "update",
+export const DATA_STATE = {
+  /** Data matches initial state - no changes made */
+  PRISTINE: "pristine",
+  /** Data has been modified from initial state */
+  DIRTY: "dirty",
 } as const;
 
 /**
  * Form event constants
  */
 export const FORM_EVENTS = {
+  /** Fired when any field value changes */
   CHANGE: "change",
+  /** Fired when form is submitted */
   SUBMIT: "submit",
-  CANCEL: "cancel",
-  MODE_CHANGE: "mode:change",
-  MODIFIED_CHANGE: "modified:change",
+  /** Fired when data state changes (pristine <-> dirty) */
+  STATE_CHANGE: "state:change",
+  /** Fired when data is set on the form */
   DATA_SET: "data:set",
+  /** Fired when data is retrieved from the form */
   DATA_GET: "data:get",
+  /** Fired when a specific field changes */
   FIELD_CHANGE: "field:change",
+  /** Fired when validation fails */
   VALIDATION_ERROR: "validation:error",
+  /** Fired when submit succeeds */
   SUBMIT_SUCCESS: "submit:success",
+  /** Fired when submit fails */
   SUBMIT_ERROR: "submit:error",
-  RENDER: "render",
+  /** Fired when form is reset to initial state */
   RESET: "reset",
 } as const;
 
 /**
- * Form CSS classes
+ * Form CSS class modifiers
  */
 export const FORM_CLASSES = {
-  ROOT: "form",
-  FORM_ELEMENT: "form__element",
-  SECTION: "form__section",
-  SECTION_TITLE: "form__section-title",
-  GROUP: "form__group",
-  ROW: "form__row",
-  FIELD: "form__field",
-  CONTROLS: "form__controls",
-  READ_MODE: "form--read",
-  CREATE_MODE: "form--create",
-  UPDATE_MODE: "form--update",
-  MODIFIED: "form--modified",
-  SUBMITTING: "form--submitting",
-  DISABLED: "form--disabled",
+  /** Applied when data has been modified */
+  MODIFIED: "modified",
+  /** Applied when form is submitting */
+  SUBMITTING: "submitting",
+  /** Applied when form is disabled */
+  DISABLED: "disabled",
 } as const;
 
 /**
@@ -58,7 +59,6 @@ export const FORM_DEFAULTS = {
   formTag: "form",
   method: "POST",
   autocomplete: "off",
-  mode: FORM_MODES.READ,
   useChanges: true,
   controls: ["submit", "cancel"],
 } as const;
