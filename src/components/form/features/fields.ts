@@ -113,8 +113,10 @@ export const setFieldValue = (
           }
         }
       }
+      return;
     }
-    return;
+    // For components without input (like chips, select), fall through to setValue
+    // but still use silent mode behavior (no events triggered)
   }
 
   // Normal update: use component's setValue method
