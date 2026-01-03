@@ -1,0 +1,333 @@
+// src/components/form/features/api.ts
+
+/**
+ * API feature for Form component
+ * Provides a clean, unified public API for the form
+ */
+
+import type {
+  FormConfig,
+  BaseFormComponent,
+  FormComponent,
+  FormData,
+  FormMode,
+  FormState,
+  FormField,
+  FormFieldRegistry,
+  FormValidationResult,
+  FormSubmitOptions,
+  FieldValue
+} from '../types'
+import { FORM_EVENTS } from '../constants'
+
+/**
+ * Extended component interface before API is applied
+ */
+interface EnhancedFormComponent extends BaseFormComponent {
+  form: HTMLFormElement
+  ui: Record<string, unknown>
+  fields: FormFieldRegistry
+  files: FormFieldRegistry
+  state: FormState
+  controls: Map<string, FormField>
+
+  // Data methods
+  getData: () => FormData
+  setData: (data: FormData, silent?: boolean) => void
+  getFieldValue: (name: string) => FieldValue
+  setFieldValue: (name: string, value: FieldValue, silent?: boolean) => void
+  isModified: () => boolean
+  getModifiedData: () => FormData
+  snapshot: () => void
+  reset: () => void
+  clear: () => void
+
+  // Field methods
+  getField: (name: string) => FormField | undefined
+  getFieldNames: () => string[]
+  hasField: (name: string) => boolean
+
+  // Controller methods
+  getMode: () => FormMode
+  setMode: (mode: FormMode) => void
+  enableControls: () => void
+  disableControls: () => void
+  enableFields: () => void
+  disableFields: () => void
+
+  // Submit methods
+  validate: () => FormValidationResult
+  submit: (options?: FormSubmitOptions) => Promise<unknown>
+  setValidationRules: (rules: import('../types').FormValidationRule[]) => void
+  clearErrors: () => void
+  setFieldError: (field: string, error: string) => void
+  getFieldError: (field: string) => string | undefined
+
+  // Event methods
+  on?: (event: string, handler: Function) => void
+  off?: (event: string, handler: Function) => void
+  emit?: (event: string, data?: unknown) => void
+
+  // Lifecycle
+  lifecycle?: {
+    destroy: () => void
+  }
+}
+
+/**
+ * withAPI feature
+ * Creates a clean public API for the form component
+ */
+export const withAPI = (config: FormConfig) => {
+  return (component: EnhancedFormComponent): FormComponent => {
+    // Register event handlers from config
+    if (config.on && component.on) {
+      for (const [event, handler] of Object.entries(config.on)) {
+        if (typeof handler === 'function') {
+          component.on(event, handler)
+        }
+      }
+    }
+
+    // Create the public API
+    const api: FormComponent = {
+      // Core properties
+      element: component.element,
+      form: component.form,
+      ui: component.ui,
+      fields: component.fields,
+      state: component.state,
+
+      // ==========================================
+      // Data API
+      // ==========================================
+
+      /**
+       * Get all form data as a key-value object
+       */
+      getData(): FormData {
+        return component.getData()
+      },
+
+      /**
+       * Set form data from a key-value object
+       * @param data - Data to set
+       * @param silent - If true, don't emit change events
+       */
+      setData(data: FormData, silent?: boolean): FormComponent {
+        component.setData(data, silent)
+        return api
+      },
+
+      /**
+       * Get a specific field's value
+       * @param name - Field name
+       */
+      getFieldValue(name: string): FieldValue {
+        return component.getFieldValue(name)
+      },
+
+      /**
+       * Set a specific field's value
+       * @param name - Field name
+       * @param value - Value to set
+       * @param silent - If true, don't emit change events
+       */
+      setFieldValue(name: string, value: FieldValue, silent?: boolean): FormComponent {
+        component.setFieldValue(name, value, silent)
+        return api
+      },
+
+      /**
+       * Get a field component by name
+       * @param name - Field name
+       */
+      getField(name: string): FormField | undefined {
+        return component.getField(name)
+      },
+
+      /**
+       * Get all field names
+       */
+      getFieldNames(): string[] {
+        return component.getFieldNames()
+      },
+
+      /**
+       * Check if form has been modified from initial/snapshot state
+       */
+      isModified(): boolean {
+        return component.isModified()
+      },
+
+      // ==========================================
+      // Mode API
+      // ==========================================
+
+      /**
+       * Get the current form mode
+       */
+      getMode(): FormMode {
+        return component.getMode()
+      },
+
+      /**
+       * Set the form mode
+       * @param mode - Mode to set ('read', 'create', 'update')
+       */
+      setMode(mode: FormMode): FormComponent {
+        component.setMode(mode)
+        return api
+      },
+
+      // ==========================================
+      // Validation API
+      // ==========================================
+
+      /**
+       * Validate the form against configured rules
+       * @returns Validation result with valid flag and errors
+       */
+      validate(): FormValidationResult {
+        return component.validate()
+      },
+
+      // ==========================================
+      // Submit API
+      // ==========================================
+
+      /**
+       * Submit the form
+       * @param options - Optional submit configuration
+       */
+      async submit(options?: FormSubmitOptions): Promise<unknown> {
+        return component.submit(options)
+      },
+
+      // ==========================================
+      // State Management API
+      // ==========================================
+
+      /**
+       * Reset form to initial/snapshot state
+       */
+      reset(): FormComponent {
+        component.reset()
+        return api
+      },
+
+      /**
+       * Clear all form fields
+       */
+      clear(): FormComponent {
+        component.clear()
+        return api
+      },
+
+      /**
+       * Enable all form fields
+       */
+      enable(): FormComponent {
+        component.enableFields()
+        return api
+      },
+
+      /**
+       * Disable all form fields
+       */
+      disable(): FormComponent {
+        component.disableFields()
+        return api
+      },
+
+      /**
+       * Enable control buttons (submit, cancel, etc.)
+       */
+      enableControls(): FormComponent {
+        component.enableControls()
+        return api
+      },
+
+      /**
+       * Disable control buttons
+       */
+      disableControls(): FormComponent {
+        component.disableControls()
+        return api
+      },
+
+      // ==========================================
+      // Event API
+      // ==========================================
+
+      /**
+       * Add an event listener
+       * @param event - Event name
+       * @param handler - Event handler function
+       */
+      on(event: string, handler: Function): FormComponent {
+        component.on?.(event, handler)
+        return api
+      },
+
+      /**
+       * Remove an event listener
+       * @param event - Event name
+       * @param handler - Event handler function
+       */
+      off(event: string, handler: Function): FormComponent {
+        component.off?.(event, handler)
+        return api
+      },
+
+      /**
+       * Emit an event
+       * @param event - Event name
+       * @param data - Event data
+       */
+      emit(event: string, data?: unknown): void {
+        component.emit?.(event, data)
+      },
+
+      // ==========================================
+      // Lifecycle API
+      // ==========================================
+
+      /**
+       * Destroy the form and clean up resources
+       */
+      destroy(): void {
+        // Clear all field event listeners
+        for (const [, field] of component.fields) {
+          if (typeof field.destroy === 'function') {
+            field.destroy()
+          }
+        }
+
+        // Clear control event listeners
+        for (const [, control] of component.controls) {
+          if (typeof control.destroy === 'function') {
+            control.destroy()
+          }
+        }
+
+        // Call lifecycle destroy if available
+        if (component.lifecycle?.destroy) {
+          component.lifecycle.destroy()
+        }
+
+        // Remove form element from DOM
+        if (component.element?.parentNode) {
+          component.element.parentNode.removeChild(component.element)
+        }
+
+        // Emit destroy event
+        component.emit?.(FORM_EVENTS.RESET)
+      }
+    }
+
+    return api
+  }
+}
+
+export default withAPI
