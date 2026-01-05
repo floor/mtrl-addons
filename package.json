@@ -1,6 +1,6 @@
 {
   "name": "mtrl-addons",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Additional components and utilities for the mtrl system, featuring forms, specialized elements, and extended functionality for modern applications",
   "type": "module",
   "main": "./dist/index.js",
@@ -49,7 +49,7 @@
   "author": "floor",
   "license": "MIT",
   "peerDependencies": {
-    "mtrl": "^0.5.1"
+    "mtrl": "^0.5.4"
   },
   "devDependencies": {
     "@types/jsdom": "^21.1.7",
