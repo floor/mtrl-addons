@@ -76,6 +76,8 @@ export interface ViewportConfig {
     orientation?: "vertical" | "horizontal";
     animation?: boolean; // Smooth scrolling
     sensitivity?: number; // Scroll sensitivity
+    /** Stop scrolling when clicking on the viewport (default: true) */
+    stopOnClick?: boolean;
   };
 
   // Scrollbar configuration

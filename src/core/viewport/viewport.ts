@@ -195,6 +195,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
         orientation: config.scrolling?.orientation,
         sensitivity: config.scrolling?.sensitivity,
         smoothing: config.scrolling?.animation,
+        stopOnClick: config.scrolling?.stopOnClick,
       }),
     );
 

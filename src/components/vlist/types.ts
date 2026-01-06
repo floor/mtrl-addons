@@ -696,6 +696,8 @@ export interface VListConfig<T extends ListItem = ListItem> {
     orientation?: "vertical" | "horizontal";
     animation?: boolean;
     measureItems?: boolean;
+    /** Stop scrolling when clicking on the viewport (default: true) */
+    stopOnClick?: boolean;
   };
 
   // Performance settings

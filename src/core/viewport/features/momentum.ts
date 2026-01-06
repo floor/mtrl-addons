@@ -14,6 +14,8 @@ interface MomentumConfig {
   minVelocity?: number;
   minDuration?: number;
   minVelocityThreshold?: number;
+  /** Stop momentum when clicking on the viewport (default: true) */
+  stopOnClick?: boolean;
 }
 
 /**
@@ -27,6 +29,7 @@ export const withMomentum = (config: MomentumConfig = {}) => {
       minVelocity = VIEWPORT_CONSTANTS.MOMENTUM.MIN_VELOCITY,
       minDuration = VIEWPORT_CONSTANTS.MOMENTUM.MIN_DURATION,
       minVelocityThreshold = VIEWPORT_CONSTANTS.MOMENTUM.MIN_VELOCITY_THRESHOLD,
+      stopOnClick = true, // Stop momentum on click by default
     } = config;
 
     // Always apply the feature, but check isEnabled at runtime
@@ -55,6 +58,18 @@ export const withMomentum = (config: MomentumConfig = {}) => {
       viewportState = (component.viewport as any).state;
       scrollingState = (component.viewport as any).scrollingState;
       return result;
+    };
+
+    // Stop momentum animation (can be called externally)
+    const stopMomentum = () => {
+      if (momentumAnimationId) {
+        cancelAnimationFrame(momentumAnimationId);
+        momentumAnimationId = null;
+        // Reset velocity in scrolling feature
+        if (scrollingState) {
+          scrollingState.setVelocityToZero?.();
+        }
+      }
     };
 
     // Start momentum animation
@@ -151,6 +166,11 @@ export const withMomentum = (config: MomentumConfig = {}) => {
       }
     };
 
+    // Handle click to stop momentum (without preventing selection)
+    const handleClick = (_e: MouseEvent) => {
+      stopMomentum();
+    };
+
     // Mouse event handlers for desktop
     const handleMouseDown = (e: MouseEvent) => {
       isMouseDragging = true;
@@ -159,10 +179,7 @@ export const withMomentum = (config: MomentumConfig = {}) => {
       touchStartTime = Date.now();
 
       // Cancel any ongoing momentum
-      if (momentumAnimationId) {
-        cancelAnimationFrame(momentumAnimationId);
-        momentumAnimationId = null;
-      }
+      stopMomentum();
 
       // Prevent text selection
       e.preventDefault();
@@ -233,8 +250,14 @@ export const withMomentum = (config: MomentumConfig = {}) => {
         viewportElement.addEventListener("mouseup", handleMouseUp);
         viewportElement.addEventListener("mouseleave", handleMouseUp);
 
+        // Add click listener to stop momentum on click (without blocking selection)
+        if (stopOnClick) {
+          viewportElement.addEventListener("click", handleClick);
+        }
+
         // Store reference for cleanup
         (component as any)._momentumViewportElement = viewportElement;
+        (component as any)._momentumStopOnClick = stopOnClick;
       }
     };
 
@@ -252,17 +275,22 @@ export const withMomentum = (config: MomentumConfig = {}) => {
           viewportElement.removeEventListener("mousemove", handleMouseMove);
           viewportElement.removeEventListener("mouseup", handleMouseUp);
           viewportElement.removeEventListener("mouseleave", handleMouseUp);
+          if ((component as any)._momentumStopOnClick) {
+            viewportElement.removeEventListener("click", handleClick);
+          }
         }
 
         // Cancel momentum animation
-        if (momentumAnimationId) {
-          cancelAnimationFrame(momentumAnimationId);
-          momentumAnimationId = null;
-        }
+        stopMomentum();
 
         originalDestroy();
       };
     }
+
+    // Expose momentum state for other features
+    (component.viewport as any).momentumState = {
+      stopMomentum,
+    };
 
     return component;
   };

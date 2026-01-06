@@ -12,6 +12,8 @@ export interface ScrollingConfig {
   sensitivity?: number;
   smoothing?: boolean;
   idleTimeout?: number;
+  /** Stop scrolling when clicking on the viewport (default: true) */
+  stopOnClick?: boolean;
 }
 
 // Speed tracker interface
@@ -85,6 +87,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       sensitivity = VIEWPORT_CONSTANTS.VIRTUAL_SCROLL.SCROLL_SENSITIVITY,
       smoothing = false,
       idleTimeout = 100, // Default idle timeout in ms
+      stopOnClick = true, // Stop scrolling on click by default
     } = config;
 
     // State
@@ -98,6 +101,14 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     let idleCheckFrame: number | null = null;
     let lastIdleCheckPosition = 0;
     let hasEmittedIdle = false; // Track if we've already emitted idle
+    let anchorPosition: number | null = null; // Anchor position to maintain on click (for stopOnClick)
+    let anchorTime = 0; // Timestamp when anchor was set
+    let lastWheelTime = 0; // Timestamp of last wheel event (for detecting gaps)
+    let anchorInitialDelta = 0; // Initial wheel delta when anchor was set (to detect decay)
+    let anchorLastDelta = 0; // Previous wheel delta (to detect increasing delta = new scroll)
+    let anchorMinDelta = Infinity; // Minimum delta seen since anchor (to detect reacceleration)
+    let consecutiveIncreases = 0; // Count of consecutive delta increases (to detect sustained new scrolling)
+    let sustainedHighCount = 0; // Count of events where delta is significantly above minimum (sustained new scrolling)
 
     // console.log(`[Scrolling] Initial state - position: ${scrollPosition}`);
 
@@ -152,8 +163,14 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           passive: false,
         });
 
+        // Add mousedown listener to stop scrolling on click
+        if (stopOnClick) {
+          viewportElement.addEventListener("mousedown", handleMouseDown);
+        }
+
         // Store reference for cleanup
         (component as any)._scrollingViewportElement = viewportElement;
+        (component as any)._scrollingStopOnClick = stopOnClick;
       } else {
         console.warn(`[Scrolling] No viewport element found for wheel events`);
       }
@@ -203,8 +220,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
 
     // Set velocity to zero and emit idle event
     const setVelocityToZero = () => {
-      // console.log("[Scrolling] Setting velocity to zero and emitting idle");
-
       // Stop idle detection since we're now idle
       stopIdleDetection();
 
@@ -231,12 +246,129 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       // This is handled by the rendering feature
     };
 
+    // Handle mousedown to stop scrolling on click
+    const handleMouseDown = (_e: MouseEvent) => {
+      // Anchor the current scroll position - any wheel events will be forced back to this position
+      // This elegantly handles mouse wheels with physical inertia (like Logitech free-spin)
+      anchorPosition = scrollPosition;
+      anchorTime = Date.now();
+      anchorInitialDelta = 0; // Will be set by first wheel event
+      anchorLastDelta = 0;
+      anchorMinDelta = Infinity;
+      consecutiveIncreases = 0;
+      sustainedHighCount = 0;
+
+      // Only stop if we're currently scrolling
+      if (isScrolling || speedTracker.velocity > 0) {
+        setVelocityToZero();
+      }
+      // Also stop momentum animation if active
+      const momentumState = (component.viewport as any).momentumState;
+      if (momentumState?.stopMomentum) {
+        momentumState.stopMomentum();
+      }
+    };
+
     // Handle wheel event
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
 
       const delta = orientation === "vertical" ? event.deltaY : event.deltaX;
       const scrollDelta = delta * sensitivity;
+
+      const now = Date.now();
+      const timeSinceLastWheel = now - lastWheelTime;
+      lastWheelTime = now;
+
+      // If we have an anchor position (user clicked to stop scrolling),
+      // check if this is intentional new scrolling or residual wheel inertia
+      if (anchorPosition !== null) {
+        const timeSinceAnchor = now - anchorTime;
+        const wheelDeltaMagnitude = Math.abs(scrollDelta);
+
+        // Track initial delta to detect when inertia has decayed
+        if (anchorInitialDelta === 0) {
+          anchorInitialDelta = wheelDeltaMagnitude;
+          anchorLastDelta = wheelDeltaMagnitude;
+          anchorMinDelta = wheelDeltaMagnitude;
+        }
+
+        // Track minimum delta to detect reacceleration (user started scrolling again)
+        anchorMinDelta = Math.min(anchorMinDelta, wheelDeltaMagnitude);
+
+        // Detect if delta is increasing (user started new scroll)
+        // Inertia only decays, so increasing delta = intentional new scrolling
+        // BUT: filter out batched events where delta is ~2x the last (browser batching, not real increase)
+        const isBatchedEvent =
+          wheelDeltaMagnitude > anchorLastDelta * 1.8 &&
+          wheelDeltaMagnitude < anchorLastDelta * 2.2;
+
+        // Track consecutive increases - sustained increases indicate new scrolling
+        // Use 1% threshold to catch gradual acceleration
+        if (!isBatchedEvent && wheelDeltaMagnitude > anchorLastDelta * 1.01) {
+          consecutiveIncreases++;
+        } else if (wheelDeltaMagnitude < anchorLastDelta * 0.99) {
+          // Delta decreasing - reset counter
+          consecutiveIncreases = 0;
+        }
+        // If delta is roughly the same (within 1%), don't change the counter
+
+        // Track sustained high delta (delta significantly above minimum for multiple events)
+        // This catches when user starts scrolling but delta plateaus instead of strictly increasing
+        if (!isBatchedEvent && wheelDeltaMagnitude > anchorMinDelta * 1.05) {
+          sustainedHighCount++;
+        } else {
+          sustainedHighCount = 0;
+        }
+
+        // Release if: 3+ consecutive increases, OR sustained high delta, OR significant single increase
+        const sustainedIncrease = consecutiveIncreases >= 3;
+        const sustainedHigh = sustainedHighCount >= 5; // 5+ events at 5%+ above minimum
+        const significantIncrease =
+          !isBatchedEvent &&
+          wheelDeltaMagnitude > anchorMinDelta * 1.15 && // 15% increase from minimum
+          wheelDeltaMagnitude > anchorLastDelta * 1.08; // and 8% increasing from last
+        const deltaIncreasing =
+          sustainedIncrease || sustainedHigh || significantIncrease;
+
+        // Release anchor if:
+        // 1. There was a gap in wheel events (> 200ms) - user stopped and started new scroll
+        // 2. Delta is increasing from minimum - user started scrolling again during inertia
+        // 3. Delta has decayed significantly (< 30% of initial) - inertia is winding down
+        // 4. Low absolute delta (< 30) - gentle intentional scroll
+        const hasWheelGap = timeSinceLastWheel > 200;
+        const deltaDecayed = wheelDeltaMagnitude < anchorInitialDelta * 0.3;
+        const isLowDelta = wheelDeltaMagnitude < 30;
+
+        if (hasWheelGap) {
+          // Time gap - user stopped and started new scroll
+          anchorPosition = null;
+        } else if (deltaIncreasing && timeSinceAnchor > 100) {
+          // Delta increasing - user started scrolling again
+          anchorPosition = null;
+        } else if (isLowDelta) {
+          // Very low delta - gentle intentional scroll
+          anchorPosition = null;
+        } else if (deltaDecayed && timeSinceAnchor > 300) {
+          // Delta has decayed and some time passed - inertia is done
+          anchorPosition = null;
+        } else {
+          // Still in inertia phase - stay anchored
+          if (scrollPosition !== anchorPosition) {
+            scrollPosition = anchorPosition;
+            if (viewportState) {
+              viewportState.scrollPosition = scrollPosition;
+            }
+            component.viewport.renderItems();
+          }
+          // Update last delta for next comparison
+          anchorLastDelta = wheelDeltaMagnitude;
+          return;
+        }
+
+        // Update last delta for next comparison
+        anchorLastDelta = wheelDeltaMagnitude;
+      }
 
       const previousPosition = scrollPosition;
       const maxScroll = Math.max(0, totalVirtualSize - containerSize);
@@ -553,6 +685,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         const viewportElement = (component as any)._scrollingViewportElement;
         if (viewportElement) {
           viewportElement.removeEventListener("wheel", handleWheel);
+          if ((component as any)._scrollingStopOnClick) {
+            viewportElement.removeEventListener("mousedown", handleMouseDown);
+          }
         }
 
         // Clear timeouts
