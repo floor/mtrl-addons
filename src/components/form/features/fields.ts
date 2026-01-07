@@ -74,8 +74,13 @@ export const setFieldValue = (
 ): void => {
   const fieldAny = field as unknown as Record<string, unknown>;
 
-  if (silent) {
+  // Check if this is a select component (has textfield property)
+  // Select components must always use setValue to update internal state
+  const isSelectComponent = "textfield" in fieldAny && "menu" in fieldAny;
+
+  if (silent && !isSelectComponent) {
     // Silent update: set directly on input to avoid triggering change events
+    // Skip this for select components - they need setValue to update internal state
     const input = fieldAny.input as
       | HTMLInputElement
       | HTMLTextAreaElement
