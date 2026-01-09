@@ -718,6 +718,16 @@ export interface VListConfig<T extends ListItem = ListItem> {
     cancelLoadThreshold?: number;
   };
 
+  // Rendering configuration
+  rendering?: {
+    /**
+     * Maintain DOM order to match visual index order.
+     * Enables CSS selectors like :first-child, :nth-child() to work correctly.
+     * Default: true
+     */
+    maintainDomOrder?: boolean;
+  };
+
   // Selection configuration
   selection?: ListSelectionConfig;
 

@@ -248,6 +248,7 @@ export const createViewport = (config: ViewportConfig = {}) => {
       withRendering({
         template: config.template,
         overscan: config.virtual?.overscan,
+        maintainDomOrder: config.rendering?.maintainDomOrder,
       }),
     );
 

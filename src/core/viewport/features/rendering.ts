@@ -23,6 +23,12 @@ export interface RenderingConfig {
   measureItems?: boolean;
   enableRecycling?: boolean;
   maxPoolSize?: number;
+  /**
+   * Maintain DOM order to match visual index order.
+   * Enables CSS selectors like :first-child, :nth-child() to work correctly.
+   * Default: true
+   */
+  maintainDomOrder?: boolean;
 }
 
 interface ViewportState {
@@ -46,6 +52,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
       measureItems = false,
       enableRecycling = true,
       maxPoolSize = VIEWPORT_CONSTANTS.RENDERING.DEFAULT_MAX_POOL_SIZE,
+      maintainDomOrder = true,
     } = config;
 
     // State
@@ -919,6 +926,9 @@ export const withRendering = (config: RenderingConfig = {}) => {
         : component.items || [];
       const missingItems: number[] = [];
 
+      // Collect new elements to insert (index -> element)
+      const newElements: Array<[number, HTMLElement]> = [];
+
       // Render items in range
       for (let i = renderStart; i <= renderEnd; i++) {
         if (i < 0 || i >= totalItems || renderedElements.has(i)) continue;
@@ -962,8 +972,54 @@ export const withRendering = (config: RenderingConfig = {}) => {
             width: "100%",
           });
 
-          itemsContainer.appendChild(element);
+          // Collect for batch insertion (if maintaining order) or just append
+          if (maintainDomOrder) {
+            newElements.push([i, element]);
+          } else {
+            itemsContainer.appendChild(element);
+          }
           renderedElements.set(i, element);
+        }
+      }
+
+      // Batch insert new elements in correct DOM order (only when maintainDomOrder is enabled)
+      // This ensures CSS selectors like :first-child, :nth-child() work correctly
+      if (maintainDomOrder && newElements.length > 0) {
+        // Sort new elements by index
+        newElements.sort(([a], [b]) => a - b);
+
+        // Get existing DOM children sorted by their data-index
+        const existingChildren = Array.from(
+          itemsContainer.children,
+        ) as HTMLElement[];
+
+        // Merge new elements into correct positions
+        let newIdx = 0;
+        let existingIdx = 0;
+
+        while (newIdx < newElements.length) {
+          const [newIndex, newElement] = newElements[newIdx];
+
+          // Find the first existing child with index > newIndex
+          while (
+            existingIdx < existingChildren.length &&
+            parseInt(existingChildren[existingIdx].dataset.index || "-1", 10) <
+              newIndex
+          ) {
+            existingIdx++;
+          }
+
+          if (existingIdx < existingChildren.length) {
+            // Insert before the existing child
+            itemsContainer.insertBefore(
+              newElement,
+              existingChildren[existingIdx],
+            );
+          } else {
+            // Append at the end
+            itemsContainer.appendChild(newElement);
+          }
+          newIdx++;
         }
       }
 

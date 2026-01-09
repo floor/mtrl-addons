@@ -86,6 +86,16 @@ export interface ViewportConfig {
     autoHide?: boolean;
   };
 
+  // Rendering configuration
+  rendering?: {
+    /**
+     * Maintain DOM order to match visual index order.
+     * Enables CSS selectors like :first-child, :nth-child() to work correctly.
+     * Default: true
+     */
+    maintainDomOrder?: boolean;
+  };
+
   // Performance configuration
   performance?: {
     maxConcurrentRequests?: number;
