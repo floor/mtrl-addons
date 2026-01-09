@@ -49,6 +49,78 @@ export const withAPI = <T extends VListItem = VListItem>(
         component.emit?.("items:set", { items, total: items.length });
       },
 
+      /**
+       * Add items to the collection at the start or end
+       * Updates totalItems and triggers re-render of visible items
+       * @param newItems - Array of items to add
+       * @param position - Where to add items: "start" (default) or "end"
+       */
+      addItems(newItems: T[], position: "start" | "end" = "start"): void {
+        if (!newItems || newItems.length === 0) {
+          console.warn("[VList] addItems: no items provided");
+          return;
+        }
+
+        const collection = (component as any).collection;
+        const currentItems = this.getItems();
+
+        // Add items to the collection items array
+        if (collection?.items) {
+          if (position === "start") {
+            // Prepend items (newest first)
+            collection.items.unshift(...newItems);
+          } else {
+            // Append items
+            collection.items.push(...newItems);
+          }
+        }
+
+        // Emit event FIRST so rendering feature can rebuild collectionItems
+        // BEFORE setTotalItems triggers a render
+        component.emit?.("items:add-request", {
+          items: newItems,
+          position,
+          previousCount: currentItems.length,
+        });
+
+        // Update totalItems - this triggers viewport:total-items-changed which calls renderItems
+        const itemsAdded = newItems.length;
+        if (collection?.getTotalItems && collection?.setTotalItems) {
+          const currentTotal = collection.getTotalItems();
+          collection.setTotalItems(currentTotal + itemsAdded);
+        } else if (component.viewport?.collection?.setTotalItems) {
+          const currentTotal = component.viewport.collection.getTotalItems();
+          component.viewport.collection.setTotalItems(
+            currentTotal + itemsAdded,
+          );
+        } else {
+          if (component.totalItems !== undefined) {
+            component.totalItems = component.totalItems + itemsAdded;
+          }
+        }
+
+        // Emit completion event
+        component.emit?.("items:added", {
+          items: newItems,
+          position,
+          total: this.getItemCount(),
+        });
+      },
+
+      /**
+       * Add a single item to the collection at the start or end
+       * Convenience method that wraps addItems for single item use case
+       * @param item - Item to add
+       * @param position - Where to add item: "start" (default) or "end"
+       */
+      addItem(item: T, position: "start" | "end" = "start"): void {
+        if (!item) {
+          console.warn("[VList] addItem: no item provided");
+          return;
+        }
+        this.addItems([item], position);
+      },
+
       getItems(): T[] {
         // Collection is added directly to component, not to viewport.collection
         if ((component as any).collection?.getItems) {

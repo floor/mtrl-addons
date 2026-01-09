@@ -361,6 +361,91 @@ export const withRendering = (config: RenderingConfig = {}) => {
         isRemovingItem = false;
       });
 
+      // Listen for items add requests from API
+      component.on?.("items:add-request", (data: any) => {
+        const { items: newItems, position, previousCount } = data;
+
+        if (!newItems || newItems.length === 0) return;
+
+        // Get the source of truth - collection.items has already been modified by api.ts
+        const collectionItemsSource =
+          (component as any).collection?.items ||
+          (component as any).items ||
+          [];
+
+        const itemsAdded = newItems.length;
+
+        if (position === "start") {
+          // Items were prepended - shift all existing indices up
+          const keys = Object.keys(collectionItems)
+            .map(Number)
+            .filter((k) => !isNaN(k))
+            .sort((a, b) => b - a); // Sort descending to avoid overwrites
+
+          // Shift all existing indices up by the number of items added
+          for (const key of keys) {
+            const newIndex = key + itemsAdded;
+            collectionItems[newIndex] = collectionItems[key];
+            delete collectionItems[key];
+          }
+
+          // Add the new items at the start
+          for (let i = 0; i < itemsAdded; i++) {
+            collectionItems[i] = newItems[i];
+          }
+
+          // Shift rendered elements indices up
+          const renderedKeys = Array.from(renderedElements.keys()).sort(
+            (a, b) => b - a,
+          );
+          const newRenderedElements = new Map<number, HTMLElement>();
+          for (const key of renderedKeys) {
+            const element = renderedElements.get(key);
+            if (element) {
+              const newIndex = key + itemsAdded;
+              element.dataset.index = String(newIndex);
+              newRenderedElements.set(newIndex, element);
+            }
+          }
+          renderedElements.clear();
+          for (const [key, element] of newRenderedElements) {
+            renderedElements.set(key, element);
+          }
+        } else {
+          // Items were appended - just add them at the end
+          for (let i = 0; i < itemsAdded; i++) {
+            const index = previousCount + i;
+            collectionItems[index] = newItems[i];
+          }
+        }
+
+        // Update totalItems in viewportState
+        if (viewportState) {
+          viewportState.totalItems =
+            (viewportState.totalItems || 0) + itemsAdded;
+        }
+
+        // Reset visible range to force re-render
+        currentVisibleRange = { start: -1, end: -1 };
+
+        // Clear loadedRanges to ensure proper reload tracking
+        const collection = (component.viewport as any)?.collection;
+        if (collection?.getLoadedRanges) {
+          const loadedRanges = collection.getLoadedRanges();
+          loadedRanges.clear();
+        }
+
+        // Trigger re-render
+        renderItems();
+
+        // Emit completion event
+        component.emit?.("items:render-complete", {
+          items: newItems,
+          position,
+          total: viewportState?.totalItems || 0,
+        });
+      });
+
       // Listen for collection items evicted - clean up our cache too
       component.on?.("collection:items-evicted", (data: any) => {
         const { keepStart, keepEnd, evictedCount } = data;

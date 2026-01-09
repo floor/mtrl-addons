@@ -367,6 +367,14 @@ export interface ListAPI<T extends ListItem = ListItem> {
   /** Add items */
   addItems(items: T[], position?: "start" | "end"): void;
 
+  /**
+   * Add a single item to the collection
+   * Convenience method that wraps addItems for single item use case
+   * @param item - Item to add
+   * @param position - Where to add item: "start" (default) or "end"
+   */
+  addItem(item: T, position?: "start" | "end"): void;
+
   /** Remove items by indices */
   removeItems(indices: number[]): void;
 
