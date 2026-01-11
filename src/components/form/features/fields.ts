@@ -286,6 +286,12 @@ export const withFields = (config: FormConfig) => {
         component.emit?.("field:change", { name, value });
         component.emit?.("change", { name, value });
       });
+
+      // Also bind change events to file fields
+      bindFieldEvents(files, (name, value) => {
+        component.emit?.("file:change", { name, value });
+        component.emit?.("change", { name, value });
+      });
     }
 
     return {

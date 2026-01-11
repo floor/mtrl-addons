@@ -159,27 +159,29 @@ export const withData = (config: FormConfig) => {
       state.initialData = { ...state.currentData };
     }
 
+    // Handler for field/file changes to update state
+    const handleChange = (event: { name: string; value: FieldValue }) => {
+      state.currentData[event.name] = event.value;
+      const wasModified = state.modified;
+      state.modified = hasDataChanged(state.initialData, state.currentData);
+
+      // Emit state:change event when modified state changes
+      // This allows the controller to enable/disable controls accordingly
+      if (wasModified !== state.modified) {
+        component.emit?.(FORM_EVENTS.STATE_CHANGE, {
+          modified: state.modified,
+          state: state.modified ? DATA_STATE.DIRTY : DATA_STATE.PRISTINE,
+          name: event.name,
+          value: event.value,
+        });
+      }
+    };
+
     // Listen for field changes to update state
     if (component.on) {
-      component.on(
-        "field:change",
-        (event: { name: string; value: FieldValue }) => {
-          state.currentData[event.name] = event.value;
-          const wasModified = state.modified;
-          state.modified = hasDataChanged(state.initialData, state.currentData);
-
-          // Emit state:change event when modified state changes
-          // This allows the controller to enable/disable controls accordingly
-          if (wasModified !== state.modified) {
-            component.emit?.(FORM_EVENTS.STATE_CHANGE, {
-              modified: state.modified,
-              state: state.modified ? DATA_STATE.DIRTY : DATA_STATE.PRISTINE,
-              name: event.name,
-              value: event.value,
-            });
-          }
-        },
-      );
+      component.on("field:change", handleChange);
+      // Also listen for file changes
+      component.on("file:change", handleChange);
     }
 
     const enhanced = {
