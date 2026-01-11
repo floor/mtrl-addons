@@ -78,6 +78,17 @@ export interface ViewportConfig {
     sensitivity?: number; // Scroll sensitivity
     /** Stop scrolling when clicking on the viewport (default: true) */
     stopOnClick?: boolean;
+    /** Momentum configuration for touch/drag scrolling */
+    momentum?: {
+      /** How quickly velocity decreases per frame (0-1, higher = longer coast, default: 0.95) */
+      deceleration?: number;
+      /** Minimum velocity before stopping in px/ms (default: 0.1) */
+      minVelocity?: number;
+      /** Maximum gesture duration in ms to trigger momentum (default: 1000) */
+      maxDuration?: number;
+      /** Minimum velocity in px/ms to trigger momentum (default: 0.3) */
+      velocityThreshold?: number;
+    };
   };
 
   // Scrollbar configuration

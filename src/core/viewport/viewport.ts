@@ -205,6 +205,10 @@ export const createViewport = (config: ViewportConfig = {}) => {
       withMomentum({
         enabled: true,
         stopOnClick: config.scrolling?.stopOnClick,
+        deceleration: config.scrolling?.momentum?.deceleration,
+        minVelocity: config.scrolling?.momentum?.minVelocity,
+        minDuration: config.scrolling?.momentum?.maxDuration,
+        minVelocityThreshold: config.scrolling?.momentum?.velocityThreshold,
       }),
     );
 

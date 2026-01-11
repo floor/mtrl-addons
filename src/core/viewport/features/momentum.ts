@@ -141,7 +141,7 @@ export const withMomentum = (config: MomentumConfig = {}) => {
       const delta = lastTouchPosition - currentPosition; // Inverted for natural scrolling
       lastTouchPosition = currentPosition;
 
-      // Use scrolling feature's API
+      // Use scrolling feature's API (1:1 touch-to-scroll for natural feel)
       if (component.viewport.scrollBy) {
         component.viewport.scrollBy(delta);
       }
@@ -194,7 +194,7 @@ export const withMomentum = (config: MomentumConfig = {}) => {
       const delta = lastMousePosition - currentPosition;
       lastMousePosition = currentPosition;
 
-      // Use scrolling feature's API
+      // Use scrolling feature's API (1:1 drag-to-scroll for natural feel)
       if (component.viewport.scrollBy) {
         component.viewport.scrollBy(delta);
       }

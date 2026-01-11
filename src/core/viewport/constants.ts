@@ -68,10 +68,10 @@ export const VIEWPORT_CONSTANTS = {
   // Momentum settings
   MOMENTUM: {
     ENABLED: false, // Enable momentum by default
-    DECELERATION_FACTOR: 0.85, // How quickly velocity decreases per frame
+    DECELERATION_FACTOR: 0.95, // How quickly velocity decreases per frame (higher = longer coast)
     MIN_VELOCITY: 0.1, // Minimum velocity before stopping (px/ms)
-    MIN_DURATION: 300, // Maximum gesture duration to trigger momentum (ms)
-    MIN_VELOCITY_THRESHOLD: 0.5, // Minimum velocity to trigger momentum (px/ms)
+    MIN_DURATION: 750, // Maximum gesture duration to trigger momentum (ms)
+    MIN_VELOCITY_THRESHOLD: 0.4, // Minimum velocity to trigger momentum (px/ms)
     FRAME_TIME: 16, // Assumed frame time for calculations (ms)
   },
 
