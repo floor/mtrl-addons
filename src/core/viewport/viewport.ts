@@ -13,6 +13,7 @@ import { pipe } from "mtrl";
 import { withBase } from "./features/base";
 import { withVirtual } from "./features/virtual";
 import { withScrolling } from "./features/scrolling";
+import { withMomentum } from "./features/momentum";
 import { withScrollbar } from "./features/scrollbar";
 import { withCollection } from "./features/collection";
 import { withPlaceholders } from "./features/placeholders";
@@ -195,6 +196,14 @@ export const createViewport = (config: ViewportConfig = {}) => {
         orientation: config.scrolling?.orientation,
         sensitivity: config.scrolling?.sensitivity,
         smoothing: config.scrolling?.animation,
+        stopOnClick: config.scrolling?.stopOnClick,
+      }),
+    );
+
+    // Momentum scrolling (touch/drag support for mobile)
+    enhancers.push(
+      withMomentum({
+        enabled: true,
         stopOnClick: config.scrolling?.stopOnClick,
       }),
     );

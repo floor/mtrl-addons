@@ -50,7 +50,8 @@ const updateSpeedTracker = (
   if (timeDelta === 0) return tracker;
 
   const positionDelta = newPosition - previousPosition;
-  const instantVelocity = Math.abs(positionDelta) / timeDelta;
+  // Keep velocity signed (positive = forward/down, negative = backward/up)
+  const instantVelocity = positionDelta / timeDelta;
 
   // Add new sample
   const samples = [...tracker.samples, { position: newPosition, time: now }];
@@ -58,11 +59,11 @@ const updateSpeedTracker = (
   // Keep only recent samples (last 100ms)
   const recentSamples = samples.filter((s) => now - s.time < 100);
 
-  // Calculate average velocity from recent samples
+  // Calculate average velocity from recent samples (preserving sign/direction)
   let avgVelocity = instantVelocity;
   if (recentSamples.length > 1) {
     const oldestSample = recentSamples[0];
-    const totalDistance = Math.abs(newPosition - oldestSample.position);
+    const totalDistance = newPosition - oldestSample.position; // Signed distance
     const totalTime = now - oldestSample.time;
     avgVelocity = totalTime > 0 ? totalDistance / totalTime : instantVelocity;
   }
