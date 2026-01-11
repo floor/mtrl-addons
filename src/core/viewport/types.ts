@@ -106,6 +106,14 @@ export interface ViewportConfig {
     renderDebounce?: number;
   };
 
+  // Cache configuration
+  cache?: {
+    /** Maximum items to keep in memory (default: 1000) */
+    maxItems?: number;
+    /** Extra items to keep around visible range during eviction (default: 150) */
+    evictionBuffer?: number;
+  };
+
   // Placeholder configuration
   placeholders?: {
     enabled?: boolean;

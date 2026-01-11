@@ -237,6 +237,8 @@ export const createViewport = (config: ViewportConfig = {}) => {
           selectId: (config as any).selectId,
           autoLoad: (config as any).autoLoad !== false,
           autoSelectFirst: (config as any).autoSelectFirst,
+          maxCachedItems: config.cache?.maxItems,
+          evictionBuffer: config.cache?.evictionBuffer,
         }),
       );
     }

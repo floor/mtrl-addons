@@ -23,6 +23,10 @@ export interface CollectionConfig {
   selectId?: string | number; // ID of item to select after initial load completes
   autoLoad?: boolean; // Whether to automatically load data on initialization (default: true)
   autoSelectFirst?: boolean; // Automatically select first item after initial load (default: false)
+  /** Maximum items to keep in memory (default: 1000) */
+  maxCachedItems?: number;
+  /** Extra items to keep around visible range during eviction (default: 150) */
+  evictionBuffer?: number;
 }
 
 export interface CollectionComponent {
@@ -66,6 +70,8 @@ export function withCollection(config: CollectionConfig = {}) {
       selectId, // ID of item to select after initial load
       autoLoad = true, // Auto-load initial data by default
       autoSelectFirst = false, // Automatically select first item after initial load
+      maxCachedItems = 1000, // Maximum items to keep in memory
+      evictionBuffer = 150, // Extra items to keep around visible range
     } = config;
 
     // Track if we've completed the initial load for initialScrollIndex
@@ -96,9 +102,9 @@ export function withCollection(config: CollectionConfig = {}) {
     let cancelledLoads = 0;
     let isDragging = false; // Track drag state
 
-    // Cache eviction configuration
-    const MAX_CACHED_ITEMS = 500; // Maximum items to keep in memory
-    const EVICTION_BUFFER = 100; // Extra items to keep around visible range
+    // Cache eviction configuration (from config)
+    const MAX_CACHED_ITEMS = maxCachedItems;
+    const EVICTION_BUFFER = evictionBuffer;
 
     // Memory diagnostics
     const logMemoryStats = (caller: string) => {
@@ -124,27 +130,23 @@ export function withCollection(config: CollectionConfig = {}) {
       const keepEnd = visibleEnd + EVICTION_BUFFER;
 
       let evictedCount = 0;
-      const rangesToRemove: number[] = [];
+      const rangesToRemove = new Set<number>();
 
-      // Find items to evict
+      // Find items to evict and track which ranges are affected
       for (let i = 0; i < items.length; i++) {
         if (items[i] !== undefined && (i < keepStart || i > keepEnd)) {
           delete items[i];
           evictedCount++;
+          // Mark the range containing this item for removal from loadedRanges
+          // This ensures the range will be reloaded when scrolling back
+          const affectedRangeId = Math.floor(i / rangeSize);
+          rangesToRemove.add(affectedRangeId);
         }
       }
 
-      // Update loadedRanges to reflect evicted data
-      loadedRanges.forEach((rangeId) => {
-        const rangeStart = rangeId * rangeSize;
-        const rangeEnd = rangeStart + rangeSize - 1;
-
-        // If this range is completely outside the keep window, remove it
-        if (rangeEnd < keepStart || rangeStart > keepEnd) {
-          rangesToRemove.push(rangeId);
-        }
-      });
-
+      // Remove all ranges that had any items evicted
+      // This is critical: even if only part of a range was evicted,
+      // we must remove it from loadedRanges so it gets reloaded
       rangesToRemove.forEach((rangeId) => {
         loadedRanges.delete(rangeId);
       });
