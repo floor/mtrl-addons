@@ -69,13 +69,38 @@ $opacity-transition: opacity $transition-duration $transition-easing;
     min-height: 100px;
     background-color: t.color("surface");
     border: 2px solid var(--mtrl-sys-color-outline-variant);
-    border-radius: 3px;
+    // border-radius: 3px;
     transition: $bg-transition;
 
     // Performance optimizations
     contain: layout style paint;
     transform: translateZ(0);
     backface-visibility: hidden;
+
+    // Scroll indicator shadow (visible when scrolled)
+    &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(
+            to bottom,
+            t.alpha("shadow", 0.2) 0%,
+            transparent 100%
+        );
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+        z-index: 5;
+        border-radius: 0;
+    }
+
+    // Scrolled state - show top shadow indicator
+    &--scrolled::before {
+        opacity: 1;
+    }
 
     // Selection mode
     &--selection {

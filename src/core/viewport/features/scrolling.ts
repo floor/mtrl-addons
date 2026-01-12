@@ -96,6 +96,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     let totalVirtualSize = 0;
     let containerSize = 0;
     let isScrolling = false;
+    let isScrolledFromTop = false; // Track if scrolled away from top
     let lastScrollTime = 0;
     let speedTracker = createSpeedTracker();
     let idleTimeoutId: number | null = null;
@@ -112,6 +113,31 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     let sustainedHighCount = 0; // Count of events where delta is significantly above minimum (sustained new scrolling)
 
     // console.log(`[Scrolling] Initial state - position: ${scrollPosition}`);
+
+    // Threshold for considering the list "scrolled" (in pixels)
+    const SCROLLED_THRESHOLD = 1;
+
+    /**
+     * Updates the scrolled state class on the vlist container
+     * Adds --scrolled modifier when list is not at the top
+     */
+    const updateScrolledState = (
+      viewportElement: HTMLElement,
+      position: number,
+    ) => {
+      const shouldBeScrolled = position > SCROLLED_THRESHOLD;
+      if (shouldBeScrolled !== isScrolledFromTop) {
+        isScrolledFromTop = shouldBeScrolled;
+        // Find the vlist container (parent of viewport)
+        const vlistContainer = viewportElement.closest(".mtrl-vlist");
+        if (vlistContainer) {
+          vlistContainer.classList.toggle(
+            "mtrl-vlist--scrolled",
+            shouldBeScrolled,
+          );
+        }
+      }
+    };
 
     // Get viewport state
     let viewportState: any;
@@ -163,6 +189,9 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         viewportElement.addEventListener("wheel", handleWheel, {
           passive: false,
         });
+
+        // Initialize scrolled state based on current scroll position
+        updateScrolledState(viewportElement, scrollPosition);
 
         // Add mousedown listener to stop scrolling on click
         if (stopOnClick) {
@@ -411,6 +440,13 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           viewportState.scrollDirection = speedTracker.direction;
         }
 
+        // Update scrolled state class
+        const viewportEl =
+          viewportState?.viewportElement || (component as any).viewportElement;
+        if (viewportEl) {
+          updateScrolledState(viewportEl, scrollPosition);
+        }
+
         // Emit events
         component.emit?.("viewport:scroll", {
           position: scrollPosition,
@@ -460,11 +496,18 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         const direction =
           clampedPosition > previousPosition ? "forward" : "backward";
 
+        // Update scrolled state class
+        const viewportEl =
+          viewportState?.viewportElement || (component as any).viewportElement;
+        if (viewportEl) {
+          updateScrolledState(viewportEl, scrollPosition);
+        }
+
+        // Emit scroll event
         component.emit?.("viewport:scroll", {
           position: scrollPosition,
           direction,
           previousPosition,
-          source,
         });
 
         // Emit velocity change event so collection can track it
@@ -721,6 +764,13 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         if (viewportState) {
           viewportState.scrollPosition = scrollPosition;
           viewportState.velocity = speedTracker.velocity;
+        }
+
+        // Update scrolled state class
+        const viewportEl =
+          viewportState?.viewportElement || (component as any).viewportElement;
+        if (viewportEl) {
+          updateScrolledState(viewportEl, scrollPosition);
         }
 
         // Emit scroll event

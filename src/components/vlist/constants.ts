@@ -20,4 +20,6 @@ export const VLIST_CLASSES = {
   SELECTED: "viewport-item--selected",
   /** Empty state */
   EMPTY: "vlist--empty",
+  /** Scrolled state - list is not at the top */
+  SCROLLED: "vlist--scrolled",
 } as const;
