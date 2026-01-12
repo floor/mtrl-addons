@@ -111,7 +111,15 @@ const performRequest = async (
 
   // Check for HTTP errors
   if (!response.ok) {
-    const error = new Error(`HTTP ${response.status}: ${response.statusText}`);
+    // Try to extract error message from server response
+    let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+    if (result && typeof result === "object") {
+      const serverError = (result as Record<string, unknown>).error;
+      if (typeof serverError === "string") {
+        errorMessage = serverError;
+      }
+    }
+    const error = new Error(errorMessage);
     (error as Error & { response: unknown }).response = result;
     throw error;
   }
