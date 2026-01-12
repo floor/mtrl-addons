@@ -84,7 +84,7 @@ $opacity-transition: opacity $transition-duration $transition-easing;
         top: 0;
         left: 0;
         right: 0;
-        height: 3px;
+        height: 2px;
         background: linear-gradient(
             to bottom,
             t.alpha("shadow", 0.2) 0%,

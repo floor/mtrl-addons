@@ -605,3 +605,343 @@ describe("Event Deduplication", () => {
     expect(emittedCount.count).toBe(1);
   });
 });
+
+describe("Form Validation", () => {
+  it("should validate and show errors on fields", async () => {
+    const { withFields, resetFieldValueTracker } = await import(
+      "../src/components/form/features/fields"
+    );
+    const { withSubmit } = await import(
+      "../src/components/form/features/submit"
+    );
+
+    // Reset tracker for clean state
+    resetFieldValueTracker();
+
+    let fieldErrorState: { error: boolean; message?: string } | null = null;
+
+    // Mock textfield with setError
+    const mockTextfield = {
+      element: document.createElement("input"),
+      _value: "",
+      getValue() {
+        return this._value;
+      },
+      setValue(value: string) {
+        this._value = value;
+      },
+      setError(error: boolean, message?: string) {
+        fieldErrorState = { error, message };
+      },
+      on() {},
+    };
+
+    const mockComponent = {
+      element: document.createElement("div"),
+      ui: { "info.email": mockTextfield },
+      state: {
+        modified: false,
+        submitting: false,
+        disabled: false,
+        initialData: {},
+        currentData: {},
+        errors: {},
+      },
+      emit() {},
+      on() {},
+      getData() {
+        return { email: mockTextfield._value };
+      },
+      getModifiedData() {
+        return { email: mockTextfield._value };
+      },
+      disableControls() {},
+      snapshot() {},
+    };
+
+    // Apply features
+    const withFieldsApplied = withFields({})(mockComponent as any);
+    const form = withSubmit({
+      validation: [
+        {
+          field: "email",
+          validate: (value) => typeof value === "string" && value.includes("@"),
+          message: "Invalid email",
+        },
+      ],
+    })(withFieldsApplied as any);
+
+    // Validate with empty email - should fail
+    const result = form.validate();
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.email).toBe("Invalid email");
+    expect(fieldErrorState?.error).toBe(true);
+    expect(fieldErrorState?.message).toBe("Invalid email");
+
+    // Set valid email and validate again
+    mockTextfield._value = "test@example.com";
+    const result2 = form.validate();
+
+    expect(result2.valid).toBe(true);
+    expect(result2.errors.email).toBeUndefined();
+    expect(fieldErrorState?.error).toBe(false);
+  });
+
+  it("should clear field error when value becomes valid", async () => {
+    const { withFields, resetFieldValueTracker } = await import(
+      "../src/components/form/features/fields"
+    );
+    const { withSubmit } = await import(
+      "../src/components/form/features/submit"
+    );
+
+    // Reset tracker for clean state
+    resetFieldValueTracker();
+
+    let fieldErrorState: { error: boolean; message?: string } | null = null;
+    const changeHandlers: Function[] = [];
+
+    // Mock textfield with setError
+    const mockTextfield = {
+      element: document.createElement("input"),
+      _value: "",
+      getValue() {
+        return this._value;
+      },
+      setValue(value: string) {
+        this._value = value;
+      },
+      setError(error: boolean, message?: string) {
+        fieldErrorState = { error, message };
+      },
+      on(event: string, handler: Function) {
+        if (event === "change" || event === "input") {
+          changeHandlers.push(handler);
+        }
+      },
+    };
+
+    let lastFieldChangeEvent: any = null;
+
+    const mockComponent = {
+      element: document.createElement("div"),
+      ui: { "info.email": mockTextfield },
+      state: {
+        modified: false,
+        submitting: false,
+        disabled: false,
+        initialData: {},
+        currentData: {},
+        errors: {},
+      },
+      emit() {},
+      on(event: string, handler: Function) {
+        if (event === "field:change") {
+          // Store the handler to call it later
+          (mockComponent as any)._fieldChangeHandler = handler;
+        }
+      },
+      getData() {
+        return { email: mockTextfield._value };
+      },
+      getModifiedData() {
+        return { email: mockTextfield._value };
+      },
+      disableControls() {},
+      snapshot() {},
+    };
+
+    // Apply features
+    const withFieldsApplied = withFields({})(mockComponent as any);
+    const form = withSubmit({
+      validation: [
+        {
+          field: "email",
+          validate: (value) => typeof value === "string" && value.includes("@"),
+          message: "Invalid email",
+        },
+      ],
+    })(withFieldsApplied as any);
+
+    // First validate with empty email - should fail and show error
+    form.validate();
+    expect(fieldErrorState?.error).toBe(true);
+    expect(form.state.errors.email).toBe("Invalid email");
+
+    // Simulate user typing valid email
+    mockTextfield._value = "valid@email.com";
+
+    // Trigger field change event (simulates what withFields does)
+    const fieldChangeHandler = (mockComponent as any)._fieldChangeHandler;
+    if (fieldChangeHandler) {
+      fieldChangeHandler({ name: "email", value: "valid@email.com" });
+    }
+
+    // Error should be cleared
+    expect(fieldErrorState?.error).toBe(false);
+    expect(form.state.errors.email).toBeUndefined();
+  });
+
+  it("should validate single field", async () => {
+    const { withFields, resetFieldValueTracker } = await import(
+      "../src/components/form/features/fields"
+    );
+    const { withSubmit } = await import(
+      "../src/components/form/features/submit"
+    );
+
+    // Reset tracker for clean state
+    resetFieldValueTracker();
+
+    let usernameError: { error: boolean; message?: string } | null = null;
+    let emailError: { error: boolean; message?: string } | null = null;
+
+    const mockUsername = {
+      element: document.createElement("input"),
+      _value: "",
+      getValue() {
+        return this._value;
+      },
+      setError(error: boolean, message?: string) {
+        usernameError = { error, message };
+      },
+      on() {},
+    };
+
+    const mockEmail = {
+      element: document.createElement("input"),
+      _value: "",
+      getValue() {
+        return this._value;
+      },
+      setError(error: boolean, message?: string) {
+        emailError = { error, message };
+      },
+      on() {},
+    };
+
+    const mockComponent = {
+      element: document.createElement("div"),
+      ui: { "info.username": mockUsername, "info.email": mockEmail },
+      state: {
+        modified: false,
+        submitting: false,
+        disabled: false,
+        initialData: {},
+        currentData: {},
+        errors: {},
+      },
+      emit() {},
+      on() {},
+      getData() {
+        return { username: mockUsername._value, email: mockEmail._value };
+      },
+      getModifiedData() {
+        return { username: mockUsername._value, email: mockEmail._value };
+      },
+      disableControls() {},
+      snapshot() {},
+    };
+
+    const withFieldsApplied = withFields({})(mockComponent as any);
+    const form = withSubmit({
+      validation: [
+        {
+          field: "username",
+          validate: (value) => typeof value === "string" && value.length >= 3,
+          message: "Username must be at least 3 characters",
+        },
+        {
+          field: "email",
+          validate: (value) => typeof value === "string" && value.includes("@"),
+          message: "Invalid email",
+        },
+      ],
+    })(withFieldsApplied as any);
+
+    // Validate only username field
+    const error = form.validateField("username");
+
+    expect(error).toBe("Username must be at least 3 characters");
+    expect(usernameError?.error).toBe(true);
+    expect(emailError).toBe(null); // Email should not be touched
+
+    // Set valid username and validate again
+    mockUsername._value = "john";
+    const error2 = form.validateField("username");
+
+    expect(error2).toBeUndefined();
+    expect(usernameError?.error).toBe(false);
+  });
+
+  it("should clear all errors", async () => {
+    const { withFields, resetFieldValueTracker } = await import(
+      "../src/components/form/features/fields"
+    );
+    const { withSubmit } = await import(
+      "../src/components/form/features/submit"
+    );
+
+    resetFieldValueTracker();
+
+    let fieldErrorState: { error: boolean; message?: string } | null = null;
+
+    const mockTextfield = {
+      element: document.createElement("input"),
+      _value: "",
+      getValue() {
+        return this._value;
+      },
+      setError(error: boolean, message?: string) {
+        fieldErrorState = { error, message };
+      },
+      on() {},
+    };
+
+    const mockComponent = {
+      element: document.createElement("div"),
+      ui: { "info.email": mockTextfield },
+      state: {
+        modified: false,
+        submitting: false,
+        disabled: false,
+        initialData: {},
+        currentData: {},
+        errors: {},
+      },
+      emit() {},
+      on() {},
+      getData() {
+        return { email: mockTextfield._value };
+      },
+      getModifiedData() {
+        return { email: mockTextfield._value };
+      },
+      disableControls() {},
+      snapshot() {},
+    };
+
+    const withFieldsApplied = withFields({})(mockComponent as any);
+    const form = withSubmit({
+      validation: [
+        {
+          field: "email",
+          validate: (value) => typeof value === "string" && value.includes("@"),
+          message: "Invalid email",
+        },
+      ],
+    })(withFieldsApplied as any);
+
+    // Validate to create error
+    form.validate();
+    expect(fieldErrorState?.error).toBe(true);
+    expect(Object.keys(form.state.errors).length).toBe(1);
+
+    // Clear all errors
+    form.clearErrors();
+
+    expect(fieldErrorState?.error).toBe(false);
+    expect(Object.keys(form.state.errors).length).toBe(0);
+  });
+});

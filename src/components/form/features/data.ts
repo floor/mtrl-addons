@@ -157,6 +157,9 @@ export const withData = (config: FormConfig) => {
       setFieldsData(component.fields, config.data, true);
       state.currentData = collectFieldData(component.fields);
       state.initialData = { ...state.currentData };
+      // Sync the field value tracker for event deduplication
+      // This ensures change detection works correctly when fields are modified
+      syncTrackedFieldValues(component.fields);
     }
 
     // Handler for field/file changes to update state

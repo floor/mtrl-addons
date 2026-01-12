@@ -226,15 +226,24 @@ export const syncTrackedFieldValues = (fields: FormFieldRegistry): void => {
   }
 };
 
+/**
+ * Resets the field value tracker for a new form
+ * Should be called at the start of withFields before bindFieldEvents
+ */
+export const resetFieldValueTracker = (): void => {
+  fieldValueTracker = new Map<string, FieldValue>();
+};
+
 const bindFieldEvents = (
   fields: FormFieldRegistry,
   onFieldChange: (name: string, value: FieldValue) => void,
 ): void => {
-  // Track last emitted value per field to dedupe events
-  const lastEmittedValues = new Map<string, FieldValue>();
+  // Use the shared tracker (should be initialized by resetFieldValueTracker before this)
+  if (!fieldValueTracker) {
+    fieldValueTracker = new Map<string, FieldValue>();
+  }
 
-  // Expose the tracker so setData can update it
-  fieldValueTracker = lastEmittedValues;
+  const lastEmittedValues = fieldValueTracker;
 
   for (const [name, field] of fields) {
     if (typeof field.on === "function") {
@@ -279,6 +288,10 @@ export const withFields = (config: FormConfig) => {
   } => {
     // Extract fields from UI registry
     const { fields, files } = extractFields(component.ui || {}, config);
+
+    // Reset tracker for this new form instance
+    // This ensures each form has its own tracker and prevents cross-form interference
+    resetFieldValueTracker();
 
     // Bind change events if component has emit
     if (component.emit) {

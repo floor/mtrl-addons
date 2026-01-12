@@ -50,6 +50,12 @@ export interface FormField {
   /** Check if field is disabled */
   isDisabled?: () => boolean;
 
+  /** Set error state with optional message */
+  setError?: (error: boolean, message?: string) => void;
+
+  /** Check if field has error */
+  isError?: () => boolean;
+
   /** Add event listener */
   on?: (event: string, handler: Function) => void;
 
@@ -221,6 +227,9 @@ export interface FormConfig {
   /** Validation rules */
   validation?: FormValidationRule[];
 
+  /** Whether to show error messages in field helper text (default: true) */
+  showFieldErrorMessages?: boolean;
+
   /** Event handlers */
   on?: FormEventHandlers;
 
@@ -283,8 +292,23 @@ export interface FormAPI {
   /** Get current data state (pristine or dirty) */
   getDataState: () => DataState;
 
-  /** Validate the form */
+  /** Validate the form (shows errors on fields automatically) */
   validate: () => FormValidationResult;
+
+  /** Validate a single field */
+  validateField: (fieldName: string) => string | undefined;
+
+  /** Clear all validation errors */
+  clearErrors: () => FormComponent;
+
+  /** Clear error for a specific field */
+  clearFieldError: (field: string) => FormComponent;
+
+  /** Set error for a specific field */
+  setFieldError: (field: string, error: string) => FormComponent;
+
+  /** Get error for a specific field */
+  getFieldError: (field: string) => string | undefined;
 
   /** Submit the form */
   submit: (options?: FormSubmitOptions) => Promise<unknown>;

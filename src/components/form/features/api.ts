@@ -63,6 +63,8 @@ const wireControlButtons = (
         // Default: reset form to initial state
         api.reset();
       }
+      // Clear any validation errors (visual state on fields)
+      api.clearErrors();
       // After cancel, disable controls (form is now pristine)
       api.disableControls();
     });
@@ -103,11 +105,13 @@ interface EnhancedFormComponent extends BaseFormComponent {
   enableFields: () => void;
   disableFields: () => void;
 
-  // Submit methods
+  // Submit/Validation methods
   validate: () => FormValidationResult;
+  validateField: (fieldName: string) => string | undefined;
   submit: (options?: FormSubmitOptions) => Promise<unknown>;
   setValidationRules: (rules: import("../types").FormValidationRule[]) => void;
   clearErrors: () => void;
+  clearFieldError: (field: string) => void;
   setFieldError: (field: string, error: string) => void;
   getFieldError: (field: string) => string | undefined;
 
@@ -229,10 +233,56 @@ export const withAPI = (config: FormConfig) => {
 
       /**
        * Validate the form against configured rules
+       * Automatically shows errors on field components
        * @returns Validation result with valid flag and errors
        */
       validate(): FormValidationResult {
         return component.validate();
+      },
+
+      /**
+       * Validate a single field
+       * @param fieldName - Field name to validate
+       * @returns Error message if invalid, undefined if valid
+       */
+      validateField(fieldName: string): string | undefined {
+        return component.validateField(fieldName);
+      },
+
+      /**
+       * Clear all validation errors
+       */
+      clearErrors(): FormComponent {
+        component.clearErrors();
+        return api;
+      },
+
+      /**
+       * Clear error for a specific field
+       * @param field - Field name
+       */
+      clearFieldError(field: string): FormComponent {
+        component.clearFieldError(field);
+        return api;
+      },
+
+      /**
+       * Set error for a specific field
+       * @param field - Field name
+       * @param error - Error message
+       */
+      setFieldError(field: string, error: string): FormComponent {
+        component.setFieldError(field, error);
+        return api;
+      },
+
+      /**
+       * Get error for a specific field
+       * @param field - Field name
+       * @returns Error message or undefined
+       */
+      getFieldError(field: string): string | undefined {
+        return component.getFieldError(field);
       },
 
       // ==========================================

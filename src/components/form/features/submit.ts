@@ -2,7 +2,7 @@
 
 /**
  * Submit feature for Form component
- * Handles form validation and submission
+ * Handles form validation and submission with automatic field error display
  */
 
 import type {
@@ -11,6 +11,7 @@ import type {
   FormData,
   FormState,
   FormFieldRegistry,
+  FormField,
   FormValidationRule,
   FormValidationResult,
   FormSubmitOptions,
@@ -49,6 +50,30 @@ const validateData = (
   }
 
   return { valid, errors };
+};
+
+/**
+ * Validates a single field against its validation rules
+ */
+const validateField = (
+  fieldName: string,
+  data: FormData,
+  rules: FormValidationRule[],
+): string | undefined => {
+  const fieldRules = rules.filter((rule) => rule.field === fieldName);
+
+  for (const rule of fieldRules) {
+    const value = data[rule.field];
+    const result = rule.validate(value, data);
+
+    if (result === false) {
+      return rule.message || `${rule.field} is invalid`;
+    } else if (typeof result === "string") {
+      return result;
+    }
+  }
+
+  return undefined;
 };
 
 /**
@@ -108,25 +133,93 @@ export const withSubmit = (config: FormConfig) => {
       disableControls: () => void;
       snapshot: () => void;
       emit?: (event: string, data?: unknown) => void;
+      on?: (event: string, handler: (data: unknown) => void) => void;
     },
   >(
     component: T,
   ): T & {
     validate: () => FormValidationResult;
+    validateField: (fieldName: string) => string | undefined;
     submit: (options?: FormSubmitOptions) => Promise<unknown>;
     setValidationRules: (rules: FormValidationRule[]) => void;
     clearErrors: () => void;
+    clearFieldError: (field: string) => void;
     setFieldError: (field: string, error: string) => void;
     getFieldError: (field: string) => string | undefined;
   } => {
     // Validation rules can be updated at runtime
     let validationRules = config.validation || [];
 
+    // Whether to show error messages in field helper text (default: true)
+    const showMessages = config.showFieldErrorMessages !== false;
+
+    /**
+     * Shows or clears error on a field component
+     */
+    const showFieldError = (
+      fieldName: string,
+      error: string | undefined,
+    ): void => {
+      const field = component.fields.get(fieldName) as FormField | undefined;
+      if (field && typeof field.setError === "function") {
+        if (error) {
+          // Only pass message if showFieldErrorMessages is enabled
+          field.setError(true, showMessages ? error : undefined);
+        } else {
+          // Pass empty string to also clear the helper/supporting text message
+          field.setError(false, "");
+        }
+      }
+    };
+
+    /**
+     * Shows errors on all field components
+     */
+    const showAllFieldErrors = (errors: Record<string, string>): void => {
+      // Clear all field errors first
+      for (const [fieldName] of component.fields) {
+        showFieldError(fieldName, undefined);
+      }
+      // Show new errors
+      for (const [fieldName, error] of Object.entries(errors)) {
+        showFieldError(fieldName, error);
+      }
+    };
+
+    // Listen for field changes to auto-clear/revalidate errors
+    if (component.on) {
+      // Clear visual errors when form is reset
+      component.on("reset", () => {
+        showAllFieldErrors({});
+      });
+
+      component.on("field:change", (event: unknown) => {
+        const { name } = event as { name: string; value: unknown };
+
+        // If this field had an error, re-validate it
+        if (component.state.errors[name]) {
+          const data = component.getData();
+          const error = validateField(name, data, validationRules);
+
+          if (error) {
+            // Still has error - update message
+            component.state.errors[name] = error;
+            showFieldError(name, error);
+          } else {
+            // Field is now valid - clear error
+            delete component.state.errors[name];
+            showFieldError(name, undefined);
+          }
+        }
+      });
+    }
+
     const enhanced = {
       ...component,
 
       /**
        * Validate form data against configured rules
+       * Automatically shows errors on field components
        * @returns Validation result with valid flag and errors object
        */
       validate(): FormValidationResult {
@@ -136,12 +229,33 @@ export const withSubmit = (config: FormConfig) => {
         // Update state with validation errors
         component.state.errors = result.errors;
 
+        // Show errors on field components
+        showAllFieldErrors(result.errors);
+
         // Emit validation event if there are errors
         if (!result.valid) {
           component.emit?.(FORM_EVENTS.VALIDATION_ERROR, result.errors);
         }
 
         return result;
+      },
+
+      /**
+       * Validate a single field
+       * @returns Error message if invalid, undefined if valid
+       */
+      validateField(fieldName: string): string | undefined {
+        const data = component.getData();
+        const error = validateField(fieldName, data, validationRules);
+
+        if (error) {
+          component.state.errors[fieldName] = error;
+        } else {
+          delete component.state.errors[fieldName];
+        }
+
+        showFieldError(fieldName, error);
+        return error;
       },
 
       /**
@@ -251,17 +365,27 @@ export const withSubmit = (config: FormConfig) => {
       },
 
       /**
-       * Clear all validation errors
+       * Clear all validation errors and visual error states
        */
       clearErrors(): void {
         component.state.errors = {};
+        showAllFieldErrors({});
       },
 
       /**
-       * Set an error for a specific field
+       * Clear error for a specific field
+       */
+      clearFieldError(field: string): void {
+        delete component.state.errors[field];
+        showFieldError(field, undefined);
+      },
+
+      /**
+       * Set an error for a specific field (also shows on component)
        */
       setFieldError(field: string, error: string): void {
         component.state.errors[field] = error;
+        showFieldError(field, error);
       },
 
       /**
@@ -276,5 +400,5 @@ export const withSubmit = (config: FormConfig) => {
   };
 };
 
-export { validateData, performRequest };
+export { validateData, validateField, performRequest };
 export default withSubmit;

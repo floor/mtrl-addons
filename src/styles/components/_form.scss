@@ -35,7 +35,7 @@ $_transition-easing: v.motion("easing-standard");
         top: var(--mtrl-form-body-top, 0);
         left: 0;
         right: 0;
-        height: 3px;
+        height: 2px;
         background: linear-gradient(
             to bottom,
             t.alpha("shadow", 0.2) 0%,
