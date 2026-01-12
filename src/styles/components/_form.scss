@@ -1,0 +1,77 @@
+// src/styles/components/_form.scss
+@use "../../../../mtrl/src/styles/abstract/base" as base;
+@use "../../../../mtrl/src/styles/abstract/variables" as v;
+@use "../../../../mtrl/src/styles/abstract/functions" as f;
+@use "../../../../mtrl/src/styles/abstract/mixins" as m;
+@use "../../../../mtrl/src/styles/abstract/theme" as t;
+
+// ===========================
+// Variables & Configuration
+// ===========================
+
+$_prefix: base.$prefix;
+$_component: "#{$_prefix}-form";
+
+// Transitions
+$_transition-duration: v.motion("duration-medium1");
+$_transition-easing: v.motion("easing-standard");
+
+// ===========================
+// Form Container
+// ===========================
+
+.#{$_component} {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+
+    // Scroll indicator shadow (visible when scrolled)
+    // Positioned at top of body area using CSS variable set by JS
+    &::before {
+        content: "";
+        position: absolute;
+        top: var(--mtrl-form-body-top, 0);
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(
+            to bottom,
+            t.alpha("shadow", 0.2) 0%,
+            transparent 100%
+        );
+        opacity: 0;
+        transition: opacity $_transition-duration $_transition-easing;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    // Scrolled state - show top shadow indicator
+    &--scrolled::before {
+        opacity: 1;
+    }
+}
+
+// ===========================
+// Form Body (Scrollable Area)
+// ===========================
+
+.#{$_component} .#{$_prefix}-body {
+    position: relative;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+// ===========================
+// Form Sections
+// ===========================
+
+.#{$_component} .#{$_prefix}-head {
+    flex-shrink: 0;
+}
+
+.#{$_component} .#{$_prefix}-foot {
+    flex-shrink: 0;
+}

@@ -47,6 +47,8 @@ export const FORM_CLASSES = {
   SUBMITTING: "submitting",
   /** Applied when form is disabled */
   DISABLED: "disabled",
+  /** Applied when form body is scrolled away from top */
+  SCROLLED: "mtrl-form--scrolled",
 } as const;
 
 /**
