@@ -470,9 +470,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
       // Listen for collection data loaded
       component.on?.("collection:range-loaded", (data: any) => {
-        // console.log(
-        //   `[RENDER-FIX] collection:range-loaded - offset: ${data.offset}, items: ${data.items?.length}`,
-        // );
         if (!data.items?.length) return;
 
         // Analyze data structure on first load
@@ -485,7 +482,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
         // console.log(
         //   `[RENDER-FIX] Updating collectionItems for indices ${data.offset} to ${data.offset + data.items.length - 1}`,
         // );
-        let replacedCount = 0;
         let skippedCount = 0;
         data.items.forEach((item: any, i: number) => {
           const index = data.offset + i;
@@ -496,7 +492,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
           const wasPlaceholder = oldItem && isPlaceholder(oldItem);
           const hasElement = renderedElements.has(index);
           if (wasPlaceholder && hasElement) {
-            replacedCount++;
             const element = renderedElements.get(index);
             if (element) {
               const newElement = renderItem(item, index);
@@ -538,11 +533,17 @@ export const withRendering = (config: RenderingConfig = {}) => {
             skippedCount++;
           }
         });
-        // if (replacedCount > 0 || skippedCount > 0) {
-        //   console.log(
-        //     `[RENDER-FIX] Placeholder replacement: ${replacedCount} replaced, ${skippedCount} skipped (not rendered)`,
-        //   );
-        // }
+
+        // If we skipped items because no element, trigger a render to show them
+        if (skippedCount > 0 && viewportState?.visibleRange) {
+          const { start, end } = viewportState.visibleRange;
+          const loadedStart = data.offset;
+          const loadedEnd = data.offset + data.items.length - 1;
+          // Check if loaded data overlaps with visible range
+          if (loadedStart <= end && loadedEnd >= start) {
+            renderItems();
+          }
+        }
 
         // Check if we need to render
         const { visibleRange } = viewportState || {};
@@ -935,8 +936,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
         let item = items[i];
         if (!item) {
-          // Only log during removal to avoid spam during scroll
-
           missingItems.push(i);
           // Generate placeholder
           const placeholders = (component as any).placeholders;
