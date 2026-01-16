@@ -46,6 +46,14 @@ export interface ViewportConfig {
   className?: string;
   debug?: boolean;
 
+  // Initial selection configuration
+  /** ID of item to select after initial load completes */
+  selectId?: string | number;
+  /** Whether to automatically load data on initialization (default: true) */
+  autoLoad?: boolean;
+  /** Automatically select first item after initial load (default: false) */
+  autoSelectFirst?: boolean;
+
   // Template for rendering items
   template?: (
     item: any,

@@ -660,6 +660,10 @@ export interface VListConfig<T extends ListItem = ListItem> {
   ariaLabel?: string;
   debug?: boolean;
 
+  // Selection shorthand (also available in selection.autoSelectFirst)
+  /** Automatically select first item after initial load (default: false) */
+  autoSelectFirst?: boolean;
+
   // Initial scroll position (0-based index)
   // When set, VList will start loading from this position instead of 0
   initialScrollIndex?: number;

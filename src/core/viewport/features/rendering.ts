@@ -1038,11 +1038,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
       currentVisibleRange = visibleRange;
 
-      // Log DOM stats periodically (every 10 renders)
-      if (poolStats.created % 50 === 0 && poolStats.created > 0) {
-        logDOMStats(`render:${poolStats.created}`);
-      }
-
       // Emit items rendered event with elements for size calculation
       const renderedElementsArray = Array.from(renderedElements.values());
       component.emit?.("viewport:items-rendered", {

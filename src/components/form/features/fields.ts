@@ -87,7 +87,8 @@ export const setFieldValue = (
       | undefined;
     if (input) {
       // Check if this is a checkbox/switch (has checked property)
-      if (input.type === "checkbox") {
+      // Need to narrow type to HTMLInputElement before accessing checked
+      if (input instanceof HTMLInputElement && input.type === "checkbox") {
         const shouldBeChecked =
           value === true || value === "true" || value === 1;
         input.checked = shouldBeChecked;
