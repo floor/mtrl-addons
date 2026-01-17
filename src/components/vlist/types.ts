@@ -162,6 +162,35 @@ export interface ListSelectionConfig {
 }
 
 /**
+ * Keyboard navigation configuration
+ *
+ * Follows Material Design 3 accessibility guidelines:
+ * - Arrow keys (Up/Down/Left/Right) navigate with wrapping
+ * - Space/Enter activates/selects items
+ * - Home/End jump to first/last
+ *
+ * @see https://m3.material.io/components/lists/accessibility
+ */
+export interface ListKeyboardConfig {
+  /** Enable keyboard navigation (default: true when selection is enabled) */
+  enabled?: boolean;
+  /** Enable Home/End keys (default: true) */
+  homeEnd?: boolean;
+  /** Enable Page Up/Down keys (default: true) */
+  pageUpDown?: boolean;
+  /** Number of items to skip with Page Up/Down (default: 10) */
+  pageSize?: number;
+  /** Enable type-ahead search (default: false) */
+  typeAhead?: boolean;
+  /** Type-ahead search timeout in ms (default: 500) */
+  typeAheadTimeout?: number;
+  /** Wrap around when reaching start/end (default: true per MD3 spec) */
+  wrap?: boolean;
+  /** Callback when keyboard navigation occurs */
+  onNavigate?: (index: number, key: string) => void;
+}
+
+/**
  * List orientation configuration
  */
 export interface ListOrientationConfig {
@@ -745,6 +774,9 @@ export interface VListConfig<T extends ListItem = ListItem> {
 
   // Selection configuration
   selection?: ListSelectionConfig;
+
+  // Keyboard navigation configuration
+  keyboard?: ListKeyboardConfig;
 
   // Event handlers
   on?: ListEventHandlers<T>;

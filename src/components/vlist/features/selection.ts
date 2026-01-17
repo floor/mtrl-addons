@@ -335,8 +335,39 @@ export const withSelection = <T extends VListItem = VListItem>(
       },
 
       /**
+       * Check if an item at index is fully visible in the viewport
+       * Uses DOM element position for precise checking
+       */
+      isItemFullyVisible(index: number): boolean {
+        const container = component.element?.querySelector(
+          `.${PREFIX}-viewport-items`,
+        );
+        if (!container) return false;
+
+        const viewport = component.element?.querySelector(
+          `.${PREFIX}-viewport`,
+        );
+        if (!viewport) return false;
+
+        const itemElement = container.querySelector(
+          `.${PREFIX}-viewport-item[data-index="${index}"]`,
+        ) as HTMLElement;
+        if (!itemElement) return false;
+
+        const viewportRect = viewport.getBoundingClientRect();
+        const itemRect = itemElement.getBoundingClientRect();
+
+        // Check if item is fully within viewport bounds
+        return (
+          itemRect.top >= viewportRect.top &&
+          itemRect.bottom <= viewportRect.bottom
+        );
+      },
+
+      /**
        * Select item at index, scrolling and waiting for data if needed
        * Handles virtual scrolling by loading data before selecting
+       * Uses precise DOM-based visibility check
        */
       async selectAtIndex(index: number): Promise<boolean> {
         const enhancedComponent = component as any;
@@ -346,9 +377,20 @@ export const withSelection = <T extends VListItem = VListItem>(
           return false;
         }
 
-        // First scroll to the index (triggers data loading if needed)
-        if (enhancedComponent.viewport?.scrollToIndex) {
-          enhancedComponent.viewport.scrollToIndex(index);
+        // Get current selection to determine navigation direction
+        const currentIndices = this.getSelectedIndices();
+        const currentIndex = currentIndices.length > 0 ? currentIndices[0] : -1;
+        const direction = index > currentIndex ? "down" : "up";
+
+        // Check if item is fully visible using precise DOM check
+        const isFullyVisible = this.isItemFullyVisible(index);
+
+        if (!isFullyVisible && enhancedComponent.viewport?.scrollToIndex) {
+          // Scroll with alignment based on navigation direction
+          // Down navigation: align to end (item at bottom)
+          // Up navigation: align to start (item at top)
+          const alignment = direction === "down" ? "end" : "start";
+          enhancedComponent.viewport.scrollToIndex(index, alignment);
         }
 
         // Try to select immediately - works if item is already loaded
@@ -388,10 +430,13 @@ export const withSelection = <T extends VListItem = VListItem>(
       /**
        * Select next item relative to current selection
        * Handles virtual scrolling by loading data before selecting
+       * Respects keyboard.wrap option for wrapping at list boundaries
        */
       async selectNext(): Promise<boolean> {
         const enhancedComponent = component as any;
         const selectedIndices = this.getSelectedIndices();
+        const totalItems = enhancedComponent.getItemCount?.() || 0;
+        const wrap = config.keyboard?.wrap ?? true; // MD3 default is true
 
         if (selectedIndices.length === 0) {
           // Select first item
@@ -400,10 +445,14 @@ export const withSelection = <T extends VListItem = VListItem>(
 
         const currentIndex = selectedIndices[0];
         const nextIndex = currentIndex + 1;
-        const totalItems = enhancedComponent.getItemCount?.() || 0;
 
         if (nextIndex < totalItems) {
           return this.selectAtIndex(nextIndex);
+        }
+
+        // At the end - wrap to beginning if enabled
+        if (wrap && totalItems > 0) {
+          return this.selectAtIndex(0);
         }
 
         return false;
@@ -412,11 +461,19 @@ export const withSelection = <T extends VListItem = VListItem>(
       /**
        * Select previous item relative to current selection
        * Handles virtual scrolling by loading data before selecting
+       * Respects keyboard.wrap option for wrapping at list boundaries
        */
       async selectPrevious(): Promise<boolean> {
+        const enhancedComponent = component as any;
         const selectedIndices = this.getSelectedIndices();
+        const totalItems = enhancedComponent.getItemCount?.() || 0;
+        const wrap = config.keyboard?.wrap ?? true; // MD3 default is true
 
         if (selectedIndices.length === 0) {
+          // If wrap enabled, select last item; otherwise do nothing
+          if (wrap && totalItems > 0) {
+            return this.selectAtIndex(totalItems - 1);
+          }
           return false;
         }
 
@@ -425,6 +482,11 @@ export const withSelection = <T extends VListItem = VListItem>(
 
         if (prevIndex >= 0) {
           return this.selectAtIndex(prevIndex);
+        }
+
+        // At the start - wrap to end if enabled
+        if (wrap && totalItems > 0) {
+          return this.selectAtIndex(totalItems - 1);
         }
 
         return false;

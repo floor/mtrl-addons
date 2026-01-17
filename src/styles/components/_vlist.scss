@@ -68,9 +68,19 @@ $opacity-transition: opacity $transition-duration $transition-easing;
     height: 100%;
     min-height: 100px;
     background-color: t.color("surface");
-    border: 2px solid var(--mtrl-sys-color-outline-variant);
-    // border-radius: 3px;
     transition: $bg-transition;
+
+    // Remove default focus outline - we use class-based focus styling
+    &:focus {
+        outline: none;
+    }
+
+    // Show focus outline only for keyboard navigation
+    // Class is added by JavaScript when focus is gained via keyboard (not mouse)
+    &--keyboard-focus {
+        outline: 2px solid var(--mtrl-sys-color-primary);
+        outline-offset: -2px;
+    }
 
     // Performance optimizations
     contain: layout style paint;

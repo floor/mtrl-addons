@@ -14,4 +14,5 @@ export type {
   VListAPI,
   VListState,
   VListEvents,
+  ListKeyboardConfig,
 } from "./types";

@@ -18,6 +18,7 @@ import { withEvents, withLifecycle } from "mtrl";
 import { withViewport } from "./features/viewport";
 import { withAPI } from "./features/api";
 import { withSelection } from "./features/selection";
+import { withKeyboard } from "./features/keyboard";
 
 /**
  * Creates a new VList component using direct viewport integration
@@ -80,6 +81,11 @@ export const createVList = <T extends VListItem = VListItem>(
     // 4.5. Selection capabilities (if enabled) - must be after API
     if (config.selection?.enabled) {
       enhancers.push(withSelection(config));
+    }
+
+    // 5. Keyboard navigation (if selection enabled or explicitly configured)
+    if (config.selection?.enabled || config.keyboard?.enabled) {
+      enhancers.push(withKeyboard(config));
     }
 
     const component = pipe(...enhancers)({
