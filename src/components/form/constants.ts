@@ -35,6 +35,8 @@ export const FORM_EVENTS = {
   SUBMIT_ERROR: "submit:error",
   /** Fired when form is reset to initial state */
   RESET: "reset",
+  /** Fired when setData is called with unsaved changes (protection enabled) */
+  DATA_CONFLICT: "data:conflict",
 } as const;
 
 /**

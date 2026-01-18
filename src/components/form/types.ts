@@ -3,6 +3,46 @@
 import type { DATA_STATE, FORM_EVENTS } from "./constants";
 
 /**
+ * Configuration for form change protection
+ */
+export interface ProtectChangesConfig {
+  /**
+   * Warn user when trying to close browser tab/window with unsaved changes
+   * Uses the beforeunload event
+   * @default false
+   */
+  beforeUnload?: boolean;
+
+  /**
+   * Emit 'data:conflict' event when setData() is called with unsaved changes
+   * Allows the caller to confirm before overwriting
+   * @default false
+   */
+  onDataOverwrite?: boolean;
+}
+
+/**
+ * Event data for data:conflict event
+ * Emitted when setData() is called while form has unsaved changes
+ */
+export interface DataConflictEvent {
+  /** Current form data (unsaved changes) */
+  currentData: FormData;
+
+  /** New data that would overwrite current data */
+  newData: FormData;
+
+  /** Whether the operation was cancelled */
+  cancelled: boolean;
+
+  /** Call this to cancel the setData operation */
+  cancel: () => void;
+
+  /** Call this to proceed with setData (default behavior if not cancelled) */
+  proceed: () => void;
+}
+
+/**
  * Data state type (pristine or dirty)
  */
 export type DataState = (typeof DATA_STATE)[keyof typeof DATA_STATE];
@@ -165,6 +205,9 @@ export interface FormEventHandlers {
 
   /** Called when form is reset */
   reset?: () => void;
+
+  /** Called when setData() is called while form has unsaved changes */
+  "data:conflict"?: (event: DataConflictEvent) => void;
 }
 
 /**
@@ -229,6 +272,13 @@ export interface FormConfig {
 
   /** Whether to show error messages in field helper text (default: true) */
   showFieldErrorMessages?: boolean;
+
+  /**
+   * Protection settings for unsaved changes
+   * Can be a boolean (enables both protections) or a config object
+   * @default false
+   */
+  protectChanges?: boolean | ProtectChangesConfig;
 
   /** Event handlers */
   on?: FormEventHandlers;
@@ -313,11 +363,17 @@ export interface FormAPI {
   /** Submit the form */
   submit: (options?: FormSubmitOptions) => Promise<unknown>;
 
-  /** Reset form to initial data */
-  reset: () => FormComponent;
+  /** Reset form to initial data
+   * @param {boolean} force - If true, bypass protection and reset immediately
+   * @returns {boolean} true if reset was performed, false if cancelled by protection
+   */
+  reset: (force?: boolean) => boolean;
 
-  /** Clear all form fields */
-  clear: () => FormComponent;
+  /** Clear all form fields
+   * @param {boolean} force - If true, bypass protection and clear immediately
+   * @returns {boolean} true if clear was performed, false if cancelled by protection
+   */
+  clear: (force?: boolean) => boolean;
 
   /** Enable all form fields */
   enable: () => FormComponent;

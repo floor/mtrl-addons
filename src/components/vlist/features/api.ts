@@ -685,52 +685,6 @@ export const withAPI = <T extends VListItem = VListItem>(
         };
       },
 
-      /**
-       * Reload the list from the beginning
-       * Clears all loaded data and triggers a fresh load
-       */
-      reload() {
-        // Clear selection
-        selectedIds.clear();
-
-        // Clear pending removals
-        pendingRemovals.clear();
-
-        // Access the collection through viewport
-        const collection = component.viewport?.collection;
-        if (collection) {
-          // Clear loaded ranges
-          const loadedRanges = collection.getLoadedRanges?.();
-          if (loadedRanges) {
-            loadedRanges.clear();
-          }
-
-          // Clear pending ranges
-          const pendingRanges = collection.getPendingRanges?.();
-          if (pendingRanges) {
-            pendingRanges.clear();
-          }
-
-          // Clear failed ranges
-          collection.clearFailedRanges?.();
-
-          // Clear items array
-          if (collection.items) {
-            collection.items.length = 0;
-          }
-
-          // Reset total
-          collection.setTotalItems?.(0);
-        }
-
-        // Re-initialize viewport to trigger fresh load
-        if (component.viewport?.initialize) {
-          component.viewport.initialize();
-        }
-
-        component.emit?.("reload");
-      },
-
       // Lifecycle
       destroy() {
         if (component.viewport?.destroy) {

@@ -2,7 +2,8 @@
 
 /**
  * Data feature for Form component
- * Handles form data operations: get/set data, change tracking, snapshots
+ * Handles form data operations: get/set data, change tracking, snapshots,
+ * and change protection (beforeunload warning, data conflict detection)
  */
 
 import type {
@@ -12,6 +13,8 @@ import type {
   FormState,
   FieldValue,
   FormFieldRegistry,
+  ProtectChangesConfig,
+  DataConflictEvent,
 } from "../types";
 import {
   createInitialState,
@@ -126,6 +129,24 @@ const flatToNested = (data: FormData): Record<string, unknown> => {
 };
 
 /**
+ * Normalizes protection config to a consistent object format
+ */
+const normalizeProtectConfig = (
+  config: boolean | ProtectChangesConfig | undefined,
+): ProtectChangesConfig => {
+  if (!config) {
+    return { beforeUnload: false, onDataOverwrite: false };
+  }
+  if (config === true) {
+    return { beforeUnload: true, onDataOverwrite: true };
+  }
+  return {
+    beforeUnload: config.beforeUnload ?? false,
+    onDataOverwrite: config.onDataOverwrite ?? false,
+  };
+};
+
+/**
  * withData feature
  * Adds data management capabilities to the form
  */
@@ -146,11 +167,62 @@ export const withData = (config: FormConfig) => {
     isModified: () => boolean;
     getModifiedData: () => FormData;
     snapshot: () => void;
-    reset: () => void;
-    clear: () => void;
+    reset: (force?: boolean) => boolean;
+    clear: (force?: boolean) => boolean;
   } => {
     // Initialize state
     const state = createInitialState(config);
+
+    // Normalize protection configuration
+    const protectConfig = normalizeProtectConfig(config.protectChanges);
+
+    // Track the beforeunload handler so we can remove it
+    let beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
+
+    /**
+     * Beforeunload handler - warns user when leaving with unsaved changes
+     */
+    const handleBeforeUnload = (e: BeforeUnloadEvent): void => {
+      if (state.modified) {
+        // Standard way to trigger the browser's "unsaved changes" dialog
+        e.preventDefault();
+        // For older browsers - returnValue must be set
+        e.returnValue = "";
+      }
+    };
+
+    /**
+     * Registers the beforeunload handler if protection is enabled
+     */
+    const registerBeforeUnload = (): void => {
+      if (protectConfig.beforeUnload && !beforeUnloadHandler) {
+        beforeUnloadHandler = handleBeforeUnload;
+        window.addEventListener("beforeunload", beforeUnloadHandler);
+      }
+    };
+
+    /**
+     * Unregisters the beforeunload handler
+     */
+    const unregisterBeforeUnload = (): void => {
+      if (beforeUnloadHandler) {
+        window.removeEventListener("beforeunload", beforeUnloadHandler);
+        beforeUnloadHandler = null;
+      }
+    };
+
+    /**
+     * Updates beforeunload registration based on modified state
+     */
+    const updateBeforeUnloadState = (modified: boolean): void => {
+      if (protectConfig.beforeUnload) {
+        if (modified) {
+          registerBeforeUnload();
+        }
+        // We keep the handler registered but it only prevents unload when modified
+        // This is more efficient than constantly adding/removing the listener
+      }
+    };
 
     // If initial data was provided, set it on fields
     if (config.data && component.fields) {
@@ -162,11 +234,21 @@ export const withData = (config: FormConfig) => {
       syncTrackedFieldValues(component.fields);
     }
 
+    // Initialize beforeunload protection if enabled
+    if (protectConfig.beforeUnload) {
+      registerBeforeUnload();
+    }
+
     // Handler for field/file changes to update state
     const handleChange = (event: { name: string; value: FieldValue }) => {
       state.currentData[event.name] = event.value;
       const wasModified = state.modified;
       state.modified = hasDataChanged(state.initialData, state.currentData);
+
+      // Update beforeunload state when modified changes
+      if (wasModified !== state.modified) {
+        updateBeforeUnloadState(state.modified);
+      }
 
       // Emit state:change event when modified state changes
       // This allows the controller to enable/disable controls accordingly
@@ -187,6 +269,67 @@ export const withData = (config: FormConfig) => {
       component.on("file:change", handleChange);
     }
 
+    /**
+     * Internal function to perform the actual setData operation
+     */
+    const performSetData = (data: FormData, silent: boolean): void => {
+      setFieldsData(component.fields, data, silent);
+      state.currentData = collectFieldData(component.fields);
+
+      if (silent) {
+        // When setting data silently, also update initial data snapshot
+        // This is typically used when loading data from server
+        state.initialData = { ...state.currentData };
+        state.modified = false;
+        // Sync the field value tracker for event deduplication
+        syncTrackedFieldValues(component.fields);
+        // Update beforeunload state since we're no longer modified
+        updateBeforeUnloadState(false);
+      } else {
+        component.emit?.(FORM_EVENTS.DATA_SET, state.currentData);
+      }
+    };
+
+    /**
+     * Internal function to perform the actual reset operation
+     */
+    const performReset = (): void => {
+      setFieldsData(component.fields, state.initialData, true);
+      state.currentData = { ...state.initialData };
+      state.modified = false;
+      state.errors = {};
+      // Update beforeunload state since we're no longer modified
+      updateBeforeUnloadState(false);
+      // Emit state:change so protection overlay gets removed
+      component.emit?.(FORM_EVENTS.STATE_CHANGE, {
+        modified: false,
+        state: DATA_STATE.PRISTINE,
+      });
+      component.emit?.(FORM_EVENTS.RESET);
+    };
+
+    /**
+     * Internal function to perform the actual clear operation
+     */
+    const performClear = (): void => {
+      const emptyData: FormData = {};
+      for (const name of component.fields.keys()) {
+        emptyData[name] = null;
+      }
+      setFieldsData(component.fields, emptyData, true);
+      state.currentData = {};
+      state.initialData = {};
+      state.modified = false;
+      // Update beforeunload state
+      updateBeforeUnloadState(false);
+      // Emit state:change so protection overlay gets removed
+      component.emit?.(FORM_EVENTS.STATE_CHANGE, {
+        modified: false,
+        state: DATA_STATE.PRISTINE,
+      });
+      component.emit?.(FORM_EVENTS.RESET);
+    };
+
     const enhanced = {
       ...component,
       state,
@@ -206,21 +349,55 @@ export const withData = (config: FormConfig) => {
        * Set form data
        * @param data - Data object to set
        * @param silent - If true, don't emit change events and update initial state
+       *
+       * When protectChanges.onDataOverwrite is enabled and the form has unsaved changes,
+       * this will emit a 'data:conflict' event. The event handler can call cancel()
+       * to prevent the data from being set, or let it proceed by default.
        */
       setData(data: FormData, silent: boolean = false): void {
-        setFieldsData(component.fields, data, silent);
-        state.currentData = collectFieldData(component.fields);
+        // Check for data conflict protection
+        // Only applies when:
+        // - Protection is enabled
+        // - Form has been modified
+        // - Not a silent operation (silent is for loading data)
+        if (protectConfig.onDataOverwrite && state.modified && !silent) {
+          // Create conflict event
+          let cancelled = false;
+          let proceeded = false;
 
-        if (silent) {
-          // When setting data silently, also update initial data snapshot
-          // This is typically used when loading data from server
-          state.initialData = { ...state.currentData };
-          state.modified = false;
-          // Sync the field value tracker for event deduplication
-          syncTrackedFieldValues(component.fields);
-        } else {
-          component.emit?.(FORM_EVENTS.DATA_SET, state.currentData);
+          const conflictEvent: DataConflictEvent = {
+            currentData: { ...state.currentData },
+            newData: data,
+            cancelled: false,
+            cancel: () => {
+              cancelled = true;
+              conflictEvent.cancelled = true;
+            },
+            proceed: () => {
+              proceeded = true;
+              performSetData(data, silent);
+            },
+          };
+
+          // Emit the conflict event
+          component.emit?.(FORM_EVENTS.DATA_CONFLICT, conflictEvent);
+
+          // If cancelled, don't set the data
+          if (cancelled) {
+            return;
+          }
+
+          // If proceed() was called in the handler, data is already set
+          if (proceeded) {
+            return;
+          }
+
+          // If neither cancel() nor proceed() was called, proceed by default
+          // This maintains backward compatibility
         }
+
+        // Perform the actual setData operation
+        performSetData(data, silent);
       },
 
       /**
@@ -247,6 +424,9 @@ export const withData = (config: FormConfig) => {
           setFieldValue(field, value, silent);
           state.currentData[name] = value;
           state.modified = hasDataChanged(state.initialData, state.currentData);
+
+          // Update beforeunload state
+          updateBeforeUnloadState(state.modified);
 
           if (!silent) {
             component.emit?.(FORM_EVENTS.FIELD_CHANGE, { name, value });
@@ -280,33 +460,123 @@ export const withData = (config: FormConfig) => {
         state.initialData = { ...collectFieldData(component.fields) };
         state.currentData = { ...state.initialData };
         state.modified = false;
+        // Update beforeunload state since we're no longer modified
+        updateBeforeUnloadState(false);
       },
 
       /**
        * Reset form to initial data state
+       *
+       * When protectChanges.onDataOverwrite is enabled and the form has unsaved changes,
+       * this will emit a 'data:conflict' event. The event handler can call cancel()
+       * to prevent the reset, or let it proceed by default.
+       *
+       * @param {boolean} force - If true, bypass protection and reset immediately
+       * @returns {boolean} true if reset was performed, false if cancelled by protection
        */
-      reset(): void {
-        setFieldsData(component.fields, state.initialData, true);
-        state.currentData = { ...state.initialData };
-        state.modified = false;
-        state.errors = {};
-        component.emit?.(FORM_EVENTS.RESET);
+      reset(force: boolean = false): boolean {
+        // Check for data conflict protection (skip if force=true)
+        if (!force && protectConfig.onDataOverwrite && state.modified) {
+          let cancelled = false;
+          let proceeded = false;
+
+          const conflictEvent: DataConflictEvent = {
+            currentData: { ...state.currentData },
+            newData: { ...state.initialData },
+            cancelled: false,
+            cancel: () => {
+              cancelled = true;
+              conflictEvent.cancelled = true;
+            },
+            proceed: () => {
+              proceeded = true;
+              performReset();
+            },
+          };
+
+          // Emit the conflict event
+          component.emit?.(FORM_EVENTS.DATA_CONFLICT, conflictEvent);
+
+          // If cancelled, don't reset
+          if (cancelled) {
+            return false;
+          }
+
+          // If proceed() was called in the handler, reset already happened
+          if (proceeded) {
+            return true;
+          }
+
+          // If neither cancel() nor proceed() was called, proceed by default
+        }
+
+        performReset();
+        return true;
       },
 
       /**
        * Clear all form fields
+       *
+       * When protectChanges.onDataOverwrite is enabled and the form has unsaved changes,
+       * this will emit a 'data:conflict' event. The event handler can call cancel()
+       * to prevent the clear, or let it proceed by default.
+       *
+       * @param {boolean} force - If true, bypass protection and clear immediately
+       * @returns {boolean} true if clear was performed, false if cancelled by protection
        */
-      clear(): void {
-        const emptyData: FormData = {};
-        for (const name of component.fields.keys()) {
-          emptyData[name] = null;
+      clear(force: boolean = false): boolean {
+        // Check for data conflict protection (skip if force=true)
+        if (!force && protectConfig.onDataOverwrite && state.modified) {
+          let cancelled = false;
+          let proceeded = false;
+
+          const conflictEvent: DataConflictEvent = {
+            currentData: { ...state.currentData },
+            newData: {},
+            cancelled: false,
+            cancel: () => {
+              cancelled = true;
+              conflictEvent.cancelled = true;
+            },
+            proceed: () => {
+              proceeded = true;
+              performClear();
+            },
+          };
+
+          // Emit the conflict event
+          component.emit?.(FORM_EVENTS.DATA_CONFLICT, conflictEvent);
+
+          // If cancelled, don't clear
+          if (cancelled) {
+            return false;
+          }
+
+          // If proceed() was called in the handler, clear already happened
+          if (proceeded) {
+            return true;
+          }
+
+          // If neither cancel() nor proceed() was called, proceed by default
         }
-        setFieldsData(component.fields, emptyData, true);
-        state.currentData = {};
-        state.modified = hasDataChanged(state.initialData, state.currentData);
-        component.emit?.(FORM_EVENTS.RESET);
+
+        performClear();
+        return true;
       },
     };
+
+    // Register cleanup for beforeunload handler when component is destroyed
+    // We need to hook into the lifecycle destroy mechanism
+    const originalLifecycle = component.lifecycle;
+    if (originalLifecycle) {
+      const originalDestroy = originalLifecycle.destroy;
+      originalLifecycle.destroy = () => {
+        // Clean up beforeunload handler
+        unregisterBeforeUnload();
+        // Call original destroy
+        originalDestroy?.();
+      };
+    }
 
     return enhanced;
   };

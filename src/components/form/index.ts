@@ -39,6 +39,8 @@ export type {
   BaseFormComponent,
   SubmitHandler,
   CancelHandler,
+  ProtectChangesConfig,
+  DataConflictEvent,
 } from "./types";
 
 // Configuration utilities

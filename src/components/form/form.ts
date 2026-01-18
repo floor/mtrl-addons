@@ -8,12 +8,12 @@
  * validation, and submission handling.
  */
 
-import type { FormConfig, FormComponent } from './types'
+import type { FormConfig, FormComponent } from "./types";
 
 // Import mtrl compose system
-import { pipe } from 'mtrl'
-import { createBase, withElement } from 'mtrl'
-import { withEvents, withLifecycle } from 'mtrl'
+import { pipe } from "mtrl";
+import { createBase, withElement } from "mtrl";
+import { withEvents, withLifecycle } from "mtrl";
 
 // Import form features
 import {
@@ -22,11 +22,12 @@ import {
   withData,
   withController,
   withSubmit,
-  withAPI
-} from './features'
+  withProtection,
+  withAPI,
+} from "./features";
 
 // Import configuration
-import { createBaseConfig, getElementConfig } from './config'
+import { createBaseConfig, getElementConfig } from "./config";
 
 /**
  * Creates a new Form component using functional composition
@@ -85,7 +86,7 @@ import { createBaseConfig, getElementConfig } from './config'
 export const createForm = (config: FormConfig = {}): FormComponent => {
   try {
     // Process configuration with defaults
-    const baseConfig = createBaseConfig(config)
+    const baseConfig = createBaseConfig(config);
 
     // Build the form through functional composition
     // Each function in the pipe adds specific capabilities
@@ -114,23 +115,26 @@ export const createForm = (config: FormConfig = {}): FormComponent => {
       // 8. Submit - Adds validation and submission handling
       withSubmit(baseConfig),
 
-      // 9. Lifecycle - Adds lifecycle management (destroy)
+      // 9. Protection - Adds blocking overlay when form has unsaved changes
+      withProtection(baseConfig),
+
+      // 10. Lifecycle - Adds lifecycle management (destroy)
       withLifecycle(),
 
-      // 10. API - Creates clean public API
-      withAPI(baseConfig)
-    )(baseConfig)
+      // 11. API - Creates clean public API
+      withAPI(baseConfig),
+    )(baseConfig);
 
     // Append to container if provided
     if (config.container && component.element) {
-      config.container.appendChild(component.element)
+      config.container.appendChild(component.element);
     }
 
-    return component as FormComponent
+    return component as FormComponent;
   } catch (error) {
-    console.error('Form creation error:', error)
-    throw new Error(`Failed to create form: ${(error as Error).message}`)
+    console.error("Form creation error:", error);
+    throw new Error(`Failed to create form: ${(error as Error).message}`);
   }
-}
+};
 
-export default createForm
+export default createForm;

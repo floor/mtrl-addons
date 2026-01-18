@@ -17,4 +17,5 @@ export {
 export { withData, flatToNested, getNestedValue, setNestedValue } from "./data";
 export { withController } from "./controller";
 export { withSubmit, validateData, performRequest } from "./submit";
+export { withProtection } from "./protection";
 export { withAPI } from "./api";

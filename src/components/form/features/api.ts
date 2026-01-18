@@ -61,7 +61,8 @@ const wireControlButtons = (
         config.onCancel(api);
       } else {
         // Default: reset form to initial state
-        api.reset();
+        // Use force=true to bypass protection since this is an intentional user action
+        api.reset(true);
       }
       // Clear any validation errors (visual state on fields)
       api.clearErrors();
@@ -90,8 +91,8 @@ interface EnhancedFormComponent extends BaseFormComponent {
   isModified: () => boolean;
   getModifiedData: () => FormData;
   snapshot: () => void;
-  reset: () => void;
-  clear: () => void;
+  reset: (force?: boolean) => boolean;
+  clear: (force?: boolean) => boolean;
 
   // Field methods
   getField: (name: string) => FormField | undefined;
@@ -303,18 +304,20 @@ export const withAPI = (config: FormConfig) => {
 
       /**
        * Reset form to initial/snapshot state
+       * @param {boolean} force - If true, bypass protection and reset immediately
+       * @returns {boolean} true if reset was performed, false if cancelled by protection
        */
-      reset(): FormComponent {
-        component.reset();
-        return api;
+      reset(force?: boolean): boolean {
+        return component.reset(force);
       },
 
       /**
        * Clear all form fields
+       * @param {boolean} force - If true, bypass protection and clear immediately
+       * @returns {boolean} true if clear was performed, false if cancelled by protection
        */
-      clear(): FormComponent {
-        component.clear();
-        return api;
+      clear(force?: boolean): boolean {
+        return component.clear(force);
       },
 
       /**
