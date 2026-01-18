@@ -83,7 +83,7 @@ $_transition-easing: v.motion("easing-standard");
 .#{$_component}-blocking-overlay {
     position: fixed;
     background: transparent;
-    z-index: 9999;
+    z-index: 999; // Below dialog's modal z-index (1000) so dialogs appear above
     cursor: not-allowed;
 
     // Optional: subtle visual feedback on hover

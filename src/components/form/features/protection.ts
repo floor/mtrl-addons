@@ -45,6 +45,9 @@ export const withProtection = (config: FormConfig) => {
       state: FormState;
       emit?: (event: string, data?: unknown) => void;
       on?: (event: string, handler: Function) => void;
+      reset?: (force?: boolean) => boolean;
+      clearErrors?: () => void;
+      disableControls?: () => void;
     },
   >(
     component: T,
@@ -63,6 +66,17 @@ export const withProtection = (config: FormConfig) => {
     // Resize/scroll handler for updating overlay positions
     let resizeHandler: (() => void) | null = null;
 
+    // Track if user has interacted with the form (made actual changes)
+    // This prevents overlays from showing on initial load
+    let hasUserInteracted = false;
+
+    // Track if data has been loaded at least once
+    // This helps distinguish between initial load and user edits
+    let dataHasBeenLoaded = false;
+
+    // Track if we're currently loading data (ignore field:change events during this time)
+    let isLoadingData = false;
+
     /**
      * Creates blocking overlay elements around the form
      * These overlays prevent clicks outside the form when it has unsaved changes
@@ -77,10 +91,11 @@ export const withProtection = (config: FormConfig) => {
       const rect = formElement.getBoundingClientRect();
 
       // Common overlay styles - using fixed positioning for viewport-relative placement
+      // z-index: 999 is below dialog's modal z-index (1000) so dialogs appear above
       const baseStyles = `
         position: fixed;
         background: transparent;
-        z-index: 9999;
+        z-index: 999;
         cursor: not-allowed;
       `;
 
@@ -142,8 +157,15 @@ export const withProtection = (config: FormConfig) => {
             // User chose to keep editing - do nothing, overlays stay
           },
           proceed: () => {
-            // User chose to discard - this will be handled by the form
-            // The form's data:conflict handler should call clear(true) or reset(true)
+            // User chose to discard - reset form to initial state
+            // Same as cancel button behavior
+            hasUserInteracted = false;
+            // Reset form to initial data (force=true bypasses protection)
+            component.reset?.(true);
+            // Clear any validation errors
+            component.clearErrors?.();
+            // Disable controls (form is now pristine)
+            component.disableControls?.();
           },
         };
 
@@ -208,7 +230,7 @@ export const withProtection = (config: FormConfig) => {
      * Updates blocking overlays based on modified state
      */
     const updateProtectionState = (modified: boolean): void => {
-      if (modified) {
+      if (modified && hasUserInteracted) {
         createBlockingOverlays();
         // Add resize/scroll listeners to update overlay positions
         if (!resizeHandler) {
@@ -227,8 +249,43 @@ export const withProtection = (config: FormConfig) => {
       }
     };
 
+    // Listen for field:change events to detect actual user edits
+    // This is more reliable than STATE_CHANGE because it fires on every field edit
+    component.on?.("field:change", () => {
+      // Ignore field:change events during data loading
+      // This prevents false positives from programmatic field updates
+      if (isLoadingData) {
+        return;
+      }
+
+      // Only set hasUserInteracted if data has been loaded
+      // This prevents false positives during initial form setup
+      if (dataHasBeenLoaded && !hasUserInteracted) {
+        hasUserInteracted = true;
+        // Check if we need to show overlays now
+        if (component.state.modified) {
+          updateProtectionState(true);
+        }
+      }
+    });
+
     // Listen for state changes to show/hide overlays
     component.on?.(FORM_EVENTS.STATE_CHANGE, (event: { modified: boolean }) => {
+      // When form becomes pristine (data loaded), reset the interaction flag
+      // and mark that data has been loaded
+      if (!event.modified) {
+        hasUserInteracted = false;
+        dataHasBeenLoaded = true;
+        isLoadingData = true;
+
+        // Clear the loading flag after a short delay to allow all programmatic
+        // field updates to complete (custom fields may update async)
+        setTimeout(() => {
+          isLoadingData = false;
+        }, 100);
+      }
+
+      // Update protection state
       updateProtectionState(event.modified);
     });
 

@@ -467,49 +467,14 @@ export const withData = (config: FormConfig) => {
       /**
        * Reset form to initial data state
        *
-       * When protectChanges.onDataOverwrite is enabled and the form has unsaved changes,
-       * this will emit a 'data:conflict' event. The event handler can call cancel()
-       * to prevent the reset, or let it proceed by default.
+       * Note: Protection is handled by the blocking overlay in the protection feature.
+       * reset() no longer emits data:conflict events - it just resets the form.
+       * Use force parameter for backwards compatibility (ignored).
        *
-       * @param {boolean} force - If true, bypass protection and reset immediately
-       * @returns {boolean} true if reset was performed, false if cancelled by protection
+       * @param {boolean} force - Ignored (kept for backwards compatibility)
+       * @returns {boolean} Always returns true
        */
       reset(force: boolean = false): boolean {
-        // Check for data conflict protection (skip if force=true)
-        if (!force && protectConfig.onDataOverwrite && state.modified) {
-          let cancelled = false;
-          let proceeded = false;
-
-          const conflictEvent: DataConflictEvent = {
-            currentData: { ...state.currentData },
-            newData: { ...state.initialData },
-            cancelled: false,
-            cancel: () => {
-              cancelled = true;
-              conflictEvent.cancelled = true;
-            },
-            proceed: () => {
-              proceeded = true;
-              performReset();
-            },
-          };
-
-          // Emit the conflict event
-          component.emit?.(FORM_EVENTS.DATA_CONFLICT, conflictEvent);
-
-          // If cancelled, don't reset
-          if (cancelled) {
-            return false;
-          }
-
-          // If proceed() was called in the handler, reset already happened
-          if (proceeded) {
-            return true;
-          }
-
-          // If neither cancel() nor proceed() was called, proceed by default
-        }
-
         performReset();
         return true;
       },
@@ -517,49 +482,14 @@ export const withData = (config: FormConfig) => {
       /**
        * Clear all form fields
        *
-       * When protectChanges.onDataOverwrite is enabled and the form has unsaved changes,
-       * this will emit a 'data:conflict' event. The event handler can call cancel()
-       * to prevent the clear, or let it proceed by default.
+       * Note: Protection is handled by the blocking overlay in the protection feature.
+       * clear() no longer emits data:conflict events - it just clears the form.
+       * Use force parameter for backwards compatibility (ignored).
        *
-       * @param {boolean} force - If true, bypass protection and clear immediately
-       * @returns {boolean} true if clear was performed, false if cancelled by protection
+       * @param {boolean} force - Ignored (kept for backwards compatibility)
+       * @returns {boolean} Always returns true
        */
       clear(force: boolean = false): boolean {
-        // Check for data conflict protection (skip if force=true)
-        if (!force && protectConfig.onDataOverwrite && state.modified) {
-          let cancelled = false;
-          let proceeded = false;
-
-          const conflictEvent: DataConflictEvent = {
-            currentData: { ...state.currentData },
-            newData: {},
-            cancelled: false,
-            cancel: () => {
-              cancelled = true;
-              conflictEvent.cancelled = true;
-            },
-            proceed: () => {
-              proceeded = true;
-              performClear();
-            },
-          };
-
-          // Emit the conflict event
-          component.emit?.(FORM_EVENTS.DATA_CONFLICT, conflictEvent);
-
-          // If cancelled, don't clear
-          if (cancelled) {
-            return false;
-          }
-
-          // If proceed() was called in the handler, clear already happened
-          if (proceeded) {
-            return true;
-          }
-
-          // If neither cancel() nor proceed() was called, proceed by default
-        }
-
         performClear();
         return true;
       },
