@@ -39,6 +39,68 @@ export const withAPI = <T extends VListItem = VListItem>(
       ...component,
 
       // Data operations
+
+      /**
+       * Reload the list - clears all data and fetches fresh from the adapter
+       * This is much more efficient than destroying and recreating the VList
+       */
+      async reload(): Promise<void> {
+        // Reset the collection state
+        if (component.viewport?.collection?.reset) {
+          component.viewport.collection.reset();
+        }
+
+        // Reset scroll position to top
+        if (component.viewport?.scrollTo) {
+          component.viewport.scrollTo(0);
+        }
+
+        // Clear rendered DOM content (items container)
+        const itemsContainer = component.element?.querySelector(
+          ".mtrl-viewport-items",
+        );
+        if (itemsContainer) {
+          itemsContainer.innerHTML = "";
+        }
+
+        // Reset initialization state so initialize() will run again
+        if (component.viewport?.resetInitialization) {
+          component.viewport.resetInitialization();
+        }
+
+        // Re-initialize to trigger fresh data load
+        if (component.viewport?.initialize) {
+          component.viewport.initialize();
+        }
+
+        component.emit?.("reloaded");
+      },
+
+      /**
+       * Clear all data without reloading
+       */
+      clear(): void {
+        // Reset the collection state
+        if (component.viewport?.collection?.reset) {
+          component.viewport.collection.reset();
+        }
+
+        // Reset scroll position to top
+        if (component.viewport?.scrollTo) {
+          component.viewport.scrollTo(0);
+        }
+
+        // Clear rendered DOM content (items container)
+        const itemsContainer = component.element?.querySelector(
+          ".mtrl-viewport-items",
+        );
+        if (itemsContainer) {
+          itemsContainer.innerHTML = "";
+        }
+
+        component.emit?.("cleared");
+      },
+
       setItems(items: T[]) {
         if (component.viewport?.collection) {
           component.viewport.collection.setItems(items);

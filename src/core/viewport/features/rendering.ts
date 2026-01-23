@@ -55,9 +55,15 @@ export const withRendering = (config: RenderingConfig = {}) => {
       maintainDomOrder = true,
     } = config;
 
+    // Helper to get items from collection (single source of truth)
+    const getCollectionItems = (): any[] => {
+      return (
+        (component as any).collection?.items || (component as any).items || []
+      );
+    };
+
     // State
     const renderedElements = new Map<number, HTMLElement>();
-    const collectionItems: Record<number, any> = {};
     const elementPool: HTMLElement[] = [];
     const poolStats = { created: 0, recycled: 0, poolSize: 0, released: 0 };
 
@@ -135,8 +141,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
       component.on?.("item:update-request", (data: any) => {
         const { index, item, previousItem } = data;
 
-        // Update the item in collectionItems
-        collectionItems[index] = item;
+        // Item is already updated in collection.items by api.ts
 
         // Check if this item is currently rendered
         const existingElement = renderedElements.get(index);
@@ -209,80 +214,8 @@ export const withRendering = (config: RenderingConfig = {}) => {
         const { index, item } = data;
         isRemovingItem = true;
 
-        // console.log(
-        //   `[RENDER-FIX] ========== ITEM REMOVE START (v4) ==========`,
-        // );
-        // console.log(`[RENDER-FIX] Removing index: ${index}`);
-
-        // Get the source of truth - collection.items has already been spliced by api.ts
-        const collectionItemsSource =
-          (component as any).collection?.items ||
-          (component as any).items ||
-          [];
-
-        // console.log(
-        //   `[RENDER-FIX] collectionItemsSource.length: ${collectionItemsSource.length}`,
-        // );
-        // console.log(
-        //   `[RENDER-FIX] collectionItems cache size BEFORE: ${Object.keys(collectionItems).length}`,
-        // );
-
-        // Strategy: Shift collectionItems cache indices down, but use actual data
-        // from collection.items (which has been spliced) for the loaded range.
-        // For indices beyond the loaded range, shift the cached data.
-
-        const keys = Object.keys(collectionItems)
-          .map(Number)
-          .filter((k) => !isNaN(k))
-          .sort((a, b) => a - b);
-
-        // Delete the removed index
-        delete collectionItems[index];
-
-        // Shift all indices after the removed one down by 1
-        // For indices within the loaded range, use data from collection.items
-        // For indices beyond, shift the existing cached data
-        const loadedLength = collectionItemsSource.length;
-
-        for (const key of keys) {
-          if (key > index) {
-            const newIndex = key - 1;
-            // If newIndex is within loaded data, use source; otherwise shift cache
-            if (newIndex < loadedLength && collectionItemsSource[newIndex]) {
-              collectionItems[newIndex] = collectionItemsSource[newIndex];
-            } else {
-              // Shift cached data for indices beyond loaded range
-              collectionItems[newIndex] = collectionItems[key];
-            }
-            delete collectionItems[key];
-          }
-        }
-
-        const finalKeys = Object.keys(collectionItems)
-          .map(Number)
-          .filter((k) => !isNaN(k))
-          .sort((a, b) => a - b);
-        // console.log(
-        //   `[RENDER-FIX] collectionItems cache size AFTER: ${finalKeys.length}`,
-        // );
-        // console.log(
-        //   `[RENDER-FIX] collectionItems keys: [${finalKeys.slice(0, 10).join(", ")}${finalKeys.length > 10 ? "..." : ""}]`,
-        // );
-        // console.log(
-        //   `[RENDER-FIX] viewportState.totalItems: ${viewportState?.totalItems}`,
-        // );
-        // console.log(
-        //   `[RENDER-FIX] viewportState.visibleRange: ${JSON.stringify(viewportState?.visibleRange)}`,
-        // );
-
-        // Check for any undefined/null values in first 30 items
-        const badIndices: number[] = [];
-        for (let i = 0; i < Math.min(30, finalKeys.length); i++) {
-          const k = finalKeys[i];
-          if (!collectionItems[k] || collectionItems[k]._placeholder) {
-            badIndices.push(k);
-          }
-        }
+        // Item is already removed from collection.items by api.ts
+        // We just need to update rendered elements
 
         // Remove the rendered element at this index
         const existingElement = renderedElements.get(index);
@@ -332,7 +265,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
           index,
         });
 
-        // After item removal, clear ALL loadedRanges and collectionItems cache
+        // After item removal, clear ALL loadedRanges
         // This forces a complete reload which is more reliable than trying to
         // track shifted indices. The items array has been spliced and all indices
         // are now different from what loadedRanges thinks they are.
@@ -342,19 +275,9 @@ export const withRendering = (config: RenderingConfig = {}) => {
           loadedRanges.clear();
         }
 
-        // Clear the entire collectionItems cache - it's all stale after removal
-        // Keep only the items we actually have in the source array
-        const loadedItemsCount = collectionItemsSource.length;
-        const cacheKeys = Object.keys(collectionItems)
-          .map(Number)
-          .filter((k) => !isNaN(k));
-        cacheKeys.forEach((key) => {
-          if (key >= loadedItemsCount) {
-            delete collectionItems[key];
-          }
-        });
-
         // Trigger reload of visible range
+        const collectionItemsArr = getCollectionItems();
+        const loadedItemsCount = collectionItemsArr.length;
         const visibleRange = component.viewport?.getVisibleRange?.();
         if (visibleRange && collection?.loadMissingRanges) {
           collection.loadMissingRanges(
@@ -374,57 +297,29 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
         if (!newItems || newItems.length === 0) return;
 
-        // Get the source of truth - collection.items has already been modified by api.ts
-        const collectionItemsSource =
-          (component as any).collection?.items ||
-          (component as any).items ||
-          [];
+        // Items are already added to collection.items by api.ts
+        // We just need to update rendered elements indices if prepending
 
         const itemsAdded = newItems.length;
 
         if (position === "start") {
-          // Items were prepended - shift all existing indices up
-          const keys = Object.keys(collectionItems)
-            .map(Number)
-            .filter((k) => !isNaN(k))
-            .sort((a, b) => b - a); // Sort descending to avoid overwrites
-
-          // Shift all existing indices up by the number of items added
-          for (const key of keys) {
-            const newIndex = key + itemsAdded;
-            collectionItems[newIndex] = collectionItems[key];
-            delete collectionItems[key];
-          }
-
-          // Add the new items at the start
-          for (let i = 0; i < itemsAdded; i++) {
-            collectionItems[i] = newItems[i];
-          }
-
-          // Shift rendered elements indices up
+          // Items were prepended - shift rendered element indices
           const renderedKeys = Array.from(renderedElements.keys()).sort(
             (a, b) => b - a,
           );
           const newRenderedElements = new Map<number, HTMLElement>();
           for (const key of renderedKeys) {
-            const element = renderedElements.get(key);
-            if (element) {
-              const newIndex = key + itemsAdded;
-              element.dataset.index = String(newIndex);
-              newRenderedElements.set(newIndex, element);
-            }
+            const element = renderedElements.get(key)!;
+            const newIndex = key + itemsAdded;
+            element.setAttribute("data-index", String(newIndex));
+            newRenderedElements.set(newIndex, element);
           }
           renderedElements.clear();
-          for (const [key, element] of newRenderedElements) {
-            renderedElements.set(key, element);
-          }
-        } else {
-          // Items were appended - just add them at the end
-          for (let i = 0; i < itemsAdded; i++) {
-            const index = previousCount + i;
-            collectionItems[index] = newItems[i];
-          }
+          newRenderedElements.forEach((el, idx) =>
+            renderedElements.set(idx, el),
+          );
         }
+        // For append, no index shifting needed
 
         // Update totalItems in viewportState
         if (viewportState) {
@@ -453,19 +348,29 @@ export const withRendering = (config: RenderingConfig = {}) => {
         });
       });
 
-      // Listen for collection items evicted - clean up our cache too
+      // Listen for collection items evicted - clean up rendered elements
       component.on?.("collection:items-evicted", (data: any) => {
-        const { keepStart, keepEnd, evictedCount } = data;
-        let cleanedCount = 0;
+        const { keepStart, keepEnd } = data;
 
-        // Remove evicted items from our cache
-        for (const key in collectionItems) {
-          const index = parseInt(key, 10);
+        // Release rendered elements outside the keep range
+        renderedElements.forEach((element, index) => {
           if (index < keepStart || index > keepEnd) {
-            delete collectionItems[index];
-            cleanedCount++;
+            releaseElement(element);
+            renderedElements.delete(index);
           }
-        }
+        });
+      });
+
+      // Listen for collection reset to clear rendering state
+      component.on?.("collection:reset", () => {
+        // Release and clear all rendered elements
+        renderedElements.forEach((element) => {
+          releaseElement(element);
+        });
+        renderedElements.clear();
+
+        // Reset visible range tracking
+        currentVisibleRange = { start: -1, end: -1 };
       });
 
       // Listen for collection data loaded
@@ -478,74 +383,57 @@ export const withRendering = (config: RenderingConfig = {}) => {
           placeholders.analyzeDataStructure(data.items);
         }
 
-        // Update collection items and replace placeholders
-        // console.log(
-        //   `[RENDER-FIX] Updating collectionItems for indices ${data.offset} to ${data.offset + data.items.length - 1}`,
-        // );
-        let skippedCount = 0;
+        // Items are already in collection.items - replace any placeholder DOM elements
         data.items.forEach((item: any, i: number) => {
           const index = data.offset + i;
-          const oldItem = collectionItems[index];
-          collectionItems[index] = item;
+          const element = renderedElements.get(index);
 
-          // Replace placeholder in DOM if needed
-          const wasPlaceholder = oldItem && isPlaceholder(oldItem);
-          const hasElement = renderedElements.has(index);
-          if (wasPlaceholder && hasElement) {
-            const element = renderedElements.get(index);
-            if (element) {
-              const newElement = renderItem(item, index);
-              if (newElement) {
-                // Remove placeholder classes from wrapper
-                removeClass(newElement, VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS);
-                // Also remove from inner element (for string templates)
-                if (newElement.firstElementChild) {
-                  removeClass(
-                    newElement.firstElementChild as HTMLElement,
-                    VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS,
-                  );
-                }
-
-                // Add replaced class for fade-in animation
-                addClass(newElement, "viewport-item--replaced");
-
-                // Copy position and replace
-                Object.assign(newElement.style, {
-                  position: element.style.position,
-                  transform: element.style.transform,
-                  width: element.style.width,
-                });
-                element.parentNode?.replaceChild(newElement, element);
-                renderedElements.set(index, newElement);
-                releaseElement(element);
-
-                // Remove the replaced class after animation completes
-                setTimeout(() => {
-                  removeClass(newElement, "viewport-item--replaced");
-                }, 300);
-              } else {
-                // renderItem returned null - still release the old element
-                releaseElement(element);
-                renderedElements.delete(index);
+          // Check if current rendered element is a placeholder that needs replacing
+          // Note: The actual class has 'mtrl-' prefix, so check for both
+          const isPlaceholderElement =
+            element?.classList.contains(VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS) ||
+            element?.classList.contains(
+              `mtrl-${VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS}`,
+            );
+          if (isPlaceholderElement) {
+            const newElement = renderItem(item, index);
+            if (newElement) {
+              // Remove placeholder classes from wrapper
+              removeClass(newElement, VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS);
+              // Also remove from inner element (for string templates)
+              if (newElement.firstElementChild) {
+                removeClass(
+                  newElement.firstElementChild as HTMLElement,
+                  VIEWPORT_CONSTANTS.PLACEHOLDER.CLASS,
+                );
               }
+
+              // Add replaced class for fade-in animation
+              addClass(newElement, "viewport-item--replaced");
+
+              // Copy position and replace
+              Object.assign(newElement.style, {
+                position: element.style.position,
+                transform: element.style.transform,
+                width: element.style.width,
+              });
+              element.parentNode?.replaceChild(newElement, element);
+              renderedElements.set(index, newElement);
+              releaseElement(element);
+
+              // Remove the replaced class after animation completes
+              setTimeout(() => {
+                removeClass(newElement, "viewport-item--replaced");
+              }, 300);
+            } else {
+              // renderItem returned null - still release the old element
+              releaseElement(element);
+              renderedElements.delete(index);
             }
-          } else if (wasPlaceholder && !hasElement) {
-            skippedCount++;
           }
         });
 
-        // If we skipped items because no element, trigger a render to show them
-        if (skippedCount > 0 && viewportState?.visibleRange) {
-          const { start, end } = viewportState.visibleRange;
-          const loadedStart = data.offset;
-          const loadedEnd = data.offset + data.items.length - 1;
-          // Check if loaded data overlaps with visible range
-          if (loadedStart <= end && loadedEnd >= start) {
-            renderItems();
-          }
-        }
-
-        // Check if we need to render
+        // Check if we need to render new items (items that weren't rendered at all)
         const { visibleRange } = viewportState || {};
         if (visibleRange) {
           const renderStart = Math.max(0, visibleRange.start - overscan);
@@ -556,17 +444,11 @@ export const withRendering = (config: RenderingConfig = {}) => {
           const loadedStart = data.offset;
           const loadedEnd = data.offset + data.items.length - 1;
 
-          // Check for placeholders in range
-          const hasPlaceholdersInRange = Array.from(
-            { length: Math.min(loadedEnd, renderEnd) - loadedStart + 1 },
-            (_, i) => collectionItems[loadedStart + i],
-          ).some((item) => item && isPlaceholder(item));
-
+          // Check if loaded data overlaps with render range and we're missing rendered elements
           const needsRender =
-            (loadedStart <= renderEnd &&
-              loadedEnd >= renderStart &&
-              renderedElements.size < renderEnd - renderStart + 1) ||
-            hasPlaceholdersInRange;
+            loadedStart <= renderEnd &&
+            loadedEnd >= renderStart &&
+            renderedElements.size < renderEnd - renderStart + 1;
 
           if (needsRender) renderItems();
         }
@@ -920,11 +802,8 @@ export const withRendering = (config: RenderingConfig = {}) => {
           renderedElements.delete(index);
         });
 
-      // Get items source
-      const hasCollectionItems = Object.keys(collectionItems).length > 0;
-      const items = hasCollectionItems
-        ? collectionItems
-        : component.items || [];
+      // Get items from collection (single source of truth)
+      const items = getCollectionItems();
       const missingItems: number[] = [];
 
       // Collect new elements to insert (index -> element)
@@ -937,7 +816,7 @@ export const withRendering = (config: RenderingConfig = {}) => {
         let item = items[i];
         if (!item) {
           missingItems.push(i);
-          // Generate placeholder
+          // Generate placeholder (rendered dynamically, not stored)
           const placeholders = (component as any).placeholders;
           item = placeholders?.generatePlaceholderItem(i) || {
             _placeholder: true,
@@ -948,7 +827,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
             description:
               VIEWPORT_CONSTANTS.PLACEHOLDER.MASK_CHARACTER.repeat(40),
           };
-          collectionItems[i] = item;
         }
 
         const element = renderItem(item, i);
@@ -1081,11 +959,6 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
       // Clear element pool
       elementPool.length = 0;
-
-      // Clear collection items cache - this is critical for memory!
-      for (const key in collectionItems) {
-        delete collectionItems[key];
-      }
 
       // Reset state
       currentVisibleRange = { start: -1, end: -1 };

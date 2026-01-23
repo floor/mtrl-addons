@@ -109,6 +109,11 @@ export const createViewport = (config: ViewportConfig = {}) => {
       // Check if already initialized
       isInitialized: () => isInitialized,
 
+      // Reset initialization state (for reload functionality)
+      resetInitialization: () => {
+        isInitialized = false;
+      },
+
       // Allow features to check if init should proceed
       _shouldInit: () => !isInitialized,
 

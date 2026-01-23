@@ -45,6 +45,8 @@ export interface CollectionComponent {
     // Cursor-specific methods
     getCurrentCursor: () => string | null;
     getCursorForPage: (page: number) => string | null;
+    // Reset method for reload functionality
+    reset: () => void;
   };
 }
 
@@ -1112,6 +1114,58 @@ export function withCollection(config: CollectionConfig = {}) {
       return result;
     };
 
+    /**
+     * Reset collection state without destroying the component
+     * Clears all loaded data and prepares for fresh load
+     */
+    const reset = () => {
+      logMemoryStats("reset:before");
+
+      // Abort all in-flight requests
+      abortControllers.forEach((controller) => {
+        try {
+          controller.abort();
+        } catch (e) {
+          // Ignore abort errors
+        }
+      });
+      abortControllers.clear();
+
+      // Clear all data structures
+      items.length = 0;
+      loadRequestQueue.length = 0;
+      loadedRanges.clear();
+      pendingRanges.clear();
+      failedRanges.clear();
+      activeLoadRanges.clear();
+      activeRequests.clear();
+      cursorMap.clear();
+      pageToOffsetMap.clear();
+
+      // Reset state
+      totalItems = 0;
+      currentCursor = null;
+      highestLoadedPage = 0;
+      discoveredTotal = null;
+      hasReachedEnd = false;
+      hasCompletedInitialPositionLoad = false;
+
+      // Reset counters
+      activeLoadCount = 0;
+      completedLoads = 0;
+      failedLoads = 0;
+      cancelledLoads = 0;
+
+      // Update component reference
+      component.items = items;
+      component.totalItems = 0;
+
+      logMemoryStats("reset:after");
+
+      // Emit reset event
+      component.emit?.("collection:reset");
+    };
+
     // Add collection API to viewport
     component.viewport.collection = {
       loadRange: (offset: number, limit: number) => loadRange(offset, limit),
@@ -1128,6 +1182,8 @@ export function withCollection(config: CollectionConfig = {}) {
       // Cursor-specific methods
       getCurrentCursor: () => currentCursor,
       getCursorForPage: (page: number) => cursorMap.get(page) || null,
+      // Reset method for reload functionality
+      reset,
     };
 
     // Add collection data access with direct assignment
@@ -1155,6 +1211,8 @@ export function withCollection(config: CollectionConfig = {}) {
       // Cursor methods
       getCurrentCursor: () => currentCursor,
       getCursorForPage: (page: number) => cursorMap.get(page) || null,
+      // Reset method for reload functionality
+      reset,
     };
 
     // Also ensure component.items is updated
@@ -1226,6 +1284,8 @@ export function withCollection(config: CollectionConfig = {}) {
         // Cursor-specific methods
         getCurrentCursor: () => currentCursor,
         getCursorForPage: (page: number) => cursorMap.get(page) || null,
+        // Reset method for reload functionality
+        reset,
       },
     };
   };
