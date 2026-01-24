@@ -35,15 +35,14 @@ const wireControlButtons = (
     submitButton.element.addEventListener("click", async () => {
       if (config.onSubmit) {
         // Use custom submit handler
+        // Note: We do NOT auto-disable controls here - the custom handler
+        // is responsible for managing control state (e.g., it may open a dialog
+        // for async operations like file uploads)
         try {
           const data = api.getData();
           await config.onSubmit(data, api);
-          // After successful submit, disable controls (form is now pristine)
-          api.disableControls();
         } catch (error) {
           console.error("Form submit error:", error);
-          // On error, also disable controls to prevent repeated clicks
-          api.disableControls();
         }
       } else {
         // Use default form submit (handles disabling internally)
