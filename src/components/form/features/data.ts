@@ -462,6 +462,11 @@ export const withData = (config: FormConfig) => {
         state.modified = false;
         // Update beforeunload state since we're no longer modified
         updateBeforeUnloadState(false);
+        // Emit state:change so protection overlay gets removed
+        component.emit?.(FORM_EVENTS.STATE_CHANGE, {
+          modified: false,
+          state: DATA_STATE.PRISTINE,
+        });
       },
 
       /**

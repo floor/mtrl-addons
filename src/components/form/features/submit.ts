@@ -138,6 +138,7 @@ export const withSubmit = (config: FormConfig) => {
       state: FormState;
       getData: () => FormData;
       getModifiedData: () => FormData;
+      enableControls: () => void;
       disableControls: () => void;
       snapshot: () => void;
       emit?: (event: string, data?: unknown) => void;
@@ -288,6 +289,9 @@ export const withSubmit = (config: FormConfig) => {
         // Mark as submitting
         component.state.submitting = true;
 
+        // Immediately disable controls to prevent double-clicks
+        component.disableControls();
+
         // Add submitting class to element
         if (component.element) {
           const prefix = config.prefix || "mtrl";
@@ -357,6 +361,9 @@ export const withSubmit = (config: FormConfig) => {
               `${prefix}-${componentName}--${FORM_CLASSES.SUBMITTING}`,
             );
           }
+
+          // Re-enable controls so user can retry (form still has unsaved changes)
+          component.enableControls();
 
           // Emit error event
           component.emit?.(FORM_EVENTS.SUBMIT_ERROR, error);
