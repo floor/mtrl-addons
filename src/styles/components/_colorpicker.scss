@@ -1,0 +1,361 @@
+// src/styles/components/_colorpicker.scss
+// ColorPicker component styles
+@use "../../../../mtrl/src/styles/abstract/base" as base;
+@use "../../../../mtrl/src/styles/abstract/variables" as v;
+@use "../../../../mtrl/src/styles/abstract/mixins" as m;
+@use "../../../../mtrl/src/styles/abstract/functions" as f;
+@use "../../../../mtrl/src/styles/abstract/theme" as t;
+@use "sass:map";
+
+// ============= Variables =============
+
+$colorpicker-border-radius: 8px !default;
+$colorpicker-handle-size: 20px !default;
+$colorpicker-handle-border: 3px !default;
+$colorpicker-gap: 12px !default;
+$colorpicker-swatch-radius: 4px !default;
+$colorpicker-input-height: 36px !default;
+$colorpicker-preview-size: 36px !default;
+
+// ============= Root =============
+$_prefix: base.$prefix;
+
+.#{$_prefix}-colorpicker {
+    display: flex;
+    flex-direction: column;
+    gap: $colorpicker-gap;
+    user-select: none;
+
+    &--disabled {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+
+    &--dragging {
+        cursor: crosshair;
+    }
+}
+
+// ============= Saturation/Brightness Area =============
+
+.#{$_prefix}-colorpicker__area {
+    position: relative;
+    border-radius: $colorpicker-border-radius;
+    cursor: crosshair;
+    overflow: hidden;
+}
+
+.#{$_prefix}-colorpicker__area-gradient {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+}
+
+.#{$_prefix}-colorpicker__area-handle {
+    position: absolute;
+    width: $colorpicker-handle-size;
+    height: $colorpicker-handle-size;
+    border-radius: 50%;
+    border: $colorpicker-handle-border solid #fff;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.1),
+        0 2px 4px rgba(0, 0, 0, 0.2);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: box-shadow 0.15s ease;
+
+    .#{$_prefix}-colorpicker--dragging & {
+        box-shadow:
+            0 0 0 1px rgba(0, 0, 0, 0.1),
+            0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+}
+
+// ============= Hue Slider =============
+
+// Hue slider uses mtrl slider - no style overrides, just width and hide value
+.#{$_prefix}-colorpicker__hue.#{$_prefix}-slider {
+    // width: 100%;
+
+    // Hide the value bubble
+    .#{$_prefix}-slider-value {
+        display: none;
+    }
+}
+
+// ============= Preview and Value Input =============
+
+.#{$_prefix}-colorpicker__value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.#{$_prefix}-colorpicker__preview {
+    width: $colorpicker-preview-size;
+    height: $colorpicker-preview-size;
+    border-radius: $colorpicker-swatch-radius;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+// Textfield in value row
+.#{$_prefix}-colorpicker__value {
+    .#{$_prefix}-textfield {
+        flex: 1;
+        min-width: 0;
+
+        .#{$_prefix}-textfield__input {
+            font-family: monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+    }
+}
+
+// ============= Swatches =============
+
+.#{$_prefix}-colorpicker__swatches {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+}
+
+.#{$_prefix}-colorpicker__swatch {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 24px;
+    max-width: 40px;
+    aspect-ratio: 1;
+    border: none;
+    border-radius: $colorpicker-swatch-radius;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
+
+    &:hover {
+        transform: scale(1.1);
+    }
+
+    &:focus {
+        outline: none;
+        box-shadow:
+            inset 0 0 0 1px rgba(0, 0, 0, 0.1),
+            0 0 0 2px var(--mtrl-sys-color-primary, #6750a4);
+    }
+
+    &--selected {
+        box-shadow:
+            inset 0 0 0 1px rgba(0, 0, 0, 0.1),
+            0 0 0 2px var(--mtrl-sys-color-primary, #6750a4);
+
+        &::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: inherit;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E")
+                center center no-repeat;
+            background-size: 60%;
+            // Add a semi-transparent overlay for better visibility on light colors
+            box-shadow: inset 0 0 0 100px rgba(0, 0, 0, 0.15);
+        }
+    }
+
+    &--add {
+        background: var(--mtrl-sys-color-surface-variant, #e7e0ec);
+        color: var(--mtrl-sys-color-on-surface-variant, #49454f);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        font-weight: 300;
+
+        &::before {
+            content: "+";
+        }
+    }
+}
+
+// ============= Size Variants =============
+
+.#{$_prefix}-colorpicker--s {
+    .#{$_prefix}-colorpicker__area {
+        height: 120px;
+    }
+}
+
+.#{$_prefix}-colorpicker--m {
+    .#{$_prefix}-colorpicker__area {
+        height: 160px;
+    }
+}
+
+.#{$_prefix}-colorpicker--l {
+    .#{$_prefix}-colorpicker__area {
+        height: 200px;
+    }
+}
+
+// ============= Variant: Inline (default) =============
+
+.#{$_prefix}-colorpicker--inline {
+    // Default display, no special styles needed
+}
+
+// ============= Variant: Dropdown =============
+
+.#{$_prefix}-colorpicker--dropdown {
+    position: fixed;
+    z-index: f.get-z-index("menu");
+    pointer-events: none;
+
+    .#{$_prefix}-colorpicker__backdrop {
+        display: none;
+    }
+
+    .#{$_prefix}-colorpicker__popup {
+        @include m.shape("extra-small");
+        @include m.elevation(2);
+
+        display: flex;
+        flex-direction: column;
+        gap: $colorpicker-gap;
+        padding: 12px;
+        background-color: t.color("surface-container");
+        color: t.color("on-surface");
+        overflow: hidden;
+        pointer-events: none;
+
+        // Initial state - hidden (same as menu)
+        opacity: 0;
+        transform-origin: top center;
+        transform: scaleY(0);
+
+        // Material Design 3 standard animation curve for menus
+        transition:
+            transform v.motion("duration-medium1") v.motion("easing-emphasized"),
+            opacity v.motion("duration-medium1") v.motion("easing-emphasized");
+    }
+
+    // Position above trigger
+    &.#{$_prefix}-colorpicker--position-top {
+        .#{$_prefix}-colorpicker__popup {
+            transform-origin: bottom center;
+        }
+    }
+
+    &.#{$_prefix}-colorpicker--open {
+        pointer-events: auto;
+
+        .#{$_prefix}-colorpicker__popup {
+            opacity: 1;
+            transform: scaleY(1);
+            pointer-events: auto;
+        }
+    }
+}
+
+// ============= Variant: Dialog =============
+
+.#{$_prefix}-colorpicker--dialog {
+    position: fixed;
+    inset: 0;
+    z-index: f.get-z-index("menu");
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+
+    .#{$_prefix}-colorpicker__backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.32);
+        opacity: 0;
+        transition: opacity v.motion("duration-medium1")
+            v.motion("easing-emphasized");
+    }
+
+    .#{$_prefix}-colorpicker__popup {
+        @include m.shape("large");
+        @include m.elevation(3);
+
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: $colorpicker-gap;
+        padding: 24px;
+        background-color: t.color("surface-container-high");
+        color: t.color("on-surface");
+        overflow: hidden;
+        pointer-events: none;
+
+        // Initial state - hidden
+        opacity: 0;
+        transform: scale(0.9);
+
+        // Material Design 3 standard animation curve
+        transition:
+            transform v.motion("duration-medium1") v.motion("easing-emphasized"),
+            opacity v.motion("duration-medium1") v.motion("easing-emphasized");
+    }
+
+    &.#{$_prefix}-colorpicker--open {
+        pointer-events: auto;
+
+        .#{$_prefix}-colorpicker__backdrop {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .#{$_prefix}-colorpicker__popup {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
+        }
+    }
+}
+
+// ============= Reduced Motion =============
+
+@include m.reduced-motion {
+    .#{$_prefix}-colorpicker--dropdown,
+    .#{$_prefix}-colorpicker--dialog {
+        .#{$_prefix}-colorpicker__popup {
+            transition: opacity 0.1s linear;
+            transform: none !important;
+        }
+
+        .#{$_prefix}-colorpicker__backdrop {
+            transition: opacity 0.1s linear;
+        }
+
+        &.#{$_prefix}-colorpicker--open {
+            .#{$_prefix}-colorpicker__popup {
+                transform: none !important;
+            }
+        }
+    }
+}
+
+// ============= RTL Support =============
+
+.#{$_prefix}-colorpicker--dropdown {
+    @include m.rtl {
+        .#{$_prefix}-colorpicker__popup {
+            transform-origin: top right;
+        }
+
+        &.#{$_prefix}-colorpicker--position-top {
+            .#{$_prefix}-colorpicker__popup {
+                transform-origin: bottom right;
+            }
+        }
+    }
+}

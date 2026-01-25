@@ -33,3 +33,36 @@ export {
   FORM_CLASSES,
   FORM_DEFAULTS,
 } from "./form/constants";
+
+// ColorPicker component
+export { createColorPicker } from "./colorpicker";
+export type {
+  ColorPickerConfig,
+  ColorPickerComponent,
+  HSVColor,
+  RGBColor,
+  ColorSwatch,
+} from "./colorpicker/types";
+
+// ColorPicker constants and utilities
+export {
+  COLORPICKER_EVENTS,
+  COLORPICKER_SIZES,
+  COLORPICKER_VARIANTS,
+  COLORPICKER_CLASSES,
+  COLORPICKER_DEFAULTS,
+  SWATCH_SIZES,
+  PALETTE_SWATCH_ORDER,
+} from "./colorpicker/constants";
+
+export {
+  hsvToRgb,
+  rgbToHsv,
+  hsvToHex,
+  hexToHsv,
+  rgbToHex,
+  hexToRgb,
+  isValidHex,
+  normalizeHex,
+  getContrastColor,
+} from "./colorpicker/utils";
