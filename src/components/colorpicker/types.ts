@@ -167,6 +167,13 @@ export interface ColorPickerConfig {
   prefix?: string;
 
   /**
+   * Component name for class generation
+   * @default 'colorpicker'
+   * @internal
+   */
+  componentName?: string;
+
+  /**
    * Callback when color changes (committed)
    */
   onChange?: (color: string) => void;

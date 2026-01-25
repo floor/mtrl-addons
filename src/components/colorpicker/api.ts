@@ -8,15 +8,9 @@ import {
   HSVColor,
   RGBColor,
 } from "./types";
+import type { ColorSwatch as ColorSwatchType } from "./types";
 import { hexToHsv, hexToRgb, hsvToHex, rgbToHex, normalizeHex } from "./utils";
 import { COLORPICKER_EVENTS } from "./constants";
-import { AreaFeature } from "./features/area";
-import { HueFeature } from "./features/hue";
-import { SwatchesFeature } from "./features/swatches";
-import { InputFeature } from "./features/input";
-import { VariantFeature } from "./features/variant";
-import { PipetteFeature } from "./features/pipette";
-import { OpacityFeature } from "./features/opacity";
 
 /**
  * API configuration options for color picker component
@@ -38,15 +32,41 @@ interface ApiOptions {
   lifecycle: {
     destroy: () => void;
   };
-  // Optional features
+  // Optional features - using partial types to match getApiConfig
   state?: ColorPickerState;
-  area?: AreaFeature;
-  hue?: HueFeature;
-  swatches?: SwatchesFeature;
-  input?: InputFeature;
-  variant?: VariantFeature;
-  pipette?: PipetteFeature;
-  opacity?: OpacityFeature;
+  area?: {
+    updateBackground: () => void;
+    updateHandle: () => void;
+  };
+  hue?: {
+    updateHandle: () => void;
+  };
+  opacity?: {
+    updateBackground: () => void;
+    updateHandle: () => void;
+  };
+  swatches?: {
+    update: () => void;
+    set: (swatches: string[] | ColorSwatchType[]) => void;
+    add: (color: string, label?: string) => void;
+    remove: (color: string) => void;
+    clear: () => void;
+    get: () => ColorSwatchType[];
+  };
+  input?: {
+    update: () => void;
+  };
+  variant?: {
+    open: () => void;
+    close: () => void;
+    toggle: () => void;
+    isOpen: () => boolean;
+  };
+  pipette?: {
+    pick: () => Promise<string | null>;
+    setImageSource: (source: HTMLImageElement | string | null) => void;
+    isSampling: () => boolean;
+  };
 }
 
 /**

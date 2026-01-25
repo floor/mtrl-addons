@@ -8,7 +8,12 @@ import {
   COLORPICKER_DENSITIES,
   SIZE_DIMENSIONS,
 } from "./constants";
-import { ColorPickerConfig, ColorPickerState, HSVColor } from "./types";
+import {
+  ColorPickerConfig,
+  ColorPickerState,
+  HSVColor,
+  ColorSwatch,
+} from "./types";
 import { hexToHsv, normalizeHex } from "./utils";
 
 /**
@@ -214,11 +219,11 @@ export const getApiConfig = (comp: {
   };
   swatches?: {
     update: () => void;
-    set: (swatches: unknown[]) => void;
+    set: (swatches: string[] | ColorSwatch[]) => void;
     add: (color: string, label?: string) => void;
     remove: (color: string) => void;
     clear: () => void;
-    get: () => unknown[];
+    get: () => ColorSwatch[];
   };
   input?: {
     update: () => void;
