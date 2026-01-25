@@ -49,7 +49,7 @@
   "author": "floor",
   "license": "MIT",
   "peerDependencies": {
-    "mtrl": "^0.5.4"
+    "mtrl": "^0.6.0"
   },
   "devDependencies": {
     "@types/jsdom": "^21.1.7",
