@@ -412,14 +412,18 @@ export const withRendering = (config: RenderingConfig = {}) => {
               addClass(newElement, "viewport-item--replaced");
 
               // Copy position and replace
-              Object.assign(newElement.style, {
-                position: element.style.position,
-                transform: element.style.transform,
-                width: element.style.width,
-              });
-              element.parentNode?.replaceChild(newElement, element);
+              if (element) {
+                Object.assign(newElement.style, {
+                  position: element.style.position,
+                  transform: element.style.transform,
+                  width: element.style.width,
+                });
+                element.parentNode?.replaceChild(newElement, element);
+              }
               renderedElements.set(index, newElement);
-              releaseElement(element);
+              if (element) {
+                releaseElement(element);
+              }
 
               // Remove the replaced class after animation completes
               setTimeout(() => {
@@ -427,7 +431,9 @@ export const withRendering = (config: RenderingConfig = {}) => {
               }, 300);
             } else {
               // renderItem returned null - still release the old element
-              releaseElement(element);
+              if (element) {
+                releaseElement(element);
+              }
               renderedElements.delete(index);
             }
           }

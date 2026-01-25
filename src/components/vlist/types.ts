@@ -334,11 +334,29 @@ export interface ListEvents<T = any> {
   /** Item clicked */
   "item:click": { item: T; index: number; event: MouseEvent };
 
+  /** Item activated (Enter key in single selection mode) */
+  "item:activate": { item: T; index: number };
+
   /** Item selected/deselected */
   "item:selection:change": { item: T; index: number; isSelected: boolean };
 
   /** Selection changed */
   "selection:change": { selectedItems: T[]; selectedIndices: number[] };
+
+  /** Keyboard navigation occurred */
+  "keyboard:navigate": {
+    key: string;
+    index: number;
+    shiftKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
+  };
+
+  /** List received keyboard focus */
+  "keyboard:focus": Record<string, never>;
+
+  /** List lost keyboard focus */
+  "keyboard:blur": Record<string, never>;
 
   /** Scroll position changed */
   "scroll:change": { scrollTop: number; direction: "up" | "down" | "none" };
@@ -784,6 +802,18 @@ export interface VListConfig<T extends ListItem = ListItem> {
 
 export type VListComponent<T extends ListItem = ListItem> = ListComponent<T> & {
   viewport: ViewportComponent["viewport"];
+  /** Focus the list for keyboard navigation */
+  focus(): void;
+  /** Blur the list */
+  blur(): void;
+  /** Check if list has focus */
+  hasFocus(): boolean;
+  /** Check if an item at index is fully visible in the viewport */
+  isItemFullyVisible(index: number): boolean;
+  /** Select first item */
+  selectFirst(): Promise<boolean>;
+  /** Select last item */
+  selectLast(): Promise<boolean>;
 };
 
 export type VListItem = ListItem;

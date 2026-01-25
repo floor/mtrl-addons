@@ -427,7 +427,7 @@ export const withKeyboard = <T extends VListItem = VListItem>(
         }
       }
 
-      component.emit?.("keyboard:focus");
+      component.emit?.("keyboard:focus", {});
     };
 
     /**
@@ -446,7 +446,7 @@ export const withKeyboard = <T extends VListItem = VListItem>(
         typeAheadTimer = null;
       }
 
-      component.emit?.("keyboard:blur");
+      component.emit?.("keyboard:blur", {});
     };
 
     /**

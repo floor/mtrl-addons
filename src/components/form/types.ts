@@ -386,6 +386,12 @@ export interface FormAPI {
 
   /** Disable control buttons */
   disableControls: () => FormComponent;
+
+  /** Take a snapshot of current data as the new baseline
+   * Resets modified state to false and removes protection overlays
+   * Useful after successful form submission
+   */
+  snapshot: () => void;
 }
 
 /**
