@@ -50,6 +50,12 @@ export const withVariant =
     const state: ColorPickerState =
       component.state || createInitialState(config);
 
+    // Track when drag ended to prevent closing on drag release
+    let lastDragEndTime = 0;
+
+    // Track if mousedown started inside the picker (for text selection)
+    let mouseDownInsidePicker = false;
+
     const variantType = config.variant || COLORPICKER_VARIANTS.INLINE;
 
     // Only apply variant behavior for dropdown/dialog variants
@@ -211,6 +217,23 @@ export const withVariant =
     };
 
     const handleDocumentClick = (e: MouseEvent): void => {
+      // Don't close if user is currently dragging a handle (area, hue, opacity)
+      if (state.isDragging) {
+        return;
+      }
+
+      // Don't close if drag just ended (within 100ms) - this prevents
+      // closing when mouseup happens outside the picker after dragging
+      if (Date.now() - lastDragEndTime < 100) {
+        return;
+      }
+
+      // Don't close if mousedown started inside picker (text selection, etc.)
+      if (mouseDownInsidePicker) {
+        mouseDownInsidePicker = false;
+        return;
+      }
+
       // Don't close if clicked inside the picker container
       if (container.contains(e.target as Node)) {
         return;
@@ -242,6 +265,29 @@ export const withVariant =
         position();
       }
     };
+
+    // ============= Track drag end for click prevention =============
+
+    const handleDragEnd = (): void => {
+      // Only record drag end time if we were actually dragging
+      if (state.isDragging) {
+        lastDragEndTime = Date.now();
+      }
+    };
+
+    // Listen for mouseup/pointerup on document to track drag end
+    // These fire BEFORE the isDragging state is reset by the feature handlers
+    document.addEventListener("mouseup", handleDragEnd, true);
+    document.addEventListener("pointerup", handleDragEnd, true);
+
+    // ============= Track mousedown origin for text selection =============
+
+    const handleDocumentMouseDown = (e: MouseEvent): void => {
+      // Track if mousedown started inside the picker container
+      mouseDownInsidePicker = container.contains(e.target as Node);
+    };
+
+    document.addEventListener("mousedown", handleDocumentMouseDown, true);
 
     // ============= Attach Event Listeners =============
 
@@ -275,6 +321,13 @@ export const withVariant =
         backdrop.removeEventListener("click", handleBackdropClick);
         document.removeEventListener("click", handleDocumentClick);
         document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener("mouseup", handleDragEnd, true);
+        document.removeEventListener("pointerup", handleDragEnd, true);
+        document.removeEventListener(
+          "mousedown",
+          handleDocumentMouseDown,
+          true,
+        );
         window.removeEventListener("resize", handleResize);
         window.removeEventListener("scroll", handleScroll, true);
 

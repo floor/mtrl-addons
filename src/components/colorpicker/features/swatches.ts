@@ -150,7 +150,10 @@ export const withSwatches =
           swatchEl.title = swatch.label;
         }
 
-        swatchEl.addEventListener("click", () => handleSwatchClick(swatch));
+        swatchEl.addEventListener("click", (e) => {
+          e.stopPropagation();
+          handleSwatchClick(swatch);
+        });
 
         swatchesContainer.appendChild(swatchEl);
       });

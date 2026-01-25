@@ -76,8 +76,8 @@ $_prefix: base.$prefix;
 
 .#{$_prefix}-colorpicker__hue {
     position: relative;
-    height: 12px;
-    border-radius: 6px;
+    height: 20px;
+    border-radius: 4px;
     // cursor: crosshair;
     outline: none;
 
@@ -219,7 +219,7 @@ $_prefix: base.$prefix;
 .#{$_prefix}-colorpicker__swatches {
     display: flex;
     flex-wrap: nowrap;
-    gap: 6px;
+    gap: 2px;
 }
 
 .#{$_prefix}-colorpicker__swatch {
@@ -570,7 +570,7 @@ $_prefix: base.$prefix;
     .#{$_prefix}-colorpicker__swatches {
         margin-top: 0;
         gap: 0;
-        border-radius: 0 0 $colorpicker-border-radius;
+        border-radius: 0 0 $colorpicker-border-radius $colorpicker-border-radius;
         overflow: hidden;
         .#{$_prefix}-colorpicker__swatch {
             border-radius: 0;
