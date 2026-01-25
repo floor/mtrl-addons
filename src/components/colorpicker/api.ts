@@ -15,6 +15,7 @@ import { HueFeature } from "./features/hue";
 import { SwatchesFeature } from "./features/swatches";
 import { InputFeature } from "./features/input";
 import { VariantFeature } from "./features/variant";
+import { PipetteFeature } from "./features/pipette";
 
 /**
  * API configuration options for color picker component
@@ -43,6 +44,7 @@ interface ApiOptions {
   swatches?: SwatchesFeature;
   input?: InputFeature;
   variant?: VariantFeature;
+  pipette?: PipetteFeature;
 }
 
 /**
@@ -73,6 +75,7 @@ export const withAPI =
       swatches,
       input,
       variant,
+      pipette,
     } = options;
 
     // Ensure state exists
@@ -233,6 +236,26 @@ export const withAPI =
 
       isOpen: () => {
         return variant ? variant.isOpen() : true;
+      },
+
+      // ============= Pipette Methods =============
+
+      pickColor: async () => {
+        if (pipette) {
+          return pipette.pick();
+        }
+        return null;
+      },
+
+      setImageSource: (source: HTMLImageElement | string | null) => {
+        if (pipette) {
+          pipette.setImageSource(source);
+        }
+        return colorPickerComponent;
+      },
+
+      isSampling: () => {
+        return pipette ? pipette.isSampling() : false;
       },
 
       // ============= Event Methods =============

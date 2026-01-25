@@ -342,6 +342,47 @@ $_prefix: base.$prefix;
     }
 }
 
+// ============= Pipette =============
+
+.#{$_prefix}-colorpicker__pipette {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-top: 4px;
+    border-top: 1px solid t.color("outline-variant");
+    margin-top: 4px;
+
+    .#{$_prefix}-icon-button {
+        color: t.color("on-surface-variant");
+
+        &:hover {
+            color: t.color("on-surface");
+        }
+    }
+}
+
+// Pipette overlay (injected into body)
+.#{$_prefix}-pipette-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    cursor: crosshair;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pipette-fade-in 0.2s ease-out;
+
+    @keyframes pipette-fade-in {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+}
+
 // ============= RTL Support =============
 
 .#{$_prefix}-colorpicker--dropdown {

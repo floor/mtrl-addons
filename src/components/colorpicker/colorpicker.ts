@@ -8,6 +8,7 @@ import { withHue } from "./features/hue";
 import { withSwatches } from "./features/swatches";
 import { withInput } from "./features/input";
 import { withVariant } from "./features/variant";
+import { withPipette, isEyeDropperSupported } from "./features/pipette";
 import { withAPI } from "./api";
 import { ColorPickerConfig, ColorPickerComponent } from "./types";
 import { createBaseConfig, getElementConfig, getApiConfig } from "./config";
@@ -82,6 +83,11 @@ const createColorPicker = (
         : (c: any) => c,
       baseConfig.showSwatches !== false
         ? withSwatches(baseConfig)
+        : (c: any) => c,
+      // Add pipette if enabled or image source provided
+      baseConfig.showPipette !== false &&
+        (isEyeDropperSupported() || baseConfig.imageSource)
+        ? withPipette(baseConfig)
         : (c: any) => c,
       withLifecycle(),
       (comp: any) => withAPI(getApiConfig(comp))(comp),

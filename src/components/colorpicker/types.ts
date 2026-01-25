@@ -155,6 +155,31 @@ export interface ColorPickerConfig {
    * Callback during color selection (live preview)
    */
   onInput?: (color: string) => void;
+
+  /**
+   * Whether to show the pipette button
+   * @default true (when native API supported or imageSource provided)
+   */
+  showPipette?: boolean;
+
+  /**
+   * Image source for canvas-based pipette sampling
+   * Can be an HTMLImageElement, URL string, or null
+   * When provided, clicking pipette will sample from this image
+   * When not provided and native EyeDropper API is available, uses that instead
+   */
+  imageSource?: HTMLImageElement | string | null;
+
+  /**
+   * Callback when pipette sampling starts
+   */
+  onPipetteStart?: () => void;
+
+  /**
+   * Callback when pipette sampling ends
+   * @param color - The picked color (hex) or null if cancelled
+   */
+  onPipetteEnd?: (color: string | null) => void;
 }
 
 /**
@@ -318,6 +343,30 @@ export interface ColorPickerComponent {
    * @returns True if open
    */
   isOpen: () => boolean;
+
+  // ============= Pipette Methods =============
+
+  /**
+   * Start pipette color picking
+   * Uses native EyeDropper API when available, or canvas sampling from imageSource
+   * @returns Promise resolving to picked color (hex) or null if cancelled
+   */
+  pickColor: () => Promise<string | null>;
+
+  /**
+   * Set the image source for canvas-based pipette sampling
+   * @param source - HTMLImageElement, URL string, or null
+   * @returns The component for chaining
+   */
+  setImageSource: (
+    source: HTMLImageElement | string | null,
+  ) => ColorPickerComponent;
+
+  /**
+   * Check if pipette is currently sampling
+   * @returns True if sampling is in progress
+   */
+  isSampling: () => boolean;
 
   /**
    * Destroys the component and cleans up resources

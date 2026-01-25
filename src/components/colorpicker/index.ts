@@ -68,5 +68,11 @@ export type { InputFeature } from "./features/input";
 export { withVariant } from "./features/variant";
 export type { VariantFeature } from "./features/variant";
 
+export { withPipette, isEyeDropperSupported } from "./features/pipette";
+export type {
+  PipetteFeature,
+  PipetteConfig,
+} from "./features/pipette";
+
 // API
 export { withAPI } from "./api";
