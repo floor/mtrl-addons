@@ -9,10 +9,11 @@ import { withSwatches } from "./features/swatches";
 import { withInput } from "./features/input";
 import { withVariant } from "./features/variant";
 import { withPipette, isEyeDropperSupported } from "./features/pipette";
+import { withOpacity } from "./features/opacity";
 import { withAPI } from "./api";
 import { ColorPickerConfig, ColorPickerComponent } from "./types";
 import { createBaseConfig, getElementConfig, getApiConfig } from "./config";
-import { COLORPICKER_VARIANTS } from "./constants";
+import { COLORPICKER_VARIANTS, COLORPICKER_DENSITIES } from "./constants";
 
 /**
  * Creates a new ColorPicker component with the specified configuration.
@@ -78,6 +79,7 @@ const createColorPicker = (
       // Apply optional features based on config
       baseConfig.showArea !== false ? withArea(baseConfig) : (c: any) => c,
       baseConfig.showHue !== false ? withHue(baseConfig) : (c: any) => c,
+      baseConfig.showOpacity === true ? withOpacity(baseConfig) : (c: any) => c,
       baseConfig.showInput !== false || baseConfig.showPreview !== false
         ? withInput(baseConfig)
         : (c: any) => c,

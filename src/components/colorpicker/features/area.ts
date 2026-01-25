@@ -37,6 +37,13 @@ export const withArea =
       emit: (event: string, data?: unknown) => void;
       state?: ColorPickerState;
       pickerContent?: HTMLElement;
+      input?: {
+        update: () => void;
+      };
+      opacity?: {
+        updateBackground: () => void;
+        updateHandle: () => void;
+      };
     },
   >(
     component: T,
@@ -110,6 +117,11 @@ export const withArea =
 
       // Update this feature
       updateHandle();
+
+      // Update other features that depend on color via refs
+      state.refs.input?.update?.();
+      state.refs.opacity?.updateBackground?.();
+      state.refs.opacity?.updateHandle?.();
 
       emit(COLORPICKER_EVENTS.INPUT, state.hex);
       config.onInput?.(state.hex);

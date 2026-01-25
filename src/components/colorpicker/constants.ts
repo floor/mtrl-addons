@@ -36,6 +36,16 @@ export const COLORPICKER_VARIANTS = {
 } as const;
 
 /**
+ * Color picker densities
+ */
+export const COLORPICKER_DENSITIES = {
+  /** Default density with standard spacing */
+  DEFAULT: "default",
+  /** Compact density - minimal layout, hue bar under area */
+  COMPACT: "compact",
+} as const;
+
+/**
  * Color picker sizes
  */
 export const COLORPICKER_SIZES = {
@@ -92,6 +102,7 @@ export const COLORPICKER_CLASSES = {
   DRAGGING: "colorpicker--dragging",
   OPEN: "colorpicker--open",
   POSITION_TOP: "colorpicker--position-top",
+  COMPACT: "colorpicker--compact",
 
   // Variants
   INLINE: "colorpicker--inline",

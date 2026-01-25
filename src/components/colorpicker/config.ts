@@ -5,6 +5,7 @@ import {
   COLORPICKER_SIZES,
   COLORPICKER_VARIANTS,
   COLORPICKER_CLASSES,
+  COLORPICKER_DENSITIES,
   SIZE_DIMENSIONS,
 } from "./constants";
 import { ColorPickerConfig, ColorPickerState, HSVColor } from "./types";
@@ -20,6 +21,7 @@ export const defaultConfig: ColorPickerConfig = {
   value: COLORPICKER_DEFAULTS.VALUE,
   variant: COLORPICKER_VARIANTS.INLINE,
   size: COLORPICKER_SIZES.M,
+  density: COLORPICKER_DENSITIES.DEFAULT,
   swatchSize: COLORPICKER_DEFAULTS.SWATCH_SIZE,
   showInput: COLORPICKER_DEFAULTS.SHOW_INPUT,
   showPreview: COLORPICKER_DEFAULTS.SHOW_PREVIEW,
@@ -50,6 +52,7 @@ export const createBaseConfig = (
     | "value"
     | "variant"
     | "size"
+    | "density"
     | "swatchSize"
     | "showInput"
     | "showPreview"
@@ -70,6 +73,7 @@ export const createBaseConfig = (
     value: config.value || defaultConfig.value!,
     variant: config.variant || defaultConfig.variant!,
     size: config.size || defaultConfig.size!,
+    density: config.density || defaultConfig.density!,
     swatchSize: config.swatchSize ?? defaultConfig.swatchSize!,
     showInput: config.showInput ?? defaultConfig.showInput!,
     showPreview: config.showPreview ?? defaultConfig.showPreview!,
@@ -95,6 +99,7 @@ export const createBaseConfig = (
 export const getElementConfig = (config: ColorPickerConfig) => {
   const dimensions = getSizeDimensions(config.size || "m");
   const variant = config.variant || COLORPICKER_VARIANTS.INLINE;
+  const density = config.density || COLORPICKER_DENSITIES.DEFAULT;
 
   // Build variant class
   let variantClass: string;
@@ -106,10 +111,18 @@ export const getElementConfig = (config: ColorPickerConfig) => {
     variantClass = `${config.prefix}-${COLORPICKER_CLASSES.INLINE}`;
   }
 
+  // Build density class
+  const densityClass =
+    density === COLORPICKER_DENSITIES.COMPACT
+      ? `${config.prefix}-${COLORPICKER_CLASSES.COMPACT}`
+      : null;
+
   return {
     tag: "div",
     componentName: config.componentName,
-    className: [variantClass, config.class].filter(Boolean) as string[],
+    className: [variantClass, densityClass, config.class].filter(
+      Boolean,
+    ) as string[],
     style: `width: ${dimensions.width}px`,
   };
 };
@@ -153,10 +166,12 @@ export const createInitialState = (
   return {
     hsv: initialHsv,
     hex: normalizeHex(config.value || COLORPICKER_DEFAULTS.VALUE),
+    opacity: config.opacity ?? 1,
     isDragging: false,
     dragTarget: null,
     swatches: [],
     isOpen: false,
+    refs: {},
   };
 };
 
@@ -193,6 +208,10 @@ export const getApiConfig = (comp: {
   hue?: {
     updateHandle: () => void;
   };
+  opacity?: {
+    updateBackground: () => void;
+    updateHandle: () => void;
+  };
   swatches?: {
     update: () => void;
     set: (swatches: unknown[]) => void;
@@ -222,6 +241,7 @@ export const getApiConfig = (comp: {
   state: comp.state,
   area: comp.area,
   hue: comp.hue,
+  opacity: comp.opacity,
   swatches: comp.swatches,
   input: comp.input,
   variant: comp.variant,

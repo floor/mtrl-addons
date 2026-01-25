@@ -309,10 +309,14 @@ class CanvasSampler {
   /**
    * Get image coordinates from mouse event
    */
-  private getImageCoordinates(clientX: number, clientY: number): { x: number; y: number; imageX: number; imageY: number } | null {
+  private getImageCoordinates(
+    clientX: number,
+    clientY: number,
+  ): { x: number; y: number; imageX: number; imageY: number } | null {
     if (!this.overlay || !this.image) return null;
 
-    const displayImage = (this.overlay as any)._displayImage as HTMLImageElement;
+    const displayImage = (this.overlay as any)
+      ._displayImage as HTMLImageElement;
     const rect = displayImage.getBoundingClientRect();
 
     // Check if mouse is over the image
@@ -358,7 +362,9 @@ class CanvasSampler {
       this.crosshair.style.left = `${coords.x}px`;
       this.crosshair.style.top = `${coords.y}px`;
       if (color) {
-        this.crosshair.style.borderColor = this.isLightColor(color) ? "#333" : "#fff";
+        this.crosshair.style.borderColor = this.isLightColor(color)
+          ? "#333"
+          : "#fff";
       }
     }
 
@@ -366,8 +372,10 @@ class CanvasSampler {
     if (this.magnifier && this.image) {
       this.magnifier.style.display = "block";
       // Position magnifier offset from cursor
-      const offsetX = coords.x + 100 > (this.overlay as any)._displayImage.width ? -100 : 50;
-      const offsetY = coords.y + 100 > (this.overlay as any)._displayImage.height ? -100 : 50;
+      const offsetX =
+        coords.x + 100 > (this.overlay as any)._displayImage.width ? -100 : 50;
+      const offsetY =
+        coords.y + 100 > (this.overlay as any)._displayImage.height ? -100 : 50;
       this.magnifier.style.left = `${coords.x + offsetX}px`;
       this.magnifier.style.top = `${coords.y + offsetY}px`;
 
@@ -380,8 +388,12 @@ class CanvasSampler {
 
     // Update color preview
     if (this.colorPreview && color) {
-      const swatch = this.colorPreview.querySelector(".pipette-swatch") as HTMLElement;
-      const text = this.colorPreview.querySelector(".pipette-text") as HTMLElement;
+      const swatch = this.colorPreview.querySelector(
+        ".pipette-swatch",
+      ) as HTMLElement;
+      const text = this.colorPreview.querySelector(
+        ".pipette-text",
+      ) as HTMLElement;
       if (swatch) swatch.style.backgroundColor = color;
       if (text) text.textContent = color.toUpperCase();
     }
@@ -471,7 +483,9 @@ class CanvasSampler {
       document.addEventListener("mousemove", this.boundMouseMove);
       document.addEventListener("mousedown", this.boundMouseDown);
       document.addEventListener("keydown", this.boundKeyDown);
-      document.addEventListener("touchmove", this.boundTouchMove, { passive: false });
+      document.addEventListener("touchmove", this.boundTouchMove, {
+        passive: false,
+      });
       document.addEventListener("touchend", this.boundTouchEnd);
     });
   }
@@ -566,7 +580,8 @@ export const withPipette =
     // Determine if we should show the pipette
     const hasImageSource = !!config.imageSource;
     const hasNativeSupport = isEyeDropperSupported();
-    const showPipette = config.showPipette ?? (hasNativeSupport || hasImageSource);
+    const showPipette =
+      config.showPipette ?? (hasNativeSupport || hasImageSource);
 
     if (!showPipette) {
       // Create a no-op feature
@@ -586,7 +601,8 @@ export const withPipette =
 
     // Create canvas sampler for fallback
     const canvasSampler = new CanvasSampler();
-    let currentImageSource: HTMLImageElement | string | null = config.imageSource || null;
+    let currentImageSource: HTMLImageElement | string | null =
+      config.imageSource || null;
     let isSampling = false;
 
     // Initialize image source if provided
@@ -596,17 +612,7 @@ export const withPipette =
       });
     }
 
-    // Create button container (to be inserted near the input/preview row)
-    const buttonContainer = document.createElement("div");
-    buttonContainer.className = getClass("colorpicker__pipette");
-    buttonContainer.style.cssText = `
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-top: 8px;
-    `;
-
-    // Create pipette button
+    // Create pipette button (to be inserted inside the value row after textfield)
     const button = createIconButton({
       icon: PIPETTE_ICON,
       ariaLabel: "Pick color from image",
@@ -614,13 +620,11 @@ export const withPipette =
       class: getClass("colorpicker__pipette-btn"),
     });
 
-    buttonContainer.appendChild(button.element);
-
-    // Insert after the value row (input/preview) or at the end
+    // Insert inside the value row (after textfield) or at the end of container
     if (component.input?.element) {
-      component.input.element.after(buttonContainer);
+      component.input.element.appendChild(button.element);
     } else {
-      container.appendChild(buttonContainer);
+      container.appendChild(button.element);
     }
 
     /**
@@ -701,14 +705,14 @@ export const withPipette =
 
     // Create pipette feature object
     const pipetteFeature: PipetteFeature = {
-      element: buttonContainer,
+      element: button.element,
       pick,
       setImageSource,
       isSampling: () => isSampling || canvasSampler.isSampling(),
       destroy: () => {
         canvasSampler.destroy();
         button.destroy?.();
-        buttonContainer.remove();
+        button.element.remove();
       },
     };
 

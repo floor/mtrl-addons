@@ -94,7 +94,9 @@ export const withSwatches =
       component.area?.updateBackground?.();
       component.area?.updateHandle?.();
       component.hue?.updateHandle?.();
-      component.input?.update?.();
+      state.refs.opacity?.updateBackground?.();
+      state.refs.opacity?.updateHandle?.();
+      state.refs.input?.update?.();
       update();
     };
 

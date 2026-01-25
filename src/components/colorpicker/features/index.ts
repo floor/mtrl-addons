@@ -22,3 +22,6 @@ export type { VariantFeature } from "./variant";
 
 export { withPipette, isEyeDropperSupported } from "./pipette";
 export type { PipetteFeature, PipetteConfig } from "./pipette";
+
+export { withOpacity } from "./opacity";
+export type { OpacityFeature } from "./opacity";

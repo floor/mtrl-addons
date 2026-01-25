@@ -9,9 +9,9 @@
 
 // ============= Variables =============
 
-$colorpicker-border-radius: 8px !default;
+$colorpicker-border-radius: 4px !default;
 $colorpicker-handle-size: 20px !default;
-$colorpicker-handle-border: 3px !default;
+$colorpicker-handle-border: 2px !default;
 $colorpicker-gap: 12px !default;
 $colorpicker-swatch-radius: 50% !default;
 $colorpicker-input-height: 36px !default;
@@ -32,7 +32,7 @@ $_prefix: base.$prefix;
     }
 
     &--dragging {
-        cursor: crosshair;
+        // cursor: crosshair;
     }
 }
 
@@ -40,9 +40,9 @@ $_prefix: base.$prefix;
 
 .#{$_prefix}-colorpicker__area {
     position: relative;
-    border-radius: $colorpicker-border-radius;
-    cursor: crosshair;
-    overflow: hidden;
+    border-radius: 4px;
+    // cursor: crosshair;
+    // overflow: hidden;
 }
 
 .#{$_prefix}-colorpicker__area-gradient {
@@ -53,6 +53,7 @@ $_prefix: base.$prefix;
 
 .#{$_prefix}-colorpicker__area-handle {
     position: absolute;
+    z-index: 2;
     width: $colorpicker-handle-size;
     height: $colorpicker-handle-size;
     border-radius: 50%;
@@ -71,13 +72,114 @@ $_prefix: base.$prefix;
     }
 }
 
-// ============= Hue Slider =============
+// ============= Hue Bar =============
 
-// Hue slider uses mtrl slider - no style overrides, just hide value
-.#{$_prefix}-colorpicker__hue.#{$_prefix}-slider {
-    // Hide the value bubble
-    .#{$_prefix}-slider-value {
-        display: none;
+.#{$_prefix}-colorpicker__hue {
+    position: relative;
+    height: 12px;
+    border-radius: 6px;
+    // cursor: crosshair;
+    outline: none;
+
+    &:focus-visible {
+        box-shadow: 0 0 0 2px var(--mtrl-sys-color-primary, #6750a4);
+    }
+}
+
+.#{$_prefix}-colorpicker__hue-slider {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+        to right,
+        hsl(0, 100%, 50%),
+        hsl(60, 100%, 50%),
+        hsl(120, 100%, 50%),
+        hsl(180, 100%, 50%),
+        hsl(240, 100%, 50%),
+        hsl(300, 100%, 50%),
+        hsl(360, 100%, 50%)
+    );
+}
+
+.#{$_prefix}-colorpicker__hue-handle {
+    position: absolute;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.1),
+        0 2px 4px rgba(0, 0, 0, 0.2);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: box-shadow 0.15s ease;
+
+    .#{$_prefix}-colorpicker--dragging & {
+        box-shadow:
+            0 0 0 1px rgba(0, 0, 0, 0.1),
+            0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+}
+
+// ============= Opacity Bar =============
+
+.#{$_prefix}-colorpicker__opacity {
+    position: relative;
+    height: 12px;
+    border-radius: 6px;
+    // cursor: crosshair;
+    outline: none;
+
+    &:focus-visible {
+        box-shadow: 0 0 0 2px var(--mtrl-sys-color-primary, #6750a4);
+    }
+}
+
+.#{$_prefix}-colorpicker__opacity-checkerboard {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image:
+        linear-gradient(45deg, #ccc 25%, transparent 25%),
+        linear-gradient(-45deg, #ccc 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #ccc 75%),
+        linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 8px 8px;
+    background-position:
+        0 0,
+        0 4px,
+        4px -4px,
+        -4px 0;
+    background-color: #fff;
+}
+
+.#{$_prefix}-colorpicker__opacity-track {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    // Gradient is set dynamically via JS
+}
+
+.#{$_prefix}-colorpicker__opacity-handle {
+    position: absolute;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.1),
+        0 2px 4px rgba(0, 0, 0, 0.2);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    transition: box-shadow 0.15s ease;
+
+    .#{$_prefix}-colorpicker--dragging & {
+        box-shadow:
+            0 0 0 1px rgba(0, 0, 0, 0.1),
+            0 4px 8px rgba(0, 0, 0, 0.3);
     }
 }
 
@@ -86,7 +188,8 @@ $_prefix: base.$prefix;
 .#{$_prefix}-colorpicker__value {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
+    margin-bottom: 12px;
 }
 
 .#{$_prefix}-colorpicker__preview {
@@ -129,26 +232,26 @@ $_prefix: base.$prefix;
     border-radius: $colorpicker-swatch-radius;
     cursor: pointer;
     padding: 0;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+    // box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
     transition:
         transform 0.15s ease,
         box-shadow 0.15s ease;
 
-    &:hover {
+    /* &:hover {
         transform: scale(1.1);
-    }
+    } */
 
-    &:focus {
+    /* &:focus {
         outline: none;
         box-shadow:
             inset 0 0 0 1px rgba(0, 0, 0, 0.1),
             0 0 0 2px var(--mtrl-sys-color-primary, #6750a4);
-    }
+    } */
 
     &--selected {
-        box-shadow:
+        /* box-shadow:
             inset 0 0 0 1px rgba(0, 0, 0, 0.1),
-            0 0 0 2px var(--mtrl-sys-color-primary, #6750a4);
+            0 0 0 2px var(--mtrl-sys-color-primary, #6750a4); */
 
         &::after {
             content: "";
@@ -166,7 +269,7 @@ $_prefix: base.$prefix;
         }
     }
 
-    &--add {
+    /* &--add {
         background: var(--mtrl-sys-color-surface-variant, #e7e0ec);
         color: var(--mtrl-sys-color-on-surface-variant, #49454f);
         display: flex;
@@ -178,7 +281,7 @@ $_prefix: base.$prefix;
         &::before {
             content: "+";
         }
-    }
+    } */
 }
 
 // ============= Size Variants =============
@@ -344,20 +447,12 @@ $_prefix: base.$prefix;
 
 // ============= Pipette =============
 
-.#{$_prefix}-colorpicker__pipette {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding-top: 4px;
-    border-top: 1px solid t.color("outline-variant");
-    margin-top: 4px;
+.#{$_prefix}-colorpicker__pipette-btn {
+    flex-shrink: 0;
+    color: t.color("on-surface-variant");
 
-    .#{$_prefix}-icon-button {
-        color: t.color("on-surface-variant");
-
-        &:hover {
-            color: t.color("on-surface");
-        }
+    &:hover {
+        color: t.color("on-surface");
     }
 }
 
@@ -366,7 +461,7 @@ $_prefix: base.$prefix;
     position: fixed;
     inset: 0;
     z-index: 10000;
-    cursor: crosshair;
+    // cursor: crosshair;
     background: rgba(0, 0, 0, 0.5);
     display: flex;
     align-items: center;
@@ -395,6 +490,90 @@ $_prefix: base.$prefix;
             .#{$_prefix}-colorpicker__container {
                 transform-origin: bottom right;
             }
+        }
+    }
+}
+
+// ============= Density: Compact =============
+// Placed at end to override variant styles via cascade
+
+.#{$_prefix}-colorpicker--compact {
+    gap: 0;
+
+    .#{$_prefix}-colorpicker__container {
+        padding: 0;
+        gap: 0;
+        overflow: initial;
+    }
+
+    .#{$_prefix}-colorpicker__area {
+        border-radius: $colorpicker-border-radius $colorpicker-border-radius 0 0;
+    }
+
+    .#{$_prefix}-colorpicker__hue {
+        border-radius: 0;
+        height: 24px;
+
+        // When opacity bar follows, remove bottom radius from hue
+        &:has(+ .#{$_prefix}-colorpicker__opacity) {
+            border-radius: 0;
+        }
+        .#{$_prefix}-colorpicker__hue-handle {
+            width: 20px;
+            height: 20px;
+            border-width: 2px;
+        }
+    }
+
+    .#{$_prefix}-colorpicker__opacity {
+        border-radius: 0;
+        height: 24px;
+
+        // When opacity bar follows, remove bottom radius from hue
+        &:has(+ .#{$_prefix}-colorpicker__opacity) {
+            border-radius: 0;
+        }
+        .#{$_prefix}-colorpicker__opacity-handle {
+            width: 20px;
+            height: 20px;
+            border-width: 2px;
+        }
+    }
+
+    .#{$_prefix}-colorpicker__opacity {
+        border-radius: 0 0 $colorpicker-border-radius $colorpicker-border-radius;
+        height: 24px;
+    }
+
+    .#{$_prefix}-colorpicker__opacity-checkerboard {
+        border-radius: inherit;
+    }
+
+    .#{$_prefix}-colorpicker__opacity-handle {
+        width: 20px;
+        height: 20px;
+        border-width: 2px;
+    }
+
+    .#{$_prefix}-colorpicker__value {
+        display: flex;
+        align-items: center;
+        gap: 0;
+        margin-bottom: 0;
+        .#{$_prefix}-icon-button {
+            border-radius: 0;
+            background-color: var(--mtrl-sys-color-surface-container-highest);
+            border-bottom: 1px solid var(--mtrl-sys-color-primary);
+        }
+    }
+
+    .#{$_prefix}-colorpicker__swatches {
+        margin-top: 0;
+        gap: 0;
+        border-radius: 0 0 $colorpicker-border-radius;
+        overflow: hidden;
+        .#{$_prefix}-colorpicker__swatch {
+            border-radius: 0;
         }
     }
 }

@@ -233,6 +233,9 @@ export const withInput =
       update,
     };
 
+    // Register in refs for cross-feature access
+    state.refs.input = { update };
+
     // Extend lifecycle destroy if it exists
     const originalDestroy = (component as any).lifecycle?.destroy;
     if (originalDestroy) {

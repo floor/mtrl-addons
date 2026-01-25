@@ -1,6 +1,5 @@
 // src/components/colorpicker/features/hue.ts
 
-import { createSlider } from "mtrl";
 import { COLORPICKER_CLASSES, COLORPICKER_EVENTS } from "../constants";
 import { ColorPickerConfig, ColorPickerState } from "../types";
 import { hsvToHex } from "../utils";
@@ -11,12 +10,12 @@ import { createInitialState } from "../config";
  */
 export interface HueFeature {
   element: HTMLElement;
-  slider: ReturnType<typeof createSlider>;
+  handle: HTMLElement;
   updateHandle: () => void;
 }
 
 /**
- * Adds the hue slider to a color picker component using mtrl slider
+ * Adds a simple hue bar with rainbow gradient and draggable handle
  *
  * @param config - Color picker configuration
  * @returns Component enhancer function
@@ -48,47 +47,58 @@ export const withHue =
     // Use pickerContent if available (for dropdown/dialog), otherwise use element
     const container = component.pickerContent || element;
 
-    // Create slider
-    const sliderComponent = createSlider({
-      min: 0,
-      max: 360,
-      value: state.hsv.h,
-      step: 1,
-      showValue: false,
-      disabled: config.disabled,
-      size: "S",
-      class: getClass("colorpicker__hue-slider"),
-    });
+    // Create hue bar container
+    const hueBar = document.createElement("div");
+    hueBar.className = getClass(COLORPICKER_CLASSES.HUE);
 
-    // Add hue class to slider element
-    if (sliderComponent.element) {
-      sliderComponent.element.classList.add(getClass(COLORPICKER_CLASSES.HUE));
+    // Create rainbow gradient track
+    const track = document.createElement("div");
+    track.className = getClass(COLORPICKER_CLASSES.HUE_SLIDER);
+    hueBar.appendChild(track);
 
-      // Insert after area element if it exists, otherwise append
-      if (component.area?.element) {
-        component.area.element.insertAdjacentElement(
-          "afterend",
-          sliderComponent.element,
-        );
-      } else {
-        container.appendChild(sliderComponent.element);
-      }
+    // Create draggable handle
+    const handle = document.createElement("div");
+    handle.className = getClass(COLORPICKER_CLASSES.HUE_HANDLE);
+    hueBar.appendChild(handle);
+
+    // Insert after area element if it exists, otherwise append
+    if (component.area?.element) {
+      component.area.element.insertAdjacentElement("afterend", hueBar);
+    } else {
+      container.appendChild(hueBar);
     }
 
+    // Dragging state
+    let isDragging = false;
+
     /**
-     * Update the slider position based on current hue
+     * Update handle position based on current hue
      */
     const updateHandle = (): void => {
-      sliderComponent.setValue(state.hsv.h, false);
+      const percent = (state.hsv.h / 360) * 100;
+      handle.style.left = `${percent}%`;
+      // Set handle color to current hue at full saturation/value
+      handle.style.backgroundColor = hsvToHex(state.hsv.h, 100, 100);
     };
 
     /**
-     * Handle slider input (live preview while dragging)
+     * Calculate hue from mouse/touch position
      */
-    const handleInput = (event: { value: number }): void => {
-      const h = Math.round(event.value);
+    const getHueFromPosition = (clientX: number): number => {
+      const rect = hueBar.getBoundingClientRect();
+      const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+      const percent = x / rect.width;
+      return Math.round(percent * 360);
+    };
+
+    /**
+     * Update state and emit events
+     */
+    const updateHue = (h: number, isCommit: boolean): void => {
       state.hsv.h = h;
       state.hex = hsvToHex(state.hsv.h, state.hsv.s, state.hsv.v);
+
+      updateHandle();
 
       // Update area if present
       if (component.area) {
@@ -96,36 +106,131 @@ export const withHue =
         component.area.updateHandle();
       }
 
-      emit(COLORPICKER_EVENTS.INPUT, state.hex);
-      config.onInput?.(state.hex);
+      // Update other features that depend on color via refs
+      state.refs.input?.update?.();
+      state.refs.opacity?.updateBackground?.();
+      state.refs.opacity?.updateHandle?.();
+
+      if (isCommit) {
+        emit(COLORPICKER_EVENTS.CHANGE, state.hex);
+        config.onChange?.(state.hex);
+      } else {
+        emit(COLORPICKER_EVENTS.INPUT, state.hex);
+        config.onInput?.(state.hex);
+      }
     };
 
     /**
-     * Handle slider change (committed value)
+     * Handle pointer down on hue bar
      */
-    const handleChange = (event: { value: number }): void => {
-      const h = Math.round(event.value);
-      state.hsv.h = h;
-      state.hex = hsvToHex(state.hsv.h, state.hsv.s, state.hsv.v);
+    const handlePointerDown = (e: PointerEvent): void => {
+      if (config.disabled) return;
 
-      // Update area if present
-      if (component.area) {
-        component.area.updateBackground();
-        component.area.updateHandle();
-      }
+      e.preventDefault();
+      isDragging = true;
+      state.isDragging = true;
+      state.dragTarget = "hue";
 
-      emit(COLORPICKER_EVENTS.CHANGE, state.hex);
-      config.onChange?.(state.hex);
+      // Capture pointer for tracking outside element
+      hueBar.setPointerCapture(e.pointerId);
+
+      // Add dragging class
+      element.classList.add(getClass(COLORPICKER_CLASSES.DRAGGING));
+
+      // Update hue immediately
+      const h = getHueFromPosition(e.clientX);
+      updateHue(h, false);
     };
 
-    // Handle events
-    sliderComponent.on("input", handleInput);
-    sliderComponent.on("change", handleChange);
+    /**
+     * Handle pointer move
+     */
+    const handlePointerMove = (e: PointerEvent): void => {
+      if (!isDragging) return;
+
+      e.preventDefault();
+      const h = getHueFromPosition(e.clientX);
+      updateHue(h, false);
+    };
+
+    /**
+     * Handle pointer up
+     */
+    const handlePointerUp = (e: PointerEvent): void => {
+      if (!isDragging) return;
+
+      e.preventDefault();
+      isDragging = false;
+      state.isDragging = false;
+      state.dragTarget = null;
+
+      // Release pointer capture
+      hueBar.releasePointerCapture(e.pointerId);
+
+      // Remove dragging class
+      element.classList.remove(getClass(COLORPICKER_CLASSES.DRAGGING));
+
+      // Emit final change
+      const h = getHueFromPosition(e.clientX);
+      updateHue(h, true);
+    };
+
+    /**
+     * Handle keyboard navigation
+     */
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (config.disabled) return;
+
+      let h = state.hsv.h;
+      const step = e.shiftKey ? 10 : 1;
+
+      switch (e.key) {
+        case "ArrowLeft":
+        case "ArrowDown":
+          e.preventDefault();
+          h = (h - step + 360) % 360;
+          break;
+        case "ArrowRight":
+        case "ArrowUp":
+          e.preventDefault();
+          h = (h + step) % 360;
+          break;
+        case "Home":
+          e.preventDefault();
+          h = 0;
+          break;
+        case "End":
+          e.preventDefault();
+          h = 359;
+          break;
+        default:
+          return;
+      }
+
+      updateHue(h, true);
+    };
+
+    // Add event listeners
+    hueBar.addEventListener("pointerdown", handlePointerDown);
+    hueBar.addEventListener("pointermove", handlePointerMove);
+    hueBar.addEventListener("pointerup", handlePointerUp);
+    hueBar.addEventListener("pointercancel", handlePointerUp);
+
+    // Make hue bar focusable for keyboard navigation
+    hueBar.tabIndex = 0;
+    hueBar.setAttribute("role", "slider");
+    hueBar.setAttribute("aria-label", "Hue");
+    hueBar.setAttribute("aria-valuemin", "0");
+    hueBar.setAttribute("aria-valuemax", "360");
+    hueBar.addEventListener("keydown", handleKeyDown);
+
+    // Initial handle position
+    updateHandle();
 
     // Create hue feature object
     const hueFeature: HueFeature = {
-      element: sliderComponent.element,
-      slider: sliderComponent,
+      element: hueBar,
+      handle,
       updateHandle,
     };
 
@@ -133,7 +238,12 @@ export const withHue =
     const originalDestroy = (component as any).lifecycle?.destroy;
     if (originalDestroy) {
       (component as any).lifecycle.destroy = () => {
-        sliderComponent.destroy();
+        hueBar.removeEventListener("pointerdown", handlePointerDown);
+        hueBar.removeEventListener("pointermove", handlePointerMove);
+        hueBar.removeEventListener("pointerup", handlePointerUp);
+        hueBar.removeEventListener("pointercancel", handlePointerUp);
+        hueBar.removeEventListener("keydown", handleKeyDown);
+        hueBar.remove();
         originalDestroy();
       };
     }

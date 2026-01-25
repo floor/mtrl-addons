@@ -83,10 +83,30 @@ export interface ColorPickerConfig {
   showHue?: boolean;
 
   /**
+   * Whether to show the opacity/alpha slider
+   * @default false
+   */
+  showOpacity?: boolean;
+
+  /**
+   * Initial opacity value (0-1)
+   * @default 1
+   */
+  opacity?: number;
+
+  /**
    * Component size
    * @default 'm'
    */
   size?: ColorPickerSize | string;
+
+  /**
+   * Component density
+   * - 'default': Standard layout with gaps and padding
+   * - 'compact': Minimal layout, hue bar directly under area, no input/preview
+   * @default 'default'
+   */
+  density?: "default" | "compact";
 
   /**
    * Swatch size in pixels
@@ -183,6 +203,17 @@ export interface ColorPickerConfig {
 }
 
 /**
+ * Feature references for cross-feature updates
+ */
+export interface ColorPickerRefs {
+  input?: { update: () => void };
+  opacity?: { updateBackground: () => void; updateHandle: () => void };
+  area?: { updateBackground: () => void; updateHandle: () => void };
+  hue?: { updateHandle: () => void };
+  swatches?: { update: () => void };
+}
+
+/**
  * Internal state for the color picker
  */
 export interface ColorPickerState {
@@ -190,14 +221,18 @@ export interface ColorPickerState {
   hsv: HSVColor;
   /** Current hex color */
   hex: string;
+  /** Current opacity/alpha value (0-1) */
+  opacity: number;
   /** Whether the user is currently dragging */
   isDragging: boolean;
-  /** Current drag target ('area' | 'hue' | null) */
-  dragTarget: "area" | "hue" | null;
+  /** Current drag target ('area' | 'hue' | 'opacity' | null) */
+  dragTarget: "area" | "hue" | "opacity" | null;
   /** Available swatches */
   swatches: ColorSwatch[];
   /** Whether the picker is open (dropdown/dialog variants) */
   isOpen: boolean;
+  /** Mutable refs to features for cross-feature updates */
+  refs: ColorPickerRefs;
 }
 
 /**
@@ -367,6 +402,21 @@ export interface ColorPickerComponent {
    * @returns True if sampling is in progress
    */
   isSampling: () => boolean;
+
+  // ============= Opacity Methods =============
+
+  /**
+   * Gets the current opacity value
+   * @returns Opacity value (0-1)
+   */
+  getOpacity: () => number;
+
+  /**
+   * Sets the opacity value
+   * @param opacity - Opacity value (0-1)
+   * @returns The component for chaining
+   */
+  setOpacity: (opacity: number) => ColorPickerComponent;
 
   /**
    * Destroys the component and cleans up resources

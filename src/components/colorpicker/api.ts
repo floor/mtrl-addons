@@ -16,6 +16,7 @@ import { SwatchesFeature } from "./features/swatches";
 import { InputFeature } from "./features/input";
 import { VariantFeature } from "./features/variant";
 import { PipetteFeature } from "./features/pipette";
+import { OpacityFeature } from "./features/opacity";
 
 /**
  * API configuration options for color picker component
@@ -45,6 +46,7 @@ interface ApiOptions {
   input?: InputFeature;
   variant?: VariantFeature;
   pipette?: PipetteFeature;
+  opacity?: OpacityFeature;
 }
 
 /**
@@ -76,6 +78,7 @@ export const withAPI =
       input,
       variant,
       pipette,
+      opacity,
     } = options;
 
     // Ensure state exists
@@ -90,6 +93,8 @@ export const withAPI =
       area?.updateBackground();
       area?.updateHandle();
       hue?.updateHandle();
+      opacity?.updateBackground();
+      opacity?.updateHandle();
       input?.update();
       swatches?.update();
     };
@@ -256,6 +261,18 @@ export const withAPI =
 
       isSampling: () => {
         return pipette ? pipette.isSampling() : false;
+      },
+
+      // ============= Opacity Methods =============
+
+      getOpacity: () => {
+        return state.opacity;
+      },
+
+      setOpacity: (opacityValue: number) => {
+        state.opacity = Math.max(0, Math.min(1, opacityValue));
+        opacity?.updateHandle();
+        return colorPickerComponent;
       },
 
       // ============= Event Methods =============
