@@ -1,13 +1,20 @@
 // src/components/colorpicker/api.ts
 
-import { ColorPickerComponent, ColorSwatch, HSVColor, RGBColor } from "./types";
+import {
+  ColorPickerComponent,
+  ColorPickerConfig,
+  ColorPickerState,
+  ColorSwatch,
+  HSVColor,
+  RGBColor,
+} from "./types";
 import { hexToHsv, hexToRgb, hsvToHex, rgbToHex, normalizeHex } from "./utils";
 import { COLORPICKER_EVENTS } from "./constants";
 import { AreaFeature } from "./features/area";
 import { HueFeature } from "./features/hue";
 import { SwatchesFeature } from "./features/swatches";
 import { InputFeature } from "./features/input";
-import { PopupFeature } from "./features/popup";
+import { VariantFeature } from "./features/variant";
 
 /**
  * API configuration options for color picker component
@@ -16,14 +23,11 @@ import { PopupFeature } from "./features/popup";
  */
 interface ApiOptions {
   element: HTMLElement;
-  state: {
-    hsv: HSVColor;
-    hex: string;
-    isDragging: boolean;
-    dragTarget: "area" | "hue" | null;
-    swatches: ColorSwatch[];
-    isOpen: boolean;
-  };
+  config: ColorPickerConfig;
+  getClass: (name: string) => string;
+  emit: (event: string, data?: unknown) => void;
+  on: (event: string, handler: (...args: unknown[]) => void) => unknown;
+  off: (event: string, handler: (...args: unknown[]) => void) => unknown;
   disabled: {
     enable: () => void;
     disable: () => void;
@@ -32,18 +36,13 @@ interface ApiOptions {
   lifecycle: {
     destroy: () => void;
   };
-  getClass: (name: string) => string;
-  emit: (event: string, ...args: unknown[]) => void;
-  handlers: Record<string, Array<(...args: unknown[]) => void>>;
   // Optional features
+  state?: ColorPickerState;
   area?: AreaFeature;
   hue?: HueFeature;
   swatches?: SwatchesFeature;
   input?: InputFeature;
-  popup?: PopupFeature;
-  config: {
-    onChange?: (color: string) => void;
-  };
+  variant?: VariantFeature;
 }
 
 /**
@@ -61,19 +60,25 @@ export const withAPI =
   (component: unknown): ColorPickerComponent => {
     const {
       element,
-      state,
-      disabled,
-      lifecycle,
+      config,
       getClass,
       emit,
-      handlers,
+      on,
+      off,
+      disabled,
+      lifecycle,
+      state,
       area,
       hue,
       swatches,
       input,
-      popup,
-      config,
+      variant,
     } = options;
+
+    // Ensure state exists
+    if (!state) {
+      throw new Error("ColorPicker: state is required");
+    }
 
     /**
      * Update all UI elements
@@ -106,7 +111,10 @@ export const withAPI =
     /**
      * Set color from HSV values
      */
-    const setHSVInternal = (hsv: HSVColor, emitChange: boolean = false): void => {
+    const setHSVInternal = (
+      hsv: HSVColor,
+      emitChange: boolean = false,
+    ): void => {
       state.hsv = {
         h: Math.max(0, Math.min(360, hsv.h)),
         s: Math.max(0, Math.min(100, hsv.s)),
@@ -200,51 +208,42 @@ export const withAPI =
 
       isDisabled: () => disabled.isDisabled(),
 
-      // ============= Popup Methods =============
+      // ============= Variant Methods (dropdown/dialog) =============
 
       open: () => {
-        if (popup) {
-          popup.open();
+        if (variant) {
+          variant.open();
         }
         return colorPickerComponent;
       },
 
       close: () => {
-        if (popup) {
-          popup.close();
+        if (variant) {
+          variant.close();
         }
         return colorPickerComponent;
       },
 
       toggle: () => {
-        if (popup) {
-          popup.toggle();
+        if (variant) {
+          variant.toggle();
         }
         return colorPickerComponent;
       },
 
       isOpen: () => {
-        return popup ? popup.isOpen() : true;
+        return variant ? variant.isOpen() : true;
       },
 
       // ============= Event Methods =============
 
       on: (event: string, handler: (...args: unknown[]) => void) => {
-        if (!handlers[event]) {
-          handlers[event] = [];
-        }
-        handlers[event].push(handler);
+        on(event, handler);
         return colorPickerComponent;
       },
 
       off: (event: string, handler: (...args: unknown[]) => void) => {
-        const eventHandlers = handlers[event];
-        if (eventHandlers) {
-          const index = eventHandlers.indexOf(handler);
-          if (index > -1) {
-            eventHandlers.splice(index, 1);
-          }
-        }
+        off(event, handler);
         return colorPickerComponent;
       },
 
@@ -258,6 +257,11 @@ export const withAPI =
     // Attach internal methods to component for features to use
     (colorPickerComponent as any).setColor = setColor;
     (colorPickerComponent as any).updateUI = updateUI;
+
+    // Initial UI update for inline variant
+    if (!variant || variant.isOpen()) {
+      updateUI();
+    }
 
     return colorPickerComponent;
   };

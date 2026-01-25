@@ -1,31 +1,15 @@
 // src/components/colorpicker/features/area.ts
 
 import { COLORPICKER_CLASSES, COLORPICKER_EVENTS } from "../constants";
-import { ColorPickerState, HSVColor } from "../types";
-import { hsvToHex, clamp, getContrastColor } from "../utils";
-
-/**
- * Component interface for area feature
- */
-interface AreaComponent {
-  element: HTMLElement;
-  state: ColorPickerState;
-  getClass: (name: string) => string;
-  emit: (event: string, ...args: unknown[]) => void;
-  config: {
-    disabled?: boolean;
-    onInput?: (color: string) => void;
-    onChange?: (color: string) => void;
-    prefix?: string;
-  };
-  dimensions: {
-    width: number;
-    areaHeight: number;
-    hueHeight: number;
-  };
-  pickerContent: HTMLElement;
-  updateUI?: () => void;
-}
+import { ColorPickerConfig, ColorPickerState } from "../types";
+import {
+  hsvToHex,
+  clamp,
+  getContrastColor,
+  hexToHsv,
+  normalizeHex,
+} from "../utils";
+import { getSizeDimensions, createInitialState } from "../config";
 
 /**
  * Area feature interface
@@ -45,9 +29,29 @@ export interface AreaFeature {
  * @returns Component enhancer function
  */
 export const withArea =
-  () =>
-  <T extends AreaComponent>(component: T): T & { area: AreaFeature } => {
-    const { getClass, state, dimensions, pickerContent } = component;
+  (config: ColorPickerConfig) =>
+  <
+    T extends {
+      element: HTMLElement;
+      getClass: (name: string) => string;
+      emit: (event: string, data?: unknown) => void;
+      state?: ColorPickerState;
+      pickerContent?: HTMLElement;
+    },
+  >(
+    component: T,
+  ): T & { area: AreaFeature; state: ColorPickerState } => {
+    const { element, getClass, emit } = component;
+
+    // Initialize state if not present
+    const state: ColorPickerState =
+      component.state || createInitialState(config);
+
+    // Get dimensions based on size
+    const dimensions = getSizeDimensions(config.size || "m");
+
+    // Use pickerContent if available (for dropdown/dialog), otherwise use element
+    const container = component.pickerContent || element;
 
     // Create area container
     const area = document.createElement("div");
@@ -64,7 +68,7 @@ export const withArea =
 
     area.appendChild(gradient);
     area.appendChild(handle);
-    pickerContent.appendChild(area);
+    container.appendChild(area);
 
     /**
      * Update the area background based on current hue
@@ -104,27 +108,23 @@ export const withArea =
       state.hsv.v = Math.round(v);
       state.hex = hsvToHex(state.hsv.h, state.hsv.s, state.hsv.v);
 
-      // Update UI
-      if (component.updateUI) {
-        component.updateUI();
-      } else {
-        updateHandle();
-      }
+      // Update this feature
+      updateHandle();
 
-      component.emit(COLORPICKER_EVENTS.INPUT, state.hex);
-      component.config.onInput?.(state.hex);
+      emit(COLORPICKER_EVENTS.INPUT, state.hex);
+      config.onInput?.(state.hex);
     };
 
     /**
      * Handle mouse down on area
      */
     const handleMouseDown = (e: MouseEvent): void => {
-      if (component.config.disabled) return;
+      if (config.disabled) return;
       e.preventDefault();
 
       state.isDragging = true;
       state.dragTarget = "area";
-      component.element.classList.add(getClass(COLORPICKER_CLASSES.DRAGGING));
+      element.classList.add(getClass(COLORPICKER_CLASSES.DRAGGING));
 
       handleAreaMove(e.clientX, e.clientY);
 
@@ -147,10 +147,10 @@ export const withArea =
       if (state.isDragging && state.dragTarget === "area") {
         state.isDragging = false;
         state.dragTarget = null;
-        component.element.classList.remove(getClass(COLORPICKER_CLASSES.DRAGGING));
+        element.classList.remove(getClass(COLORPICKER_CLASSES.DRAGGING));
 
-        component.emit(COLORPICKER_EVENTS.CHANGE, state.hex);
-        component.config.onChange?.(state.hex);
+        emit(COLORPICKER_EVENTS.CHANGE, state.hex);
+        config.onChange?.(state.hex);
       }
 
       document.removeEventListener("mousemove", handleMouseMove);
@@ -161,17 +161,19 @@ export const withArea =
      * Handle touch start on area
      */
     const handleTouchStart = (e: TouchEvent): void => {
-      if (component.config.disabled) return;
+      if (config.disabled) return;
       e.preventDefault();
 
       state.isDragging = true;
       state.dragTarget = "area";
-      component.element.classList.add(getClass(COLORPICKER_CLASSES.DRAGGING));
+      element.classList.add(getClass(COLORPICKER_CLASSES.DRAGGING));
 
       const touch = e.touches[0];
       handleAreaMove(touch.clientX, touch.clientY);
 
-      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchmove", handleTouchMove, {
+        passive: false,
+      });
       document.addEventListener("touchend", handleTouchEnd);
     };
 
@@ -192,10 +194,10 @@ export const withArea =
       if (state.isDragging && state.dragTarget === "area") {
         state.isDragging = false;
         state.dragTarget = null;
-        component.element.classList.remove(getClass(COLORPICKER_CLASSES.DRAGGING));
+        element.classList.remove(getClass(COLORPICKER_CLASSES.DRAGGING));
 
-        component.emit(COLORPICKER_EVENTS.CHANGE, state.hex);
-        component.config.onChange?.(state.hex);
+        emit(COLORPICKER_EVENTS.CHANGE, state.hex);
+        config.onChange?.(state.hex);
       }
 
       document.removeEventListener("touchmove", handleTouchMove);
@@ -235,6 +237,7 @@ export const withArea =
 
     return {
       ...component,
+      state,
       area: areaFeature,
     };
   };

@@ -106,6 +106,12 @@ export interface ColorPickerConfig {
   showInput?: boolean;
 
   /**
+   * Label for the input field
+   * @default 'Hex'
+   */
+  inputLabel?: string;
+
+  /**
    * Whether to show the color preview square
    * @default true
    */

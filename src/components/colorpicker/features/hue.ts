@@ -2,31 +2,9 @@
 
 import { createSlider } from "mtrl";
 import { COLORPICKER_CLASSES, COLORPICKER_EVENTS } from "../constants";
-import { ColorPickerState } from "../types";
+import { ColorPickerConfig, ColorPickerState } from "../types";
 import { hsvToHex } from "../utils";
-
-/**
- * Component interface for hue feature
- */
-interface HueComponent {
-  element: HTMLElement;
-  state: ColorPickerState;
-  getClass: (name: string) => string;
-  emit: (event: string, ...args: unknown[]) => void;
-  config: {
-    disabled?: boolean;
-    onInput?: (color: string) => void;
-    onChange?: (color: string) => void;
-    prefix?: string;
-  };
-  pickerContent: HTMLElement;
-  updateUI?: () => void;
-  area?: {
-    element: HTMLElement;
-    updateBackground: () => void;
-    updateHandle: () => void;
-  };
-}
+import { createInitialState } from "../config";
 
 /**
  * Hue feature interface
@@ -40,22 +18,45 @@ export interface HueFeature {
 /**
  * Adds the hue slider to a color picker component using mtrl slider
  *
+ * @param config - Color picker configuration
  * @returns Component enhancer function
  */
 export const withHue =
-  () =>
-  <T extends HueComponent>(component: T): T & { hue: HueFeature } => {
-    const { getClass, state, pickerContent } = component;
+  (config: ColorPickerConfig) =>
+  <
+    T extends {
+      element: HTMLElement;
+      getClass: (name: string) => string;
+      emit: (event: string, data?: unknown) => void;
+      state?: ColorPickerState;
+      pickerContent?: HTMLElement;
+      area?: {
+        element: HTMLElement;
+        updateBackground: () => void;
+        updateHandle: () => void;
+      };
+    },
+  >(
+    component: T,
+  ): T & { hue: HueFeature; state: ColorPickerState } => {
+    const { element, getClass, emit } = component;
 
-    // Create slider synchronously
+    // Initialize state if not present
+    const state: ColorPickerState =
+      component.state || createInitialState(config);
+
+    // Use pickerContent if available (for dropdown/dialog), otherwise use element
+    const container = component.pickerContent || element;
+
+    // Create slider
     const sliderComponent = createSlider({
       min: 0,
       max: 360,
       value: state.hsv.h,
       step: 1,
       showValue: false,
-      disabled: component.config.disabled,
-      size: "XS",
+      disabled: config.disabled,
+      size: "S",
       class: getClass("colorpicker__hue-slider"),
     });
 
@@ -70,7 +71,7 @@ export const withHue =
           sliderComponent.element,
         );
       } else {
-        pickerContent.appendChild(sliderComponent.element);
+        container.appendChild(sliderComponent.element);
       }
     }
 
@@ -78,7 +79,6 @@ export const withHue =
      * Update the slider position based on current hue
      */
     const updateHandle = (): void => {
-      // Don't trigger events when updating programmatically
       sliderComponent.setValue(state.hsv.h, false);
     };
 
@@ -90,19 +90,14 @@ export const withHue =
       state.hsv.h = h;
       state.hex = hsvToHex(state.hsv.h, state.hsv.s, state.hsv.v);
 
-      // Update UI
-      if (component.updateUI) {
-        component.updateUI();
-      } else {
-        // Update area background if area feature exists
-        if (component.area) {
-          component.area.updateBackground();
-          component.area.updateHandle();
-        }
+      // Update area if present
+      if (component.area) {
+        component.area.updateBackground();
+        component.area.updateHandle();
       }
 
-      component.emit(COLORPICKER_EVENTS.INPUT, state.hex);
-      component.config.onInput?.(state.hex);
+      emit(COLORPICKER_EVENTS.INPUT, state.hex);
+      config.onInput?.(state.hex);
     };
 
     /**
@@ -113,13 +108,14 @@ export const withHue =
       state.hsv.h = h;
       state.hex = hsvToHex(state.hsv.h, state.hsv.s, state.hsv.v);
 
-      // Update UI
-      if (component.updateUI) {
-        component.updateUI();
+      // Update area if present
+      if (component.area) {
+        component.area.updateBackground();
+        component.area.updateHandle();
       }
 
-      component.emit(COLORPICKER_EVENTS.CHANGE, state.hex);
-      component.config.onChange?.(state.hex);
+      emit(COLORPICKER_EVENTS.CHANGE, state.hex);
+      config.onChange?.(state.hex);
     };
 
     // Handle events
@@ -144,6 +140,7 @@ export const withHue =
 
     return {
       ...component,
+      state,
       hue: hueFeature,
     };
   };

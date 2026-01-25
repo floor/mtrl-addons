@@ -4,6 +4,7 @@ import {
   COLORPICKER_DEFAULTS,
   COLORPICKER_SIZES,
   COLORPICKER_VARIANTS,
+  COLORPICKER_CLASSES,
   SIZE_DIMENSIONS,
 } from "./constants";
 import { ColorPickerConfig, ColorPickerState, HSVColor } from "./types";
@@ -29,6 +30,7 @@ export const defaultConfig: ColorPickerConfig = {
   closeOnSelect: COLORPICKER_DEFAULTS.CLOSE_ON_SELECT,
   disabled: false,
   prefix: "mtrl",
+  componentName: "colorpicker",
 };
 
 /**
@@ -41,7 +43,7 @@ export const defaultConfig: ColorPickerConfig = {
  * @internal
  */
 export const createBaseConfig = (
-  config: ColorPickerConfig = {}
+  config: ColorPickerConfig = {},
 ): Required<
   Pick<
     ColorPickerConfig,
@@ -58,6 +60,7 @@ export const createBaseConfig = (
     | "closeOnSelect"
     | "disabled"
     | "prefix"
+    | "componentName"
   >
 > &
   ColorPickerConfig => {
@@ -77,6 +80,37 @@ export const createBaseConfig = (
     closeOnSelect: config.closeOnSelect ?? defaultConfig.closeOnSelect!,
     disabled: config.disabled || false,
     prefix: config.prefix || defaultConfig.prefix!,
+    componentName: defaultConfig.componentName!,
+  };
+};
+
+/**
+ * Gets the element configuration for withElement.
+ *
+ * @param config - Color picker configuration
+ * @returns Element configuration object
+ * @category Components
+ * @internal
+ */
+export const getElementConfig = (config: ColorPickerConfig) => {
+  const dimensions = getSizeDimensions(config.size || "m");
+  const variant = config.variant || COLORPICKER_VARIANTS.INLINE;
+
+  // Build variant class
+  let variantClass: string;
+  if (variant === COLORPICKER_VARIANTS.DROPDOWN) {
+    variantClass = `${config.prefix}-${COLORPICKER_CLASSES.DROPDOWN}`;
+  } else if (variant === COLORPICKER_VARIANTS.DIALOG) {
+    variantClass = `${config.prefix}-${COLORPICKER_CLASSES.DIALOG}`;
+  } else {
+    variantClass = `${config.prefix}-${COLORPICKER_CLASSES.INLINE}`;
+  }
+
+  return {
+    tag: "div",
+    componentName: config.componentName,
+    className: [variantClass, config.class].filter(Boolean) as string[],
+    style: `width: ${dimensions.width}px`,
   };
 };
 
@@ -89,7 +123,7 @@ export const createBaseConfig = (
  * @internal
  */
 export const getSizeDimensions = (
-  size: string
+  size: string,
 ): { width: number; areaHeight: number; hueHeight: number } => {
   return (
     SIZE_DIMENSIONS[size as keyof typeof SIZE_DIMENSIONS] ||
@@ -105,8 +139,12 @@ export const getSizeDimensions = (
  * @category Components
  * @internal
  */
-export const createInitialState = (config: ColorPickerConfig): ColorPickerState => {
-  const initialHsv: HSVColor = hexToHsv(config.value || COLORPICKER_DEFAULTS.VALUE) || {
+export const createInitialState = (
+  config: ColorPickerConfig,
+): ColorPickerState => {
+  const initialHsv: HSVColor = hexToHsv(
+    config.value || COLORPICKER_DEFAULTS.VALUE,
+  ) || {
     h: 0,
     s: 100,
     v: 100,
@@ -133,7 +171,11 @@ export const createInitialState = (config: ColorPickerConfig): ColorPickerState 
  */
 export const getApiConfig = (comp: {
   element: HTMLElement;
-  state: ColorPickerState;
+  config: ColorPickerConfig;
+  getClass: (name: string) => string;
+  emit: (event: string, data?: unknown) => void;
+  on: (event: string, handler: (...args: unknown[]) => void) => unknown;
+  off: (event: string, handler: (...args: unknown[]) => void) => unknown;
   disabled: {
     enable: () => void;
     disable: () => void;
@@ -142,10 +184,8 @@ export const getApiConfig = (comp: {
   lifecycle: {
     destroy: () => void;
   };
-  getClass: (name: string) => string;
-  emit: (event: string, ...args: unknown[]) => void;
-  handlers: Record<string, Array<(...args: unknown[]) => void>>;
   // Optional features
+  state?: ColorPickerState;
   area?: {
     updateBackground: () => void;
     updateHandle: () => void;
@@ -164,31 +204,27 @@ export const getApiConfig = (comp: {
   input?: {
     update: () => void;
   };
-  preview?: {
-    update: () => void;
-  };
-  popup?: {
+  variant?: {
     open: () => void;
     close: () => void;
     toggle: () => void;
     isOpen: () => boolean;
   };
-  config: ColorPickerConfig;
 }) => ({
   element: comp.element,
-  state: comp.state,
-  disabled: comp.disabled,
-  lifecycle: comp.lifecycle,
+  config: comp.config,
   getClass: comp.getClass,
   emit: comp.emit,
-  handlers: comp.handlers,
+  on: comp.on,
+  off: comp.off,
+  disabled: comp.disabled,
+  lifecycle: comp.lifecycle,
+  state: comp.state,
   area: comp.area,
   hue: comp.hue,
   swatches: comp.swatches,
   input: comp.input,
-  preview: comp.preview,
-  popup: comp.popup,
-  config: comp.config,
+  variant: comp.variant,
 });
 
 export default defaultConfig;

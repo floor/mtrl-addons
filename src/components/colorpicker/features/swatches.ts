@@ -1,33 +1,9 @@
 // src/components/colorpicker/features/swatches.ts
 
 import { COLORPICKER_CLASSES, COLORPICKER_EVENTS } from "../constants";
-import { ColorPickerState, ColorSwatch } from "../types";
-import { normalizeHex, hexToHsv } from "../utils";
-
-/**
- * Component interface for swatches feature
- */
-interface SwatchesComponent {
-  element: HTMLElement;
-  state: ColorPickerState;
-  getClass: (name: string) => string;
-  emit: (event: string, ...args: unknown[]) => void;
-  config: {
-    disabled?: boolean;
-    swatchSize?: number;
-    maxSwatches?: number;
-    swatches?: string[] | ColorSwatch[];
-    closeOnSelect?: boolean;
-    onChange?: (color: string) => void;
-    prefix?: string;
-  };
-  updateUI?: () => void;
-  pickerContent: HTMLElement;
-  setColor?: (hex: string, emitChange: boolean) => void;
-  popup?: {
-    close: () => void;
-  };
-}
+import { ColorPickerConfig, ColorPickerState, ColorSwatch } from "../types";
+import { normalizeHex, hexToHsv, hsvToHex } from "../utils";
+import { createInitialState } from "../config";
 
 /**
  * Swatches feature interface
@@ -60,14 +36,43 @@ const normalizeSwatches = (
 /**
  * Adds swatches (color presets) to a color picker component
  *
+ * @param config - Color picker configuration
  * @returns Component enhancer function
  */
 export const withSwatches =
-  () =>
-  <T extends SwatchesComponent>(
+  (config: ColorPickerConfig) =>
+  <
+    T extends {
+      element: HTMLElement;
+      getClass: (name: string) => string;
+      emit: (event: string, data?: unknown) => void;
+      state?: ColorPickerState;
+      pickerContent?: HTMLElement;
+      variant?: {
+        close: () => void;
+      };
+      area?: {
+        updateBackground: () => void;
+        updateHandle: () => void;
+      };
+      hue?: {
+        updateHandle: () => void;
+      };
+      input?: {
+        update: () => void;
+      };
+    },
+  >(
     component: T,
-  ): T & { swatches: SwatchesFeature } => {
-    const { getClass, state, config, pickerContent } = component;
+  ): T & { swatches: SwatchesFeature; state: ColorPickerState } => {
+    const { element, getClass, emit } = component;
+
+    // Initialize state if not present
+    const state: ColorPickerState =
+      component.state || createInitialState(config);
+
+    // Use pickerContent if available (for dropdown/dialog), otherwise use element
+    const container = component.pickerContent || element;
 
     const swatchSize = config.swatchSize || 32;
     const maxSwatches = config.maxSwatches || 8;
@@ -78,9 +83,20 @@ export const withSwatches =
     }
 
     // Create swatches container
-    const container = document.createElement("div");
-    container.className = getClass(COLORPICKER_CLASSES.SWATCHES);
-    pickerContent.appendChild(container);
+    const swatchesContainer = document.createElement("div");
+    swatchesContainer.className = getClass(COLORPICKER_CLASSES.SWATCHES);
+    container.appendChild(swatchesContainer);
+
+    /**
+     * Update all UI features
+     */
+    const updateAllUI = (): void => {
+      component.area?.updateBackground?.();
+      component.area?.updateHandle?.();
+      component.hue?.updateHandle?.();
+      component.input?.update?.();
+      update();
+    };
 
     /**
      * Handle swatch click
@@ -94,21 +110,19 @@ export const withSwatches =
         state.hsv = hsv;
         state.hex = normalizeHex(swatch.color);
 
-        // Update UI if available
-        if (component.updateUI) {
-          component.updateUI();
-        }
+        // Update all UI
+        updateAllUI();
 
         // Emit change event
-        component.emit(COLORPICKER_EVENTS.CHANGE, state.hex);
+        emit(COLORPICKER_EVENTS.CHANGE, state.hex);
         config.onChange?.(state.hex);
       }
 
-      component.emit(COLORPICKER_EVENTS.SWATCH_SELECT, swatch.color);
+      emit(COLORPICKER_EVENTS.SWATCH_SELECT, swatch.color);
 
-      // Close popup if configured
-      if (config.closeOnSelect && component.popup) {
-        component.popup.close();
+      // Close dropdown/dialog if configured
+      if (config.closeOnSelect && component.variant) {
+        component.variant.close();
       }
     };
 
@@ -116,7 +130,7 @@ export const withSwatches =
      * Update the swatches display
      */
     const update = (): void => {
-      container.innerHTML = "";
+      swatchesContainer.innerHTML = "";
 
       state.swatches.forEach((swatch) => {
         const swatchEl = document.createElement("button");
@@ -136,7 +150,7 @@ export const withSwatches =
 
         swatchEl.addEventListener("click", () => handleSwatchClick(swatch));
 
-        container.appendChild(swatchEl);
+        swatchesContainer.appendChild(swatchEl);
       });
     };
 
@@ -146,7 +160,7 @@ export const withSwatches =
     const set = (swatches: string[] | ColorSwatch[]): void => {
       state.swatches = normalizeSwatches(swatches, maxSwatches);
       update();
-      component.emit(COLORPICKER_EVENTS.SWATCHES_CHANGE, state.swatches);
+      emit(COLORPICKER_EVENTS.SWATCHES_CHANGE, state.swatches);
     };
 
     /**
@@ -162,7 +176,7 @@ export const withSwatches =
         selected: false,
       });
       update();
-      component.emit(COLORPICKER_EVENTS.SWATCHES_CHANGE, state.swatches);
+      emit(COLORPICKER_EVENTS.SWATCHES_CHANGE, state.swatches);
     };
 
     /**
@@ -174,7 +188,7 @@ export const withSwatches =
         (s) => s.color.toLowerCase() !== normalizedColor.toLowerCase(),
       );
       update();
-      component.emit(COLORPICKER_EVENTS.SWATCHES_CHANGE, state.swatches);
+      emit(COLORPICKER_EVENTS.SWATCHES_CHANGE, state.swatches);
     };
 
     /**
@@ -183,7 +197,7 @@ export const withSwatches =
     const clear = (): void => {
       state.swatches = [];
       update();
-      component.emit(COLORPICKER_EVENTS.SWATCHES_CHANGE, state.swatches);
+      emit(COLORPICKER_EVENTS.SWATCHES_CHANGE, state.swatches);
     };
 
     /**
@@ -198,7 +212,7 @@ export const withSwatches =
 
     // Create swatches feature object
     const swatchesFeature: SwatchesFeature = {
-      element: container,
+      element: swatchesContainer,
       update,
       set,
       add,
@@ -209,6 +223,7 @@ export const withSwatches =
 
     return {
       ...component,
+      state,
       swatches: swatchesFeature,
     };
   };

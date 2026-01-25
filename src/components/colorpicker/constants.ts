@@ -83,8 +83,8 @@ export const COLORPICKER_CLASSES = {
   VALUE: "colorpicker__value",
   VALUE_INPUT: "colorpicker__value-input",
 
-  // Popup container (dropdown/dialog variants)
-  POPUP: "colorpicker__popup",
+  // Container for dropdown/dialog variants
+  CONTAINER: "colorpicker__container",
   BACKDROP: "colorpicker__backdrop",
 
   // States

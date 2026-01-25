@@ -73,10 +73,8 @@ $_prefix: base.$prefix;
 
 // ============= Hue Slider =============
 
-// Hue slider uses mtrl slider - no style overrides, just width and hide value
+// Hue slider uses mtrl slider - no style overrides, just hide value
 .#{$_prefix}-colorpicker__hue.#{$_prefix}-slider {
-    // width: 100%;
-
     // Hide the value bubble
     .#{$_prefix}-slider-value {
         display: none;
@@ -220,7 +218,7 @@ $_prefix: base.$prefix;
         display: none;
     }
 
-    .#{$_prefix}-colorpicker__popup {
+    .#{$_prefix}-colorpicker__container {
         @include m.shape("extra-small");
         @include m.elevation(2);
 
@@ -246,7 +244,7 @@ $_prefix: base.$prefix;
 
     // Position above trigger
     &.#{$_prefix}-colorpicker--position-top {
-        .#{$_prefix}-colorpicker__popup {
+        .#{$_prefix}-colorpicker__container {
             transform-origin: bottom center;
         }
     }
@@ -254,7 +252,7 @@ $_prefix: base.$prefix;
     &.#{$_prefix}-colorpicker--open {
         pointer-events: auto;
 
-        .#{$_prefix}-colorpicker__popup {
+        .#{$_prefix}-colorpicker__container {
             opacity: 1;
             transform: scaleY(1);
             pointer-events: auto;
@@ -282,7 +280,7 @@ $_prefix: base.$prefix;
             v.motion("easing-emphasized");
     }
 
-    .#{$_prefix}-colorpicker__popup {
+    .#{$_prefix}-colorpicker__container {
         @include m.shape("large");
         @include m.elevation(3);
 
@@ -314,7 +312,7 @@ $_prefix: base.$prefix;
             pointer-events: auto;
         }
 
-        .#{$_prefix}-colorpicker__popup {
+        .#{$_prefix}-colorpicker__container {
             opacity: 1;
             transform: scale(1);
             pointer-events: auto;
@@ -327,7 +325,7 @@ $_prefix: base.$prefix;
 @include m.reduced-motion {
     .#{$_prefix}-colorpicker--dropdown,
     .#{$_prefix}-colorpicker--dialog {
-        .#{$_prefix}-colorpicker__popup {
+        .#{$_prefix}-colorpicker__container {
             transition: opacity 0.1s linear;
             transform: none !important;
         }
@@ -337,7 +335,7 @@ $_prefix: base.$prefix;
         }
 
         &.#{$_prefix}-colorpicker--open {
-            .#{$_prefix}-colorpicker__popup {
+            .#{$_prefix}-colorpicker__container {
                 transform: none !important;
             }
         }
@@ -348,12 +346,12 @@ $_prefix: base.$prefix;
 
 .#{$_prefix}-colorpicker--dropdown {
     @include m.rtl {
-        .#{$_prefix}-colorpicker__popup {
+        .#{$_prefix}-colorpicker__container {
             transform-origin: top right;
         }
 
         &.#{$_prefix}-colorpicker--position-top {
-            .#{$_prefix}-colorpicker__popup {
+            .#{$_prefix}-colorpicker__container {
                 transform-origin: bottom right;
             }
         }

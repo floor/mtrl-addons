@@ -65,8 +65,8 @@ export type { SwatchesFeature } from "./features/swatches";
 export { withInput } from "./features/input";
 export type { InputFeature } from "./features/input";
 
-export { withPopup } from "./features/popup";
-export type { PopupFeature } from "./features/popup";
+export { withVariant } from "./features/variant";
+export type { VariantFeature } from "./features/variant";
 
 // API
 export { withAPI } from "./api";

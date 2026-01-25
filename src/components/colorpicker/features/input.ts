@@ -1,48 +1,17 @@
 // src/components/colorpicker/features/input.ts
 
+import { createTextfield } from "mtrl";
 import { COLORPICKER_CLASSES, COLORPICKER_EVENTS } from "../constants";
-import { ColorPickerState } from "../types";
+import { ColorPickerConfig, ColorPickerState } from "../types";
 import { isValidHex, normalizeHex, hexToHsv } from "../utils";
-
-// Dynamic import for textfield to avoid circular dependencies
-let createTextfield: any = null;
-
-const loadTextfield = async () => {
-  if (!createTextfield) {
-    const module = await import("mtrl");
-    createTextfield = module.createTextfield;
-  }
-  return createTextfield;
-};
-
-/**
- * Component interface for input feature
- */
-interface InputComponent {
-  element: HTMLElement;
-  state: ColorPickerState;
-  getClass: (name: string) => string;
-  emit: (event: string, ...args: unknown[]) => void;
-  config: {
-    disabled?: boolean;
-    showInput?: boolean;
-    showPreview?: boolean;
-    onChange?: (color: string) => void;
-    prefix?: string;
-  };
-  pickerContent: HTMLElement;
-  updateUI?: () => void;
-  popup?: {
-    close: () => void;
-  };
-}
+import { createInitialState } from "../config";
 
 /**
  * Input feature interface
  */
 export interface InputFeature {
   element: HTMLElement;
-  textfield: any | null;
+  textfield: ReturnType<typeof createTextfield> | null;
   preview: HTMLElement | null;
   update: () => void;
 }
@@ -50,12 +19,40 @@ export interface InputFeature {
 /**
  * Adds the hex input field (using mtrl textfield) and color preview to a color picker component
  *
+ * @param config - Color picker configuration
  * @returns Component enhancer function
  */
 export const withInput =
-  () =>
-  <T extends InputComponent>(component: T): T & { input: InputFeature } => {
-    const { getClass, state, config, pickerContent } = component;
+  (config: ColorPickerConfig) =>
+  <
+    T extends {
+      element: HTMLElement;
+      getClass: (name: string) => string;
+      emit: (event: string, data?: unknown) => void;
+      state?: ColorPickerState;
+      pickerContent?: HTMLElement;
+      variant?: {
+        close: () => void;
+      };
+      area?: {
+        updateBackground: () => void;
+        updateHandle: () => void;
+      };
+      hue?: {
+        updateHandle: () => void;
+      };
+    },
+  >(
+    component: T,
+  ): T & { input: InputFeature; state: ColorPickerState } => {
+    const { element, getClass, emit } = component;
+
+    // Initialize state if not present
+    const state: ColorPickerState =
+      component.state || createInitialState(config);
+
+    // Use pickerContent if available (for dropdown/dialog), otherwise use element
+    const container = component.pickerContent || element;
 
     const showInput = config.showInput ?? true;
     const showPreview = config.showPreview ?? true;
@@ -70,6 +67,7 @@ export const withInput =
       };
       return {
         ...component,
+        state,
         input: emptyFeature,
       };
     }
@@ -79,7 +77,7 @@ export const withInput =
     row.className = getClass(COLORPICKER_CLASSES.VALUE);
 
     let previewEl: HTMLElement | null = null;
-    let textfieldComponent: any = null;
+    let textfieldComponent: ReturnType<typeof createTextfield> | null = null;
     let inputEl: HTMLInputElement | null = null;
 
     // Create preview square
@@ -89,46 +87,55 @@ export const withInput =
       row.appendChild(previewEl);
     }
 
-    // Create textfield asynchronously
+    // Create textfield synchronously
     if (showInput) {
-      loadTextfield().then((createTf) => {
-        textfieldComponent = createTf({
-          variant: "filled",
-          density: "compact",
-          value: state.hex.toUpperCase(),
-          maxLength: 7,
-          class: getClass("colorpicker__textfield"),
-        });
-
-        // Get the actual input element
-        inputEl = textfieldComponent.input;
-
-        // Style adjustments for color picker context
-        if (textfieldComponent.element) {
-          textfieldComponent.element.style.flex = "1";
-          row.appendChild(textfieldComponent.element);
-
-          // Apply monospace font to input
-          if (inputEl) {
-            inputEl.style.fontFamily = "monospace";
-            inputEl.style.textTransform = "uppercase";
-            inputEl.spellcheck = false;
-            inputEl.autocomplete = "off";
-          }
-        }
-
-        // Handle input change
-        textfieldComponent.on("change", handleInputChange);
-        textfieldComponent.on("blur", handleBlur);
-
-        // Handle keydown for Enter/Escape
-        if (inputEl) {
-          inputEl.addEventListener("keydown", handleKeyDown);
-        }
+      textfieldComponent = createTextfield({
+        variant: "filled",
+        density: "compact",
+        label: config.inputLabel || "Hex",
+        value: state.hex.toUpperCase(),
+        maxLength: 7,
+        class: getClass("colorpicker__textfield"),
       });
+
+      // Get the actual input element
+      inputEl = textfieldComponent.input as HTMLInputElement;
+
+      // Style adjustments for color picker context
+      if (textfieldComponent.element) {
+        textfieldComponent.element.style.flex = "1";
+        row.appendChild(textfieldComponent.element);
+
+        // Apply monospace font to input
+        if (inputEl) {
+          inputEl.style.fontFamily = "monospace";
+          inputEl.style.textTransform = "uppercase";
+          inputEl.spellcheck = false;
+          inputEl.autocomplete = "off";
+        }
+      }
+
+      // Handle input change
+      textfieldComponent.on("change", handleInputChange);
+      textfieldComponent.on("blur", handleBlur);
+
+      // Handle keydown for Enter/Escape
+      if (inputEl) {
+        inputEl.addEventListener("keydown", handleKeyDown);
+      }
     }
 
-    pickerContent.appendChild(row);
+    container.appendChild(row);
+
+    /**
+     * Update all UI features
+     */
+    const updateAllUI = (): void => {
+      component.area?.updateBackground?.();
+      component.area?.updateHandle?.();
+      component.hue?.updateHandle?.();
+      update();
+    };
 
     /**
      * Update the preview color
@@ -159,7 +166,7 @@ export const withInput =
     /**
      * Handle input change (blur or enter)
      */
-    const handleInputChange = (): void => {
+    function handleInputChange(): void {
       if (!textfieldComponent) return;
 
       let value = textfieldComponent.getValue().trim();
@@ -175,26 +182,22 @@ export const withInput =
           state.hsv = hsv;
           state.hex = normalizeHex(value);
 
-          // Update UI
-          if (component.updateUI) {
-            component.updateUI();
-          } else {
-            update();
-          }
+          // Update all UI
+          updateAllUI();
 
-          component.emit(COLORPICKER_EVENTS.CHANGE, state.hex);
+          emit(COLORPICKER_EVENTS.CHANGE, state.hex);
           config.onChange?.(state.hex);
         }
       } else {
         // Revert to current valid color
         textfieldComponent.setValue(state.hex.toUpperCase());
       }
-    };
+    }
 
     /**
      * Handle keydown on input
      */
-    const handleKeyDown = (e: KeyboardEvent): void => {
+    function handleKeyDown(e: KeyboardEvent): void {
       if (e.key === "Enter") {
         handleInputChange();
         inputEl?.blur();
@@ -205,19 +208,19 @@ export const withInput =
           textfieldComponent.setValue(state.hex.toUpperCase());
         }
         inputEl?.blur();
-        // Close popup if exists
-        if (component.popup) {
-          component.popup.close();
+        // Close dropdown/dialog if exists
+        if (component.variant) {
+          component.variant.close();
         }
       }
-    };
+    }
 
     /**
      * Handle blur on input
      */
-    const handleBlur = (): void => {
+    function handleBlur(): void {
       handleInputChange();
-    };
+    }
 
     // Initial render
     updatePreview();
@@ -225,15 +228,10 @@ export const withInput =
     // Create input feature object
     const inputFeature: InputFeature = {
       element: row,
-      textfield: null, // Will be set when loaded
+      textfield: textfieldComponent,
       preview: previewEl,
       update,
     };
-
-    // Update textfield reference when loaded
-    loadTextfield().then(() => {
-      inputFeature.textfield = textfieldComponent;
-    });
 
     // Extend lifecycle destroy if it exists
     const originalDestroy = (component as any).lifecycle?.destroy;
@@ -251,6 +249,7 @@ export const withInput =
 
     return {
       ...component,
+      state,
       input: inputFeature,
     };
   };

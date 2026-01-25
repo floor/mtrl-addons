@@ -17,5 +17,5 @@ export type { SwatchesFeature } from "./swatches";
 export { withInput } from "./input";
 export type { InputFeature } from "./input";
 
-export { withPopup } from "./popup";
-export type { PopupFeature } from "./popup";
+export { withVariant } from "./variant";
+export type { VariantFeature } from "./variant";
