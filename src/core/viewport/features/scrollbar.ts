@@ -34,7 +34,7 @@ export interface ScrollbarComponent {
  */
 export function withScrollbar(config: ScrollbarConfig = {}) {
   return <T extends ViewportContext & ViewportComponent>(
-    component: T
+    component: T,
   ): T & ScrollbarComponent => {
     const {
       enabled = true,
@@ -92,7 +92,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
 
       addClass(
         scrollbarThumb,
-        VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR_THUMB
+        VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR_THUMB,
       );
 
       scrollbarTrack.appendChild(scrollbarThumb);
@@ -110,7 +110,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
 
       addClass(
         scrollbarTrack,
-        VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR_VISIBLE
+        VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR_VISIBLE,
       );
 
       if (autoHide && !isDragging) {
@@ -122,7 +122,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       if (!scrollbarTrack || isDragging) return;
       removeClass(
         scrollbarTrack,
-        VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR_VISIBLE
+        VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR_VISIBLE,
       );
     };
 
@@ -170,7 +170,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
 
       const scrollRatio = Math.min(
         1,
-        Math.max(0, scrollPos / scrollableDistance)
+        Math.max(0, scrollPos / scrollableDistance),
       );
       const maxThumbPosition =
         scrollbarTrack.clientHeight - scrollbarThumb.clientHeight;
@@ -190,7 +190,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       const maxThumbPosition = containerSize - thumbHeight;
       const thumbPosition = Math.max(
         0,
-        Math.min(thumbCenterY, maxThumbPosition)
+        Math.min(thumbCenterY, maxThumbPosition),
       );
       const scrollRatio = thumbPosition / maxThumbPosition;
       const targetScrollPosition =
@@ -211,7 +211,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       if (scrollbarTrack) {
         addClass(
           scrollbarTrack,
-          VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR_DRAGGING
+          VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR_DRAGGING,
         );
       }
 
@@ -240,7 +240,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
         dragStartScrollPosition / (totalVirtualSize - containerSize);
       const newScrollRatio = Math.max(
         0,
-        Math.min(1, dragStartScrollRatio + deltaRatio)
+        Math.min(1, dragStartScrollRatio + deltaRatio),
       );
 
       // Update thumb position immediately
@@ -272,7 +272,6 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
     };
 
     const handleMouseUp = () => {
-      // console.log("[Scrollbar] Mouse up - ending drag");
       isDragging = false;
 
       if (animationFrameId !== null) {
@@ -288,7 +287,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       if (scrollbarTrack) {
         removeClass(
           scrollbarTrack,
-          VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR_DRAGGING
+          VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR_DRAGGING,
         );
       }
 
@@ -309,7 +308,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
       if (isInitialized) return;
 
       viewportElement = component.element?.querySelector(
-        `.${PREFIX}-viewport`
+        `.${PREFIX}-viewport`,
       ) as HTMLElement;
 
       if (!viewportElement) {
@@ -319,7 +318,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
 
       if (
         viewportElement.querySelector(
-          `.${PREFIX}-${VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR}`
+          `.${PREFIX}-${VIEWPORT_CONSTANTS.SCROLLBAR.CLASSES.SCROLLBAR}`,
         )
       )
         return;
@@ -340,7 +339,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
           () => {
             if (!isDragging) hide();
           },
-          { passive: true }
+          { passive: true },
         );
       }
 
@@ -390,7 +389,7 @@ export function withScrollbar(config: ScrollbarConfig = {}) {
         if (isCursorMode && data.total) {
           // In cursor mode, the total is dynamic
           console.log(
-            `[Scrollbar] Cursor mode: updating bounds for new total ${data.total}`
+            `[Scrollbar] Cursor mode: updating bounds for new total ${data.total}`,
           );
           updateBounds(totalVirtualSize, containerSize);
         }

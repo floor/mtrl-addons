@@ -495,12 +495,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       const maxScroll = Math.max(0, totalVirtualSize - containerSize);
       const clampedPosition = clamp(position, 0, maxScroll);
 
-      // console.log(
-      //   `[Scrolling] scrollToPosition: pos=${position} -> ${clampedPosition}, source=${source}, currentPos=${scrollPosition}, velocity=${speedTracker.velocity.toFixed(
-      //     3
-      //   )}`
-      // );
-
       if (clampedPosition !== scrollPosition) {
         const previousPosition = scrollPosition;
         scrollPosition = clampedPosition;

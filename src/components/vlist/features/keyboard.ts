@@ -96,6 +96,9 @@ export const withKeyboard = <T extends VListItem = VListItem>(
     // Track if last interaction was mouse (for focus styling)
     let lastMouseDownTime = 0;
 
+    // Track if scrollbar is being dragged (to prevent focus interference)
+    let isScrollbarDragging = false;
+
     /**
      * Setup ARIA attributes for accessibility
      */
@@ -413,6 +416,13 @@ export const withKeyboard = <T extends VListItem = VListItem>(
 
       if (totalItems === 0) return;
 
+      // Skip auto-scroll/select behavior if scrollbar is being dragged
+      // This prevents scroll reset when interacting with scrollbar
+      if (isScrollbarDragging) {
+        component.emit?.("keyboard:focus", {});
+        return;
+      }
+
       // MD3: If list has selected element, focus goes to selected item
       // Otherwise, first element receives focus
       if (selectedIndices.length === 0) {
@@ -464,9 +474,22 @@ export const withKeyboard = <T extends VListItem = VListItem>(
         component.element.addEventListener("mousedown", () => {
           lastMouseDownTime = Date.now();
         });
+      }
 
+      // Listen for scrollbar drag events to prevent focus interference
+      (component as any).on?.("viewport:drag-start", () => {
+        isScrollbarDragging = true;
+      });
+      (component as any).on?.("viewport:drag-end", () => {
+        // Delay clearing the flag to ensure focus event is handled first
+        setTimeout(() => {
+          isScrollbarDragging = false;
+        }, 50);
+      });
+
+      if (component.element) {
         // Add click handler to focus the list when clicked
-        // But don't steal focus from interactive elements like search inputs
+        // But don't steal focus from interactive elements like search inputs or scrollbar
         component.element.addEventListener("click", (e: MouseEvent) => {
           const target = e.target as HTMLElement;
 
@@ -476,6 +499,12 @@ export const withKeyboard = <T extends VListItem = VListItem>(
               'input, button, select, textarea, [contenteditable], .mtrl-search, .mtrl-textfield, .mtrl-select, [class*="filter"]',
             )
           ) {
+            return;
+          }
+
+          // Don't focus the list if clicking on the scrollbar
+          // This prevents scroll reset when dragging the scrollbar
+          if (target.closest(".mtrl-viewport-scrollbar")) {
             return;
           }
 
