@@ -42,6 +42,20 @@ export const withVirtual = (config: VirtualConfig = {}) => {
     let hasCalculatedItemSize = false;
     let hasRecalculatedScrollForCompression = false; // Track if we've recalculated scroll position for compression
 
+    // Listen for reload:start to reset feature-specific state
+    component.on?.("reload:start", () => {
+      hasCalculatedItemSize = false;
+      hasRecalculatedScrollForCompression = false;
+      // Reset viewportState if it exists
+      if (viewportState) {
+        viewportState.scrollPosition = 0;
+        viewportState.totalItems = 0;
+        viewportState.virtualTotalSize = 0;
+        viewportState.visibleRange = { start: 0, end: 0 };
+        delete (viewportState as any).targetScrollIndex;
+      }
+    });
+
     // Initialize using shared wrapper
     wrapInitialize(component, () => {
       viewportState = getViewportState(component);

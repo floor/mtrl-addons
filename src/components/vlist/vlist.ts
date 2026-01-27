@@ -5,89 +5,186 @@
  *
  * A simplified virtual list that uses the viewport feature directly
  * without the list-manager abstraction layer.
+ *
+ * Supports optional layout configuration for building complete list UIs
+ * with headers, filters, footers, and the virtual scrolling viewport.
+ *
+ * @example
+ * ```typescript
+ * // Simple usage (no layout)
+ * const vlist = createVList({
+ *   container: '#my-list',
+ *   template: itemTemplate,
+ *   collection: { adapter: { read: fetchItems } }
+ * });
+ *
+ * // With layout (complete UI)
+ * const vlist = createVList({
+ *   container: '#my-list',
+ *   class: 'users',
+ *   layout: [
+ *     ['head', { class: 'head' },
+ *       ['title', { text: 'Users' }]
+ *     ],
+ *     ['viewport'],
+ *     ['foot', { class: 'foot' },
+ *       ['count', { text: '0' }]
+ *     ]
+ *   ],
+ *   template: userTemplate,
+ *   collection: { adapter: { read: fetchUsers } }
+ * });
+ *
+ * // Access layout elements
+ * vlist.layout.title.textContent = 'Users (1,245)';
+ * vlist.layout.count.textContent = '1,245';
+ *
+ * // With search and filter
+ * const vlist = createVList({
+ *   container: '#my-list',
+ *   class: 'users',
+ *   layout: [
+ *     ['head', { class: 'head' },
+ *       [createIconButton, 'search', { icon: iconSearch, toggle: true }],
+ *       [createIconButton, 'filter', { icon: iconFilter, toggle: true }]
+ *     ],
+ *     ['filter-panel', { class: 'filter-panel' },
+ *       [createSelect, 'country', { options: countries }],
+ *       [Button, 'clear', { icon: iconCancel }]
+ *     ],
+ *     [createSearch, 'search-bar', { placeholder: 'Search...' }],
+ *     ['viewport'],
+ *   ],
+ *   search: {
+ *     toggleButton: 'search',
+ *     searchBar: 'search-bar',
+ *   },
+ *   filter: {
+ *     toggleButton: 'filter',
+ *     panel: 'filter-panel',
+ *     clearButton: 'clear',
+ *     controls: { country: 'country' },
+ *   },
+ *   template: userTemplate,
+ *   collection: {
+ *     adapter: {
+ *       read: async ({ page, limit, search, filters }) => {
+ *         // search and filters automatically available
+ *       }
+ *     }
+ *   }
+ * });
+ *
+ * // Events
+ * vlist.on('search:change', ({ query }) => console.log('Searching:', query));
+ * vlist.on('filter:change', ({ filters }) => console.log('Filters:', filters));
+ *
+ * // API
+ * vlist.search('john');
+ * vlist.setFilter('country', 'FR');
+ * ```
  */
 
 import type { VListConfig, VListComponent, VListItem } from "./types";
+import type { SearchConfig } from "./features/search";
+import type { FilterConfig } from "./features/filter";
 
 // Import mtrl compose system
 import { pipe } from "mtrl";
 import { createBase, withElement } from "mtrl";
 import { withEvents, withLifecycle } from "mtrl";
 
-// Import viewport feature
+// Import VList features
 import { withViewport } from "./features/viewport";
 import { withAPI } from "./features/api";
 import { withSelection } from "./features/selection";
 import { withKeyboard } from "./features/keyboard";
+import { withLayout } from "./features/layout";
+import { withSearch } from "./features/search";
+import { withFilter } from "./features/filter";
 
 /**
  * Creates a new VList component using direct viewport integration
  *
  * @param {VListConfig} config - List configuration options
  * @returns {VListComponent} A fully configured virtual list component
- *
- * @example
- * ```typescript
- * const vlist = createVList({
- *   container: '#my-list',
- *   collection: myAdapter,
- *   rangeSize: 20,
- *   paginationStrategy: 'page',
- *   template: (item, index) => [
- *     { class: 'viewport-item', attributes: { 'data-id': item.id }},
- *     [{ class: 'viewport-item__name', text: item.name }],
- *     [{ class: 'viewport-item__value', text: item.value }]
- *   ]
- * });
- * ```
  */
 export const createVList = <T extends VListItem = VListItem>(
-  config: VListConfig<T> = {},
+  config: VListConfig<T> & {
+    layout?: any[];
+    search?: SearchConfig;
+    filter?: FilterConfig;
+  } = {},
 ): VListComponent<T> => {
   try {
-    // console.log(`📋 Creating VList component with direct viewport integration`);
+    // Determine the CSS class name for the root element
+    // When layout is provided, add the custom class suffix (e.g., 'mtrl-vlist-users')
+    let className = config.className || "mtrl-vlist";
+    if (config.class && !className.includes(`mtrl-vlist-${config.class}`)) {
+      className = `mtrl-vlist mtrl-vlist-${config.class}`;
+    }
 
-    // Note: Transform should be applied by the collection feature in viewport
-    // VList should not intercept collection reads as it bypasses the loading manager
-
-    // Create the component through functional composition
-    const enhancers = [
+    // Build the enhancement pipeline
+    const enhancers: Array<(c: any) => any> = [
       // 1. Foundation layer
       createBase,
       withEvents(),
       withElement({
         tag: "div",
-        className: config.className || "mtrl-vlist",
+        className,
         attributes: {
           role: "list",
           "aria-label": config.ariaLabel || "Virtual List",
         },
       }),
+    ];
 
-      // 2. Viewport integration
-      // Pass autoSelectFirst from selection config to viewport level
+    // 2. Layout feature (optional) - MUST come before withViewport
+    // This processes the layout schema and sets up _viewportContainer
+    // for withViewport to use
+    if (config.layout && Array.isArray(config.layout)) {
+      enhancers.push(withLayout(config));
+    }
+
+    // 3. Viewport integration
+    // When withLayout was applied, this will use the layout's viewport container
+    // Otherwise, it creates its own viewport structure
+    enhancers.push(
       withViewport({
         ...config,
         autoSelectFirst: config.selection?.autoSelectFirst,
       }),
+    );
 
-      // 3. Component lifecycle
-      withLifecycle(),
+    // 4. Component lifecycle
+    enhancers.push(withLifecycle());
 
-      // 4. Public API layer
-      withAPI(config),
-    ];
+    // 5. Public API layer
+    enhancers.push(withAPI(config));
 
-    // 4.5. Selection capabilities (if enabled) - must be after API
+    // 6. Selection capabilities (if enabled) - must be after API
     if (config.selection?.enabled) {
       enhancers.push(withSelection(config));
     }
 
-    // 5. Keyboard navigation (if selection enabled or explicitly configured)
+    // 7. Keyboard navigation (if selection enabled or explicitly configured)
     if (config.selection?.enabled || config.keyboard?.enabled) {
       enhancers.push(withKeyboard(config));
     }
 
+    // 8. Search feature (if configured)
+    // Must come after API (needs reload method) and layout (needs layout elements)
+    if (config.search) {
+      enhancers.push(withSearch(config));
+    }
+
+    // 9. Filter feature (if configured)
+    // Must come after API (needs reload method) and layout (needs layout elements)
+    if (config.filter) {
+      enhancers.push(withFilter(config));
+    }
+
+    // Create the component through functional composition
     const component = pipe(...enhancers)({
       ...config,
       componentName: "vlist",

@@ -30,6 +30,8 @@ export interface Collection<T = any> {
   ) => Promise<void>;
 }
 import type { ViewportComponent } from "../../core/viewport/types";
+import type { SearchConfig } from "./features/search";
+import type { FilterConfig } from "./features/filter";
 
 /**
  * List item interface - extends collection item
@@ -707,6 +709,33 @@ export interface VListConfig<T extends ListItem = ListItem> {
   ariaLabel?: string;
   debug?: boolean;
 
+  /**
+   * Layout schema for building complete list UI with header, footer, etc.
+   *
+   * When provided, VList will:
+   * 1. Process the layout schema using createLayout
+   * 2. Build the UI structure inside VList's root element
+   * 3. Find the 'viewport' element and render virtual scrolling there
+   * 4. Expose all named elements via vlist.layout flat map
+   *
+   * The layout must include a ['viewport'] entry to mark where virtual
+   * scrolling content should be rendered.
+   *
+   * @example
+   * ```typescript
+   * layout: [
+   *   ['head', { class: 'head' },
+   *     ['title', { text: 'Users' }]
+   *   ],
+   *   ['viewport'],
+   *   ['foot', { class: 'foot' },
+   *     ['count', { text: '0' }]
+   *   ]
+   * ]
+   * ```
+   */
+  layout?: any[];
+
   // Selection shorthand (also available in selection.autoSelectFirst)
   /** Automatically select first item after initial load (default: false) */
   autoSelectFirst?: boolean;
@@ -796,6 +825,55 @@ export interface VListConfig<T extends ListItem = ListItem> {
   // Keyboard navigation configuration
   keyboard?: ListKeyboardConfig;
 
+  /**
+   * Search configuration for the list
+   *
+   * When provided, VList will:
+   * 1. Connect to layout elements by name (toggle button, search bar)
+   * 2. Manage search state (query, open/closed)
+   * 3. Emit events: search:open, search:close, search:change, search:clear
+   * 4. Provide API methods: search(), clearSearch(), getSearchQuery(), isSearching()
+   * 5. Trigger list reload on search changes (configurable)
+   *
+   * @example
+   * ```typescript
+   * search: {
+   *   toggleButton: 'search-toggle',  // Layout element name
+   *   searchBar: 'search-input',      // Layout element name
+   *   debounce: 300,                  // ms
+   *   minLength: 1,                   // minimum query length
+   *   autoReload: true,               // reload on change
+   * }
+   * ```
+   */
+  search?: SearchConfig;
+
+  /**
+   * Filter configuration for the list
+   *
+   * When provided, VList will:
+   * 1. Connect to layout elements by name (toggle button, panel, controls)
+   * 2. Manage filter state
+   * 3. Emit events: filter:open, filter:close, filter:change, filter:clear
+   * 4. Provide API methods: setFilter(), setFilters(), clearFilters(), getFilters(), isFiltered()
+   * 5. Trigger list reload on filter changes (configurable)
+   *
+   * @example
+   * ```typescript
+   * filter: {
+   *   toggleButton: 'filter-toggle',  // Layout element name
+   *   panel: 'filter-panel',          // Layout element name
+   *   clearButton: 'clear-btn',       // Layout element name
+   *   controls: {
+   *     country: 'country-select',    // filter name → layout element name
+   *     decade: 'decade-select',
+   *   },
+   *   autoReload: true,               // reload on change
+   * }
+   * ```
+   */
+  filter?: FilterConfig;
+
   // Event handlers
   on?: ListEventHandlers<T>;
 }
@@ -814,6 +892,55 @@ export type VListComponent<T extends ListItem = ListItem> = ListComponent<T> & {
   selectFirst(): Promise<boolean>;
   /** Select last item */
   selectLast(): Promise<boolean>;
+  /**
+   * Flat map of all named layout elements (only present when layout option is used)
+   * Access elements by their name: vlist.layout.title, vlist.layout.count, etc.
+   */
+  layout?: Record<string, any>;
+  /**
+   * Get a specific layout element by name (only present when layout option is used)
+   */
+  getLayoutElement?(name: string): any;
+
+  // Search API (only present when search option is used)
+  /** Set search query programmatically */
+  search?(query: string): void;
+  /** Clear search query */
+  clearSearch?(): void;
+  /** Get current search query */
+  getSearchQuery?(): string;
+  /** Check if currently in search mode */
+  isSearching?(): boolean;
+  /** Check if search bar is open */
+  isSearchOpen?(): boolean;
+  /** Open the search bar */
+  openSearch?(): void;
+  /** Close the search bar */
+  closeSearch?(): void;
+  /** Toggle search bar visibility */
+  toggleSearch?(): void;
+
+  // Filter API (only present when filter option is used)
+  /** Set a single filter value */
+  setFilter?(name: string, value: any): void;
+  /** Set multiple filters at once */
+  setFilters?(filters: Record<string, any>): void;
+  /** Clear all filters */
+  clearFilters?(): void;
+  /** Get all current filters */
+  getFilters?(): Record<string, any>;
+  /** Get a single filter value */
+  getFilter?(name: string): any;
+  /** Check if any filter is active */
+  isFiltered?(): boolean;
+  /** Check if filter panel is open */
+  isFilterOpen?(): boolean;
+  /** Open the filter panel */
+  openFilter?(): void;
+  /** Close the filter panel */
+  closeFilter?(): void;
+  /** Toggle filter panel visibility */
+  toggleFilter?(): void;
 };
 
 export type VListItem = ListItem;

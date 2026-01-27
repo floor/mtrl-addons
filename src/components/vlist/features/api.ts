@@ -45,12 +45,28 @@ export const withAPI = <T extends VListItem = VListItem>(
        * This is much more efficient than destroying and recreating the VList
        */
       async reload(): Promise<void> {
-        // Reset the collection state
+        // Emit reload:start for features that need to prepare
+        component.emit?.("reload:start");
+
+        // Reset the collection state first - this emits 'collection:reset'
+        // which triggers the rendering feature to clear renderedElements
         if (component.viewport?.collection?.reset) {
           component.viewport.collection.reset();
         }
 
-        // Reset scroll position to top
+        // Reset viewport's internal state
+        if (component.viewport?.state) {
+          component.viewport.state.scrollPosition = 0;
+          component.viewport.state.totalItems = 0;
+          component.viewport.state.virtualTotalSize = 0;
+          component.viewport.state.visibleRange = { start: 0, end: 0 };
+          component.viewport.state.velocity = 0;
+          component.viewport.state.scrollDirection = "forward";
+          // Clear any target scroll index from previous loads
+          delete (component.viewport.state as any).targetScrollIndex;
+        }
+
+        // Reset scroll position to top (also resets native scroll)
         if (component.viewport?.scrollTo) {
           component.viewport.scrollTo(0);
         }
@@ -61,12 +77,24 @@ export const withAPI = <T extends VListItem = VListItem>(
         );
         if (itemsContainer) {
           itemsContainer.innerHTML = "";
+          // Reset the items container height
+          itemsContainer.style.height = "0px";
         }
+
+        // Reset component-level state
+        component.totalItems = 0;
+        component.items = [];
+
+        // Clear the element pool to free memory (emit event for rendering feature)
+        component.emit?.("viewport:clear-pool");
 
         // Reset initialization state so initialize() will run again
         if (component.viewport?.resetInitialization) {
           component.viewport.resetInitialization();
         }
+
+        // Small delay to allow DOM to settle before reinitializing
+        await new Promise((resolve) => requestAnimationFrame(resolve));
 
         // Re-initialize to trigger fresh data load
         if (component.viewport?.initialize) {

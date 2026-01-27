@@ -361,6 +361,18 @@ export const withRendering = (config: RenderingConfig = {}) => {
         });
       });
 
+      // Listen for reload:start to reset feature-specific state
+      component.on?.("reload:start", () => {
+        // Reset visible range tracking
+        currentVisibleRange = { start: -1, end: -1 };
+        lastRenderTime = 0;
+        isRemovingItem = false;
+
+        // Clear element pool to free memory
+        elementPool.length = 0;
+        poolStats.poolSize = 0;
+      });
+
       // Listen for collection reset to clear rendering state
       component.on?.("collection:reset", () => {
         // Release and clear all rendered elements
@@ -371,6 +383,16 @@ export const withRendering = (config: RenderingConfig = {}) => {
 
         // Reset visible range tracking
         currentVisibleRange = { start: -1, end: -1 };
+      });
+
+      // Listen for pool clear request (on reload)
+      component.on?.("viewport:clear-pool", () => {
+        // Clear element pool to free memory
+        elementPool.length = 0;
+        poolStats.poolSize = 0;
+
+        // Reset last render time to avoid stale calculations
+        lastRenderTime = 0;
       });
 
       // Listen for collection data loaded

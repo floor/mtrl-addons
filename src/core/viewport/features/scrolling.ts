@@ -98,6 +98,32 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     let isScrolling = false;
     let isScrolledFromTop = false; // Track if scrolled away from top
     let lastScrollTime = 0;
+
+    // Listen for reload:start to reset feature-specific state
+    component.on?.("reload:start", () => {
+      scrollPosition = 0;
+      totalVirtualSize = 0;
+      isScrolling = false;
+      isScrolledFromTop = false;
+      lastScrollTime = 0;
+      speedTracker = createSpeedTracker();
+      hasEmittedIdle = false;
+      anchorPosition = null;
+      anchorTime = 0;
+      lastWheelTime = 0;
+      anchorInitialDelta = 0;
+      anchorLastDelta = 0;
+      anchorMinDelta = Infinity;
+      consecutiveIncreases = 0;
+      sustainedHighCount = 0;
+
+      // Clear any pending timeouts
+      if (idleTimeoutId) {
+        clearTimeout(idleTimeoutId);
+        idleTimeoutId = null;
+      }
+      stopIdleDetection();
+    });
     let speedTracker = createSpeedTracker();
     let idleTimeoutId: number | null = null;
     let idleCheckFrame: number | null = null;

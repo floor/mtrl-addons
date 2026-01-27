@@ -466,7 +466,19 @@ export const withKeyboard = <T extends VListItem = VListItem>(
         });
 
         // Add click handler to focus the list when clicked
-        component.element.addEventListener("click", () => {
+        // But don't steal focus from interactive elements like search inputs
+        component.element.addEventListener("click", (e: MouseEvent) => {
+          const target = e.target as HTMLElement;
+
+          // Don't focus the list if clicking on an input, button, or interactive element
+          if (
+            target.closest(
+              'input, button, select, textarea, [contenteditable], .mtrl-search, .mtrl-textfield, .mtrl-select, [class*="filter"]',
+            )
+          ) {
+            return;
+          }
+
           component.element?.focus();
         });
       }
