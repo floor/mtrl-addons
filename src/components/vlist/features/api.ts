@@ -96,9 +96,149 @@ export const withAPI = <T extends VListItem = VListItem>(
         // Small delay to allow DOM to settle before reinitializing
         await new Promise((resolve) => requestAnimationFrame(resolve));
 
-        // Re-initialize to trigger fresh data load
+        // Mark that data has been manually loaded
+        // This enables viewport:range-changed to load data when autoLoad: false
+        if (component.viewport?.collection?.setManuallyLoaded) {
+          component.viewport.collection.setManuallyLoaded();
+        }
+
+        // Re-initialize viewport (but this won't trigger loads due to timing)
         if (component.viewport?.initialize) {
           component.viewport.initialize();
+        }
+
+        // Directly load the initial range since range-changed events
+        // were skipped before setManuallyLoaded was called
+        const itemSize = component.viewport?.state?.itemSize || 100;
+        const containerSize = component.viewport?.state?.containerSize || 600;
+        const visibleCount = Math.ceil(containerSize / itemSize);
+        const overscan = 2;
+        const rangeEnd = visibleCount + overscan;
+
+        if (component.viewport?.collection?.loadMissingRanges) {
+          await component.viewport.collection.loadMissingRanges(
+            { start: 0, end: rangeEnd },
+            "reload",
+          );
+        }
+
+        component.emit?.("reloaded");
+      },
+
+      /**
+       * Reload the list starting from a specific position
+       * This is useful when you need to reload with a different scroll position
+       * (e.g., when restoring a saved user selection)
+       *
+       * @param initialScrollIndex - The index to start loading from
+       * @param selectId - Optional ID of item to select after load completes
+       */
+      async reloadAt(
+        initialScrollIndex: number,
+        selectId?: string | number,
+      ): Promise<void> {
+        // Capture 'this' for use in async callbacks
+        // 'this' refers to the final composed component which has selectById from withSelection
+        // 'component' only has methods up to withAPI in the composition chain
+        const self = this;
+
+        // Emit reload:start for features that need to prepare
+        component.emit?.("reload:start");
+
+        // Reset the collection state first
+        if (component.viewport?.collection?.reset) {
+          component.viewport.collection.reset();
+        }
+
+        // Clear any queued requests to prevent stale page 1 loads
+        if (component.viewport?.collection?.clearQueue) {
+          component.viewport.collection.clearQueue();
+        }
+
+        // Reset viewport's internal state with the new scroll position
+        const itemSize = component.viewport?.state?.itemSize || 100;
+        const scrollPosition = initialScrollIndex * itemSize;
+
+        if (component.viewport?.state) {
+          component.viewport.state.scrollPosition = scrollPosition;
+          component.viewport.state.totalItems = 0;
+          component.viewport.state.virtualTotalSize = 0;
+          component.viewport.state.velocity = 0;
+          component.viewport.state.scrollDirection = "forward";
+        }
+
+        // Clear rendered DOM content (items container)
+        const itemsContainer = component.element?.querySelector(
+          ".mtrl-viewport-items",
+        );
+        if (itemsContainer) {
+          itemsContainer.innerHTML = "";
+          itemsContainer.style.height = "0px";
+        }
+
+        // Reset component-level state
+        component.totalItems = 0;
+        component.items = [];
+
+        // Clear the element pool
+        component.emit?.("viewport:clear-pool");
+
+        // Reset initialization state
+        if (component.viewport?.resetInitialization) {
+          component.viewport.resetInitialization();
+        }
+
+        // Small delay to allow DOM to settle
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+
+        // Calculate the visible range based on target position
+        const containerSize = component.viewport?.state?.containerSize || 600;
+        const visibleCount = Math.ceil(containerSize / itemSize);
+        const overscan = 2;
+        const rangeStart = Math.max(0, initialScrollIndex - overscan);
+        const rangeEnd = initialScrollIndex + visibleCount + overscan;
+
+        // Update visible range in viewport state BEFORE loading
+        // This prevents viewport:range-changed from triggering page 1 loads
+        if (component.viewport?.state) {
+          component.viewport.state.visibleRange = {
+            start: rangeStart,
+            end: rangeEnd,
+          };
+        }
+
+        // Clear any queued requests again (in case range-changed queued something)
+        if (component.viewport?.collection?.clearQueue) {
+          component.viewport.collection.clearQueue();
+        }
+
+        // Directly load the range at the target position
+        // This bypasses initialize() which would load from page 1
+        if (component.viewport?.collection?.loadMissingRanges) {
+          await component.viewport.collection.loadMissingRanges(
+            { start: rangeStart, end: rangeEnd },
+            "reloadAt",
+          );
+        }
+
+        // Mark that data has been manually loaded - this enables subsequent
+        // loads from viewport:range-changed (for scrolling after reloadAt)
+        if (component.viewport?.collection?.setManuallyLoaded) {
+          component.viewport.collection.setManuallyLoaded();
+        }
+
+        // Now scroll to the target position
+        if (component.viewport?.scrollToIndex && initialScrollIndex > 0) {
+          component.viewport.scrollToIndex(initialScrollIndex, "start");
+        }
+
+        // Select the item after data is loaded and rendered
+        // Use requestAnimationFrame to ensure DOM is updated
+        if (selectId !== undefined) {
+          await new Promise((resolve) => requestAnimationFrame(resolve));
+          if (self.selectById) {
+            self.selectById(selectId);
+          }
         }
 
         component.emit?.("reloaded");
@@ -646,31 +786,41 @@ export const withAPI = <T extends VListItem = VListItem>(
         selectId: string | number,
         alignment: "start" | "center" | "end" = "start",
       ) {
+        // Capture 'this' for use in async callbacks
+        // 'this' refers to the final composed component which has selectById from withSelection
+        const self = this;
+
         if (component.viewport) {
           component.viewport.scrollToIndex(index, alignment);
         }
 
-        // Listen for range load to complete, then select
-        const onRangeLoaded = () => {
-          component.off?.("viewport:range-loaded", onRangeLoaded);
-          requestAnimationFrame(() => {
-            if (component.selectById) {
-              component.selectById(selectId);
-            }
-          });
-        };
+        // Wait for scroll to complete and any synchronous updates
+        await new Promise((resolve) => requestAnimationFrame(resolve));
 
-        component.on?.("viewport:range-loaded", onRangeLoaded);
+        // Check if item is now loaded (after scroll triggered any loads)
+        const items = this.getItems?.() || [];
+        const itemExists = items[index] !== undefined;
 
-        // Fallback timeout in case event doesn't fire (data already loaded)
-        setTimeout(() => {
-          component.off?.("viewport:range-loaded", onRangeLoaded);
-          if (component.selectById) {
-            component.selectById(selectId);
+        if (itemExists) {
+          // Item loaded, select it
+          if (self.selectById) {
+            self.selectById(selectId);
           }
-        }, 300);
-
-        return Promise.resolve();
+        } else {
+          // Item not loaded yet, wait for the next range-loaded event
+          await new Promise<void>((resolve) => {
+            const onRangeLoaded = () => {
+              component.off?.("viewport:range-loaded", onRangeLoaded);
+              requestAnimationFrame(() => {
+                if (self.selectById) {
+                  self.selectById(selectId);
+                }
+                resolve();
+              });
+            };
+            component.on?.("viewport:range-loaded", onRangeLoaded);
+          });
+        }
       },
 
       scrollToItem: async function (

@@ -39,6 +39,8 @@ export interface CollectionComponent {
     getLoadedRanges: () => Set<number>;
     getPendingRanges: () => Set<number>;
     clearFailedRanges: () => void;
+    clearQueue: () => void;
+    setManuallyLoaded: () => void;
     retryFailedRange: (rangeId: number) => Promise<any[]>;
     setTotalItems: (total: number) => void;
     getTotalItems: () => number;
@@ -80,6 +82,10 @@ export function withCollection(config: CollectionConfig = {}) {
     // This prevents the viewport:range-changed listener from loading page 1
     let hasCompletedInitialPositionLoad = false;
     const hasInitialScrollIndex = initialScrollIndex > 0;
+
+    // Track if data has been manually loaded (e.g., via reloadAt)
+    // This enables subsequent loads from viewport:range-changed even with autoLoad: false
+    let hasManuallyLoaded = false;
 
     // console.log("[Viewport Collection] Initialized with config:", {
     //   strategy,
@@ -914,6 +920,13 @@ export function withCollection(config: CollectionConfig = {}) {
       component.on?.("viewport:range-changed", async (data: any) => {
         // Don't load during fast scrolling - loadMissingRanges will handle velocity check
 
+        // Skip if autoLoad is disabled AND we haven't manually loaded yet
+        // This prevents unwanted page 1 loads when using reloadAt()
+        // But allows subsequent loads from scrolling after reloadAt() completes
+        if (!autoLoad && !hasManuallyLoaded) {
+          return;
+        }
+
         // Extract range from event data - virtual feature emits { range: { start, end }, scrollPosition }
         const range = data.range || data;
         const { start, end } = range;
@@ -1172,6 +1185,7 @@ export function withCollection(config: CollectionConfig = {}) {
       discoveredTotal = null;
       hasReachedEnd = false;
       hasCompletedInitialPositionLoad = false;
+      hasManuallyLoaded = false;
 
       // Reset cached item count
       cachedItemCount = 0;
@@ -1192,6 +1206,25 @@ export function withCollection(config: CollectionConfig = {}) {
       component.emit?.("collection:reset");
     };
 
+    /**
+     * Clear the request queue - used by reloadAt to prevent stale queued requests
+     */
+    const clearQueue = () => {
+      // Resolve all pending promises to avoid hanging
+      loadRequestQueue.forEach((request) => {
+        request.resolve();
+      });
+      loadRequestQueue.length = 0;
+    };
+
+    /**
+     * Mark that data has been manually loaded (e.g., via reloadAt)
+     * This enables subsequent loads from viewport:range-changed
+     */
+    const setManuallyLoaded = () => {
+      hasManuallyLoaded = true;
+    };
+
     // Add collection API to viewport
     component.viewport.collection = {
       loadRange: (offset: number, limit: number) => loadRange(offset, limit),
@@ -1202,6 +1235,8 @@ export function withCollection(config: CollectionConfig = {}) {
       getLoadedRanges: () => loadedRanges,
       getPendingRanges: () => pendingRanges,
       clearFailedRanges: () => failedRanges.clear(),
+      clearQueue,
+      setManuallyLoaded,
       retryFailedRange,
       setTotalItems,
       getTotalItems: () => totalItems,
@@ -1304,6 +1339,8 @@ export function withCollection(config: CollectionConfig = {}) {
         getLoadedRanges: () => loadedRanges,
         getPendingRanges: () => pendingRanges,
         clearFailedRanges: () => failedRanges.clear(),
+        clearQueue,
+        setManuallyLoaded,
         retryFailedRange,
         setTotalItems,
         getTotalItems: () => totalItems,
