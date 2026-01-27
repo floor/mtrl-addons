@@ -109,9 +109,11 @@ export function withCollection(config: CollectionConfig = {}) {
     const MAX_CACHED_ITEMS = maxCachedItems;
     const EVICTION_BUFFER = evictionBuffer;
 
+    // Track actual item count efficiently (avoid O(n) sparse array iteration)
+    let cachedItemCount = 0;
+
     // Memory diagnostics
     const logMemoryStats = (caller: string) => {
-      const itemCount = items.filter(Boolean).length;
       const loadedRangeCount = loadedRanges.size;
       const pendingRangeCount = pendingRanges.size;
       const abortControllerCount = abortControllers.size;
@@ -120,34 +122,48 @@ export function withCollection(config: CollectionConfig = {}) {
     /**
      * Evict items far from the current visible range to prevent memory bloat
      * Keeps items within EVICTION_BUFFER of the visible range
+     *
+     * PERFORMANCE: Uses loadedRanges to iterate only loaded data, not the entire
+     * sparse array. This is critical for large lists (1M+ items) where the
+     * items array is sparse and iterating items.length would be O(n).
      */
     const evictDistantItems = (visibleStart: number, visibleEnd: number) => {
-      const itemCount = items.filter(Boolean).length;
-
       // Only evict if we have more than MAX_CACHED_ITEMS
-      if (itemCount <= MAX_CACHED_ITEMS) {
+      // Use cached count instead of O(n) items.filter(Boolean).length
+      if (cachedItemCount <= MAX_CACHED_ITEMS) {
         return;
       }
 
       const keepStart = Math.max(0, visibleStart - EVICTION_BUFFER);
       const keepEnd = visibleEnd + EVICTION_BUFFER;
 
+      // Calculate which ranges to keep based on visible area
+      const keepRangeStart = Math.floor(keepStart / rangeSize);
+      const keepRangeEnd = Math.floor(keepEnd / rangeSize);
+
       let evictedCount = 0;
       const rangesToRemove = new Set<number>();
 
-      // Find items to evict and track which ranges are affected
-      for (let i = 0; i < items.length; i++) {
-        if (items[i] !== undefined && (i < keepStart || i > keepEnd)) {
-          delete items[i];
-          evictedCount++;
-          // Mark the range containing this item for removal from loadedRanges
-          // This ensures the range will be reloaded when scrolling back
-          const affectedRangeId = Math.floor(i / rangeSize);
-          rangesToRemove.add(affectedRangeId);
-        }
-      }
+      // Iterate only over loaded ranges, not the entire sparse array
+      // This is O(loaded ranges) instead of O(total items)
+      loadedRanges.forEach((rangeId) => {
+        // Check if this range is outside the keep zone
+        if (rangeId < keepRangeStart || rangeId > keepRangeEnd) {
+          rangesToRemove.add(rangeId);
 
-      // Remove all ranges that had any items evicted
+          // Evict items in this range
+          const rangeStart = rangeId * rangeSize;
+          const rangeEnd = rangeStart + rangeSize;
+          for (let i = rangeStart; i < rangeEnd; i++) {
+            if (items[i] !== undefined) {
+              delete items[i];
+              evictedCount++;
+            }
+          }
+        }
+      });
+
+      // Remove all ranges that had items evicted
       // This is critical: even if only part of a range was evicted,
       // we must remove it from loadedRanges so it gets reloaded
       // Also remove from pendingRanges - if a slow request completes for an evicted range,
@@ -166,6 +182,9 @@ export function withCollection(config: CollectionConfig = {}) {
       });
 
       if (evictedCount > 0) {
+        // Update cached item count
+        cachedItemCount -= evictedCount;
+
         // Emit event for rendering to also clean up
         component.emit?.("collection:items-evicted", {
           keepStart,
@@ -397,10 +416,16 @@ export function withCollection(config: CollectionConfig = {}) {
           // Transform items
           const transformedItems = transformItems(rawItems);
 
-          // Add items to array
+          // Add items to array and track count efficiently
+          let newItemsAdded = 0;
           transformedItems.forEach((item, index) => {
+            // Only count as new if slot was empty
+            if (items[offset + index] === undefined) {
+              newItemsAdded++;
+            }
             items[offset + index] = item;
           });
+          cachedItemCount += newItemsAdded;
 
           // For cursor strategy, calculate dynamic total based on loaded data
           // Use nullish coalescing (??) instead of || to handle discoveredTotal = 0 correctly
@@ -422,9 +447,8 @@ export function withCollection(config: CollectionConfig = {}) {
 
           if (strategy === "cursor") {
             // Calculate total based on loaded items + margin
-            const loadedItemsCount = items.filter(
-              (item) => item !== undefined,
-            ).length;
+            // Use cachedItemCount instead of O(n) filter operation
+            const loadedItemsCount = cachedItemCount;
             const marginItems = hasReachedEnd
               ? 0
               : rangeSize *
@@ -473,7 +497,7 @@ export function withCollection(config: CollectionConfig = {}) {
           // Emit items changed event
           component.emit?.("viewport:items-changed", {
             totalItems: newTotal,
-            loadedCount: items.filter((item) => item !== undefined).length,
+            loadedCount: cachedItemCount,
           });
 
           // Update viewport state
@@ -922,9 +946,8 @@ export function withCollection(config: CollectionConfig = {}) {
 
         // For cursor mode, check if we need to update virtual size
         if (strategy === "cursor" && !hasReachedEnd) {
-          const loadedItemsCount = items.filter(
-            (item) => item !== undefined,
-          ).length;
+          // Use cachedItemCount instead of O(n) filter operation
+          const loadedItemsCount = cachedItemCount;
           const marginItems =
             rangeSize *
             VIEWPORT_CONSTANTS.PAGINATION.CURSOR_SCROLL_MARGIN_MULTIPLIER;
@@ -1149,6 +1172,9 @@ export function withCollection(config: CollectionConfig = {}) {
       discoveredTotal = null;
       hasReachedEnd = false;
       hasCompletedInitialPositionLoad = false;
+
+      // Reset cached item count
+      cachedItemCount = 0;
 
       // Reset counters
       activeLoadCount = 0;

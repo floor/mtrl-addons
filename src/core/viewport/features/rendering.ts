@@ -823,12 +823,14 @@ export const withRendering = (config: RenderingConfig = {}) => {
       // }
 
       // Remove items outside range
-      Array.from(renderedElements.entries())
-        .filter(([index]) => index < renderStart || index > renderEnd)
-        .forEach(([index, element]) => {
-          if (element.parentNode) releaseElement(element);
-          renderedElements.delete(index);
-        });
+      const toRemove = Array.from(renderedElements.entries()).filter(
+        ([index]) => index < renderStart || index > renderEnd,
+      );
+
+      toRemove.forEach(([index, element]) => {
+        if (element.parentNode) releaseElement(element);
+        renderedElements.delete(index);
+      });
 
       // Get items from collection (single source of truth)
       const items = getCollectionItems();

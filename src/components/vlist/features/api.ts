@@ -530,8 +530,6 @@ export const withAPI = <T extends VListItem = VListItem>(
 
       // Data loading
       loadNext: async function () {
-        console.log(`[VList] loadNext()`);
-
         if (component.viewport?.collection) {
           const totalItems = component.viewport.collection.getTotalItems();
           const loadedRanges = component.viewport.collection.getLoadedRanges();
