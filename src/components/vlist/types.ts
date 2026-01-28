@@ -32,6 +32,9 @@ export interface Collection<T = any> {
 import type { ViewportComponent } from "../../core/viewport/types";
 import type { SearchConfig } from "./features/search";
 import type { FilterConfig } from "./features/filter";
+import type { StatsConfig } from "./features/stats";
+import type { VelocityConfig } from "./features/velocity";
+import type { ScrollRestoreConfig } from "./features/scroll-restore";
 
 /**
  * List item interface - extends collection item
@@ -873,6 +876,84 @@ export interface VListConfig<T extends ListItem = ListItem> {
    * ```
    */
   filter?: FilterConfig;
+
+  /**
+   * Stats configuration for the list
+   *
+   * When provided, VList will:
+   * 1. Track count (total items), position (first visible item), and progress (scroll %)
+   * 2. Automatically update layout elements when stats change
+   * 3. Emit 'stats:change' event for app-specific handling
+   * 4. Provide API methods: getStats(), getCount(), getPosition(), getProgress()
+   *
+   * @example
+   * ```typescript
+   * stats: {
+   *   elements: {
+   *     count: 'count',        // Layout element name for total count
+   *     position: 'position',  // Layout element name for current position
+   *     progress: 'progress',  // Layout element name for progress %
+   *   },
+   *   format: {
+   *     count: (n) => n.toLocaleString(),
+   *     position: (n) => n.toLocaleString(),
+   *     progress: (p) => `${p}%`,
+   *   }
+   * }
+   * ```
+   */
+  stats?: StatsConfig;
+
+  /**
+   * Velocity configuration for the list
+   *
+   * When provided, VList will:
+   * 1. Listen to viewport:velocity-changed events
+   * 2. Update layout elements with formatted velocity values
+   * 3. Optionally track average velocity within the instance
+   * 4. Emit 'velocity:change' event for app-specific handling
+   * 5. Provide API: getVelocity(), getAverageVelocity(), resetVelocityAverage()
+   *
+   * @example
+   * ```typescript
+   * velocity: {
+   *   elements: {
+   *     current: 'velocity-current',  // Layout element name for current velocity
+   *     average: 'velocity-avg',      // Layout element name for average velocity
+   *   },
+   *   format: (v) => v.toFixed(2),
+   *   trackAverage: true,             // Track average within this instance
+   *   maxVelocityForAverage: 50,      // Exclude scrollbar drag velocities
+   * }
+   * ```
+   */
+  velocity?: VelocityConfig;
+
+  /**
+   * Scroll restore configuration for the list
+   *
+   * When provided, VList will:
+   * 1. Allow queuing a pending scroll position/selection
+   * 2. Automatically apply pending scroll on next reload()
+   * 3. Support both pre-calculated positions and async position lookups
+   * 4. Emit events: scroll-restore:pending, scroll-restore:applied, scroll-restore:cleared
+   * 5. Provide API: setPendingScroll(), setPendingScrollWithLookup(), clearPendingScroll()
+   *
+   * Enabled by default unless explicitly disabled.
+   *
+   * @example
+   * ```typescript
+   * scrollRestore: {
+   *   enabled: true,   // Default: true
+   *   autoClear: true, // Clear pending after successful restore (default: true)
+   * }
+   *
+   * // Usage:
+   * vlist.setPendingScroll({ position: 100, selectId: 'item-123' })
+   * await vlist.reload()  // Will use reloadAt(100, 'item-123')
+   * ```
+   */
+  scrollRestore?: ScrollRestoreConfig;
 
   // Event handlers
   on?: ListEventHandlers<T>;

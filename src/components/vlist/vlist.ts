@@ -88,6 +88,9 @@
 import type { VListConfig, VListComponent, VListItem } from "./types";
 import type { SearchConfig } from "./features/search";
 import type { FilterConfig } from "./features/filter";
+import type { StatsConfig } from "./features/stats";
+import type { VelocityConfig } from "./features/velocity";
+import type { ScrollRestoreConfig } from "./features/scroll-restore";
 
 /**
  * Mutable reference for late binding in functional composition.
@@ -111,6 +114,9 @@ import { withKeyboard } from "./features/keyboard";
 import { withLayout } from "./features/layout";
 import { withSearch } from "./features/search";
 import { withFilter } from "./features/filter";
+import { withStats } from "./features/stats";
+import { withVelocity } from "./features/velocity";
+import { withScrollRestore } from "./features/scroll-restore";
 
 /**
  * Creates a new VList component using direct viewport integration
@@ -123,6 +129,9 @@ export const createVList = <T extends VListItem = VListItem>(
     layout?: any[];
     search?: SearchConfig;
     filter?: FilterConfig;
+    stats?: StatsConfig;
+    velocity?: VelocityConfig;
+    scrollRestore?: ScrollRestoreConfig;
   } = {},
 ): VListComponent<T> => {
   try {
@@ -198,6 +207,25 @@ export const createVList = <T extends VListItem = VListItem>(
     // Must come after API (needs reload method) and layout (needs layout elements)
     if (config.filter) {
       enhancers.push(withFilter(config));
+    }
+
+    // 10. Stats feature (if configured)
+    // Must come after API and layout (needs layout elements for display)
+    if (config.stats) {
+      enhancers.push(withStats(config));
+    }
+
+    // 11. Velocity feature (if configured)
+    // Must come after layout (needs layout elements for display)
+    if (config.velocity) {
+      enhancers.push(withVelocity(config));
+    }
+
+    // 12. Scroll restore feature (if configured or by default)
+    // Must come after API (wraps reload method)
+    // Enabled by default unless explicitly disabled
+    if (config.scrollRestore?.enabled !== false) {
+      enhancers.push(withScrollRestore(config));
     }
 
     // Create the component through functional composition
