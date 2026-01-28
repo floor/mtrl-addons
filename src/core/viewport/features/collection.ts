@@ -59,6 +59,10 @@ export interface CollectionComponent {
     clearFailedRanges: () => void;
     clearQueue: () => void;
     setManuallyLoaded: () => void;
+    setReloadInProgress: (
+      inProgress: boolean,
+      targetRange?: { start: number; end: number },
+    ) => void;
     retryFailedRange: (rangeId: number) => Promise<any[]>;
     setTotalItems: (total: number) => void;
     getTotalItems: () => number;
@@ -104,6 +108,11 @@ export function withCollection(config: CollectionConfig = {}) {
     // Track if data has been manually loaded (e.g., via reloadAt)
     // This enables subsequent loads from viewport:range-changed even with autoLoad: false
     let hasManuallyLoaded = false;
+
+    // Track if a reload is in progress (reloadAt sets this to prevent stale page 1 loads)
+    // This is set by reloadAt BEFORE it starts loading, and cleared when loading completes
+    let reloadInProgress = false;
+    let reloadTargetRange: { start: number; end: number } | null = null;
 
     // console.log("[Viewport Collection] Initialized with config:", {
     //   strategy,
@@ -323,11 +332,11 @@ export function withCollection(config: CollectionConfig = {}) {
     /**
      * Load a range of data
      */
-    const loadRange = async (offset: number, limit: number): Promise<any[]> => {
-      // console.log(
-      //   `[Collection] loadRange called: offset=${offset}, limit=${limit}`,
-      // );
-
+    const loadRange = async (
+      offset: number,
+      limit: number,
+      caller?: string,
+    ): Promise<any[]> => {
       if (!collection) {
         console.warn("[Collection] No collection adapter configured");
         return [];
@@ -653,6 +662,7 @@ export function withCollection(config: CollectionConfig = {}) {
      * Load missing ranges from collection
      */
     const loadMissingRangesInternal = async (
+      // Note: caller is added by loadMissingRanges wrapper
       range: {
         start: number;
         end: number;
@@ -963,6 +973,9 @@ export function withCollection(config: CollectionConfig = {}) {
         // This prevents unwanted page 1 loads when using reloadAt()
         // But allows subsequent loads from scrolling after reloadAt() completes
         if (!autoLoad && !hasManuallyLoaded) {
+          console.log(
+            `[Collection DEBUG] viewport:range-changed SKIPPED (autoLoad=${autoLoad}, hasManuallyLoaded=${hasManuallyLoaded})`,
+          );
           return;
         }
 
@@ -987,6 +1000,20 @@ export function withCollection(config: CollectionConfig = {}) {
           if (start === 0 && end <= page1EndIndex) {
             // This is a request for page 1, skip it
             return;
+          }
+        }
+
+        // Skip loading page 1 if a reload is in progress (e.g., reloadAt is loading a specific page)
+        // This prevents stale viewport:range-changed events from loading page 1
+        // while reloadAt is loading a different page
+        if (reloadInProgress && reloadTargetRange) {
+          const page1EndIndex = rangeSize - 1;
+          if (start === 0 && end <= page1EndIndex) {
+            // This is a request for page 1 during a reload targeting a different range
+            // Check if the target range is NOT page 1
+            if (reloadTargetRange.start > page1EndIndex) {
+              return;
+            }
           }
         }
 
@@ -1167,7 +1194,7 @@ export function withCollection(config: CollectionConfig = {}) {
         }
 
         // No initial scroll index - load from beginning as normal
-        loadRange(0, rangeSize)
+        loadRange(0, rangeSize, "initialize-page1")
           .then(() => {
             // Handle autoSelectFirst - get first item ID and emit selection event
             if (autoSelectFirst && items.length > 0) {
@@ -1264,6 +1291,18 @@ export function withCollection(config: CollectionConfig = {}) {
       hasManuallyLoaded = true;
     };
 
+    /**
+     * Set reload in progress flag with target range
+     * Used by reloadAt to prevent viewport:range-changed from loading page 1
+     */
+    const setReloadInProgress = (
+      inProgress: boolean,
+      targetRange?: { start: number; end: number },
+    ) => {
+      reloadInProgress = inProgress;
+      reloadTargetRange = targetRange || null;
+    };
+
     // Add collection API to viewport
     component.viewport.collection = {
       loadRange: (offset: number, limit: number) => loadRange(offset, limit),
@@ -1276,6 +1315,7 @@ export function withCollection(config: CollectionConfig = {}) {
       clearFailedRanges: () => failedRanges.clear(),
       clearQueue,
       setManuallyLoaded,
+      setReloadInProgress,
       retryFailedRange,
       setTotalItems,
       getTotalItems: () => totalItems,
@@ -1380,6 +1420,7 @@ export function withCollection(config: CollectionConfig = {}) {
         clearFailedRanges: () => failedRanges.clear(),
         clearQueue,
         setManuallyLoaded,
+        setReloadInProgress,
         retryFailedRange,
         setTotalItems,
         getTotalItems: () => totalItems,

@@ -142,6 +142,34 @@ export const withAPI = <T extends VListItem = VListItem>(
         // 'component' only has methods up to withAPI in the composition chain
         const self = this;
 
+        // Calculate target scroll position BEFORE emitting reload:start
+        // This is critical: virtual.ts listens to reload:start and would reset scrollPosition to 0
+        // By setting it first, we ensure the correct position is preserved
+        const itemSize = component.viewport?.state?.itemSize || 100;
+        const scrollPosition = initialScrollIndex * itemSize;
+
+        // Calculate the visible range based on target position
+        const containerSize = component.viewport?.state?.containerSize || 600;
+        const visibleCount = Math.ceil(containerSize / itemSize);
+        const overscan = 2;
+        const rangeStart = Math.max(0, initialScrollIndex - overscan);
+        const rangeEnd = initialScrollIndex + visibleCount + overscan;
+
+        // Set reload in progress flag FIRST - this prevents viewport:range-changed
+        // from loading page 1 while we're loading a different page
+        if (component.viewport?.collection?.setReloadInProgress) {
+          component.viewport.collection.setReloadInProgress(true, {
+            start: rangeStart,
+            end: rangeEnd,
+          });
+        }
+
+        // Set the target scroll position in viewport state BEFORE reload:start
+        // This prevents virtual.ts from using 0 when events trigger updateVisibleRange
+        if (component.viewport?.state) {
+          component.viewport.state.scrollPosition = scrollPosition;
+        }
+
         // Emit reload:start for features that need to prepare
         component.emit?.("reload:start");
 
@@ -156,9 +184,7 @@ export const withAPI = <T extends VListItem = VListItem>(
         }
 
         // Reset viewport's internal state with the new scroll position
-        const itemSize = component.viewport?.state?.itemSize || 100;
-        const scrollPosition = initialScrollIndex * itemSize;
-
+        // Re-set scrollPosition since reload:start may have reset it
         if (component.viewport?.state) {
           component.viewport.state.scrollPosition = scrollPosition;
           component.viewport.state.totalItems = 0;
@@ -191,13 +217,6 @@ export const withAPI = <T extends VListItem = VListItem>(
         // Small delay to allow DOM to settle
         await new Promise((resolve) => requestAnimationFrame(resolve));
 
-        // Calculate the visible range based on target position
-        const containerSize = component.viewport?.state?.containerSize || 600;
-        const visibleCount = Math.ceil(containerSize / itemSize);
-        const overscan = 2;
-        const rangeStart = Math.max(0, initialScrollIndex - overscan);
-        const rangeEnd = initialScrollIndex + visibleCount + overscan;
-
         // Update visible range in viewport state BEFORE loading
         // This prevents viewport:range-changed from triggering page 1 loads
         if (component.viewport?.state) {
@@ -214,17 +233,24 @@ export const withAPI = <T extends VListItem = VListItem>(
 
         // Directly load the range at the target position
         // This bypasses initialize() which would load from page 1
-        if (component.viewport?.collection?.loadMissingRanges) {
-          await component.viewport.collection.loadMissingRanges(
-            { start: rangeStart, end: rangeEnd },
-            "reloadAt",
-          );
-        }
+        try {
+          if (component.viewport?.collection?.loadMissingRanges) {
+            await component.viewport.collection.loadMissingRanges(
+              { start: rangeStart, end: rangeEnd },
+              "reloadAt",
+            );
+          }
 
-        // Mark that data has been manually loaded - this enables subsequent
-        // loads from viewport:range-changed (for scrolling after reloadAt)
-        if (component.viewport?.collection?.setManuallyLoaded) {
-          component.viewport.collection.setManuallyLoaded();
+          // Mark that data has been manually loaded - this enables subsequent
+          // loads from viewport:range-changed (for scrolling after reloadAt)
+          if (component.viewport?.collection?.setManuallyLoaded) {
+            component.viewport.collection.setManuallyLoaded();
+          }
+        } finally {
+          // Clear reload in progress flag - allow normal viewport:range-changed behavior
+          if (component.viewport?.collection?.setReloadInProgress) {
+            component.viewport.collection.setReloadInProgress(false);
+          }
         }
 
         // Now scroll to the target position

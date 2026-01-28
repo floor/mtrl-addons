@@ -43,12 +43,17 @@ export const withVirtual = (config: VirtualConfig = {}) => {
     let hasRecalculatedScrollForCompression = false; // Track if we've recalculated scroll position for compression
 
     // Listen for reload:start to reset feature-specific state
+    // NOTE: We do NOT reset scrollPosition here - the caller (reload or reloadAt)
+    // is responsible for setting the scroll position. This prevents race conditions
+    // where reloadAt sets a position but we reset it to 0 before the load completes.
     component.on?.("reload:start", () => {
       hasCalculatedItemSize = false;
       hasRecalculatedScrollForCompression = false;
-      // Reset viewportState if it exists
+      // Reset viewportState if it exists, but preserve scrollPosition
+      // The caller (reload/reloadAt) is responsible for setting scrollPosition
       if (viewportState) {
-        viewportState.scrollPosition = 0;
+        // Don't reset scrollPosition - caller controls it
+        // viewportState.scrollPosition = 0;
         viewportState.totalItems = 0;
         viewportState.virtualTotalSize = 0;
         viewportState.visibleRange = { start: 0, end: 0 };
@@ -286,8 +291,6 @@ export const withVirtual = (config: VirtualConfig = {}) => {
     const updateVisibleRange = (scrollPosition: number) => {
       if (!viewportState) return;
       viewportState.visibleRange = calculateVisibleRange(scrollPosition);
-
-      // DEBUG: Log who calls updateVisibleRange with 0 when it should be non-zero
 
       // Calculate actual visible range (without overscan) for UI display
       const actualVisibleRange = calculateActualVisibleRange(scrollPosition);
