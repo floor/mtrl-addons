@@ -156,6 +156,40 @@ $opacity-transition: opacity $transition-duration $transition-easing;
 // Viewport Structure
 // ===========================
 
+// Viewport container (used by withLayout)
+// Contains the viewport and handles scroll shadow
+.#{$viewport}-container {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+
+    // Scroll indicator shadow (visible when parent vlist is scrolled)
+    &::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+            to bottom,
+            t.alpha("shadow", 0.2) 0%,
+            transparent 100%
+        );
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    // Show shadow when parent vlist has --scrolled class
+    .#{$component}--scrolled > &::before,
+    .#{$component}--scrolled > .#{$prefix}-head + &::before,
+    .#{$component}--scrolled &::before {
+        opacity: 1;
+    }
+}
+
 .#{$viewport} {
     position: relative;
     width: 100%;
