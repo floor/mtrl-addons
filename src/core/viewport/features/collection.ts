@@ -6,6 +6,24 @@
  */
 
 import type { ViewportContext, ViewportComponent } from "../types";
+
+/**
+ * Mutable reference for late binding in functional composition.
+ * Used by VList to allow collection (applied early) to access
+ * search/filter features (applied later).
+ */
+interface SelfRef<T> {
+  current: T | null;
+}
+
+/**
+ * Component with optional search/filter capabilities.
+ * These are added by withSearch and withFilter features.
+ */
+interface SearchFilterCapable {
+  _searchQuery?: () => string;
+  _filters?: () => Record<string, unknown>;
+}
 import { VIEWPORT_CONSTANTS } from "../constants";
 import { wrapDestroy } from "./utils";
 
@@ -373,6 +391,27 @@ export function withCollection(config: CollectionConfig = {}) {
           } else {
             // offset strategy
             params = { offset, limit };
+          }
+
+          // Inject search query if component has withSearch feature
+          // Use _selfRef.current for late binding (search/filter features are added after viewport)
+          const selfRef = (
+            component as unknown as { _selfRef?: SelfRef<SearchFilterCapable> }
+          )._selfRef;
+          const self: Partial<SearchFilterCapable> = selfRef?.current ?? {};
+          if (typeof self._searchQuery === "function") {
+            const searchQuery = self._searchQuery();
+            if (searchQuery) {
+              params.search = searchQuery;
+            }
+          }
+
+          // Inject filters if component has withFilter feature
+          if (typeof self._filters === "function") {
+            const filters = self._filters();
+            if (filters && Object.keys(filters).length > 0) {
+              params.filters = filters;
+            }
           }
 
           // console.log(

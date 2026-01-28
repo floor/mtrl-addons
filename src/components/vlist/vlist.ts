@@ -89,6 +89,15 @@ import type { VListConfig, VListComponent, VListItem } from "./types";
 import type { SearchConfig } from "./features/search";
 import type { FilterConfig } from "./features/filter";
 
+/**
+ * Mutable reference for late binding in functional composition.
+ * Allows features applied early in the pipeline to access features applied later.
+ * Similar to React's useRef pattern.
+ */
+interface SelfRef<T> {
+  current: T | null;
+}
+
 // Import mtrl compose system
 import { pipe } from "mtrl";
 import { createBase, withElement } from "mtrl";
@@ -124,10 +133,17 @@ export const createVList = <T extends VListItem = VListItem>(
       className = `mtrl-vlist mtrl-vlist-${config.class}`;
     }
 
+    // Create mutable self reference for late binding
+    // This allows features applied early (like collection) to access
+    // features applied later (like search/filter) via selfRef.current
+    const selfRef: SelfRef<VListComponent<T>> = { current: null };
+
     // Build the enhancement pipeline
     const enhancers: Array<(c: any) => any> = [
       // 1. Foundation layer
       createBase,
+      // 1.5. Inject self reference (must come after createBase which creates fresh object)
+      (c: any) => ({ ...c, _selfRef: selfRef }),
       withEvents(),
       withElement({
         tag: "div",
@@ -190,6 +206,11 @@ export const createVList = <T extends VListItem = VListItem>(
       componentName: "vlist",
       prefix: config.prefix || "mtrl",
     });
+
+    // Update selfRef to point to the final component
+    // This enables late binding: features applied early (collection) can access
+    // features applied later (search/filter) via _selfRef.current
+    selfRef.current = component;
 
     return component as VListComponent<T>;
   } catch (error) {
