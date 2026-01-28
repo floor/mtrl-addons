@@ -973,9 +973,6 @@ export function withCollection(config: CollectionConfig = {}) {
         // This prevents unwanted page 1 loads when using reloadAt()
         // But allows subsequent loads from scrolling after reloadAt() completes
         if (!autoLoad && !hasManuallyLoaded) {
-          console.log(
-            `[Collection DEBUG] viewport:range-changed SKIPPED (autoLoad=${autoLoad}, hasManuallyLoaded=${hasManuallyLoaded})`,
-          );
           return;
         }
 
