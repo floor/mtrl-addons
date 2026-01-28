@@ -265,28 +265,13 @@ export const withRendering = (config: RenderingConfig = {}) => {
           index,
         });
 
-        // After item removal, clear ALL loadedRanges
-        // This forces a complete reload which is more reliable than trying to
-        // track shifted indices. The items array has been spliced and all indices
-        // are now different from what loadedRanges thinks they are.
-        const collection = (component.viewport as any)?.collection;
-        if (collection?.getLoadedRanges) {
-          const loadedRanges = collection.getLoadedRanges();
-          loadedRanges.clear();
-        }
+        // NOTE: Do NOT clear loadedRanges or call loadMissingRanges here!
+        // The items array has been spliced in-place by api.ts, so the data is
+        // already in memory. When the user scrolls and the visible range changes,
+        // the normal viewport:range-changed handler will fetch missing data if needed.
+        // Clearing loadedRanges here would trigger an unnecessary fetch on every removal.
 
-        // Trigger reload of visible range
-        const collectionItemsArr = getCollectionItems();
-        const loadedItemsCount = collectionItemsArr.length;
-        const visibleRange = component.viewport?.getVisibleRange?.();
-        if (visibleRange && collection?.loadMissingRanges) {
-          collection.loadMissingRanges(
-            { start: 0, end: Math.max(visibleRange.end, loadedItemsCount) },
-            "item-removal",
-          );
-        }
-
-        // Trigger re-render
+        // Trigger re-render (uses data already in memory)
         renderItems();
         isRemovingItem = false;
       });

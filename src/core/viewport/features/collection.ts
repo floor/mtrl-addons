@@ -760,46 +760,78 @@ export function withCollection(config: CollectionConfig = {}) {
       const startRange = Math.floor(range.start / rangeSize);
       const endRange = Math.floor(range.end / rangeSize);
 
-      // console.log(
-      //   `[Collection] page strategy - startRange: ${startRange}, endRange: ${endRange}, loadedRanges: [${Array.from(loadedRanges).join(", ")}]`,
-      // );
-
       // Collect ranges that need loading
+      // We need to check if the VISIBLE indices have data, not just any data in a range
       const rangesToLoad: number[] = [];
-      for (let rangeId = startRange; rangeId <= endRange; rangeId++) {
-        if (!loadedRanges.has(rangeId) && !pendingRanges.has(rangeId)) {
-          rangesToLoad.push(rangeId);
+
+      // Check each visible index to see if it has data
+      const visibleStart = range.start;
+      const visibleEnd = range.end;
+
+      // Find which indices in the visible range are missing data
+      // If totalItems is 0 or we have no items, we need to load (initial load case)
+      let hasMissingData = false;
+
+      if (totalItems === 0 || items.length === 0) {
+        // Initial load - we need to fetch data
+        hasMissingData = true;
+      } else {
+        // Check each visible index for missing data
+        for (let i = visibleStart; i <= visibleEnd && i < totalItems; i++) {
+          if (items[i] === undefined) {
+            hasMissingData = true;
+            break;
+          }
+        }
+      }
+
+      if (hasMissingData) {
+        // Find which ranges need to be loaded
+        for (let rangeId = startRange; rangeId <= endRange; rangeId++) {
+          if (pendingRanges.has(rangeId)) {
+            continue;
+          }
+
+          // If totalItems is 0, we're doing initial load - always load the range
+          if (totalItems === 0) {
+            loadedRanges.delete(rangeId);
+            rangesToLoad.push(rangeId);
+            continue;
+          }
+
+          // Check if this specific range has all its data
+          const rangeStart = rangeId * rangeSize;
+          const rangeEnd = Math.min(rangeStart + rangeSize, totalItems);
+          let rangeMissingData = false;
+
+          for (let i = rangeStart; i < rangeEnd; i++) {
+            // Only check indices that are in the visible range
+            if (
+              i >= visibleStart &&
+              i <= visibleEnd &&
+              items[i] === undefined
+            ) {
+              rangeMissingData = true;
+              break;
+            }
+          }
+
+          if (rangeMissingData) {
+            loadedRanges.delete(rangeId); // Clear stale loaded state
+            rangesToLoad.push(rangeId);
+          }
         }
       }
 
       if (rangesToLoad.length === 0) {
-        // All ranges are already loaded or pending
-        // But verify the data actually exists in items array (defensive check)
-        for (let rangeId = startRange; rangeId <= endRange; rangeId++) {
-          if (loadedRanges.has(rangeId)) {
-            // Check if this range actually has data
-            const rangeStart = rangeId * rangeSize;
-            const hasData = items
-              .slice(rangeStart, rangeStart + rangeSize)
-              .some((item) => item !== undefined);
-            if (!hasData) {
-              // Range marked loaded but no data - force reload
-              loadedRanges.delete(rangeId);
-              rangesToLoad.push(rangeId);
-            }
-          }
-        }
         // Check if there are queued requests we should process
         if (
-          rangesToLoad.length === 0 &&
           loadRequestQueue.length > 0 &&
           activeLoadCount < maxConcurrentRequests
         ) {
           processQueue();
         }
-        if (rangesToLoad.length === 0) {
-          return;
-        }
+        return;
       }
 
       // console.log(
@@ -967,6 +999,9 @@ export function withCollection(config: CollectionConfig = {}) {
 
       // Listen for range changes
       component.on?.("viewport:range-changed", async (data: any) => {
+        // Extract range from event data - virtual feature emits { range: { start, end }, scrollPosition }
+        const range = data.range || data;
+
         // Don't load during fast scrolling - loadMissingRanges will handle velocity check
 
         // Skip if autoLoad is disabled AND we haven't manually loaded yet
@@ -976,8 +1011,6 @@ export function withCollection(config: CollectionConfig = {}) {
           return;
         }
 
-        // Extract range from event data - virtual feature emits { range: { start, end }, scrollPosition }
-        const range = data.range || data;
         const { start, end } = range;
 
         // Validate range before loading
