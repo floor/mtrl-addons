@@ -43,6 +43,11 @@ export const withVirtual = (config: VirtualConfig = {}) => {
     let hasRecalculatedScrollForCompression = false; // Track if we've recalculated scroll position for compression
     let resizeObserver: ResizeObserver | null = null;
 
+    // Cache variables for range calculations (declared here, initialized later)
+    let lastScrollPosition = -1;
+    let lastVisibleRange: { start: number; end: number } | null = null;
+    let lastActualVisibleRange: { start: number; end: number } | null = null;
+
     // Listen for reload:start to reset feature-specific state
     // NOTE: We do NOT reset scrollPosition here - the caller (reload or reloadAt)
     // is responsible for setting the scroll position. This prevents race conditions
@@ -50,6 +55,10 @@ export const withVirtual = (config: VirtualConfig = {}) => {
     component.on?.("reload:start", () => {
       hasCalculatedItemSize = false;
       hasRecalculatedScrollForCompression = false;
+      // Reset cache
+      lastScrollPosition = -1;
+      lastVisibleRange = null;
+      lastActualVisibleRange = null;
       // Reset viewportState if it exists, but preserve scrollPosition
       // The caller (reload/reloadAt) is responsible for setting scrollPosition
       if (viewportState) {
@@ -333,10 +342,35 @@ export const withVirtual = (config: VirtualConfig = {}) => {
     // Update functions
     const updateVisibleRange = (scrollPosition: number) => {
       if (!viewportState) return;
+
+      // Skip if scroll position hasn't changed significantly (within 1px)
+      if (
+        lastScrollPosition >= 0 &&
+        Math.abs(scrollPosition - lastScrollPosition) < 1
+      ) {
+        return;
+      }
+
+      lastScrollPosition = scrollPosition;
       viewportState.visibleRange = calculateVisibleRange(scrollPosition);
 
       // Calculate actual visible range (without overscan) for UI display
       const actualVisibleRange = calculateActualVisibleRange(scrollPosition);
+
+      // Skip emit if ranges haven't changed
+      if (
+        lastVisibleRange &&
+        lastActualVisibleRange &&
+        lastVisibleRange.start === viewportState.visibleRange.start &&
+        lastVisibleRange.end === viewportState.visibleRange.end &&
+        lastActualVisibleRange.start === actualVisibleRange.start &&
+        lastActualVisibleRange.end === actualVisibleRange.end
+      ) {
+        return;
+      }
+
+      lastVisibleRange = { ...viewportState.visibleRange };
+      lastActualVisibleRange = { ...actualVisibleRange };
 
       component.emit?.("viewport:range-changed", {
         range: viewportState.visibleRange,

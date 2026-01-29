@@ -671,10 +671,6 @@ export function withCollection(config: CollectionConfig = {}) {
     ): Promise<void> => {
       if (!collection) return;
 
-      // console.log(
-      //   `[Collection] loadMissingRangesInternal - range: ${start}-${end}, strategy: ${strategy}`,
-      // );
-
       // For cursor pagination, we need to load sequentially
       if (strategy === "cursor") {
         const startPage = Math.floor(range.start / rangeSize) + 1;
@@ -1047,8 +1043,9 @@ export function withCollection(config: CollectionConfig = {}) {
           }
         }
 
-        // Load missing ranges if needed
-        await loadMissingRanges({ start, end }, "viewport:range-changed");
+        // Load missing ranges if needed - don't await to avoid blocking scroll
+        // The loading happens in the background and UI updates when data arrives
+        loadMissingRanges({ start, end }, "viewport:range-changed");
 
         // Evict distant items to prevent memory bloat
         evictDistantItems(start, end);
