@@ -473,9 +473,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           updateScrolledState(viewportEl, scrollPosition);
         }
 
-        // DEBUG: Performance timing for scroll handler
-        const perfStart = performance.now();
-
         // Emit events
         component.emit?.("viewport:scroll", {
           position: scrollPosition,
@@ -483,33 +480,13 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           previousPosition,
         });
 
-        const perfAfterScroll = performance.now();
-
         component.emit?.("viewport:velocity-changed", {
           velocity: speedTracker.velocity,
           direction: speedTracker.direction,
         });
 
-        const perfAfterVelocity = performance.now();
-
         // Trigger render
         component.viewport.renderItems();
-
-        const perfAfterRender = performance.now();
-        const total = perfAfterRender - perfStart;
-
-        // Log if slow (> 16ms = 1 frame)
-        if (total > 16) {
-          console.log("[Perf] Scroll handler SLOW:", {
-            emitScroll: (perfAfterScroll - perfStart).toFixed(2) + "ms",
-            emitVelocity:
-              (perfAfterVelocity - perfAfterScroll).toFixed(2) + "ms",
-            renderItems:
-              (perfAfterRender - perfAfterVelocity).toFixed(2) + "ms",
-            total: total.toFixed(2) + "ms",
-          });
-          console.trace("[Perf] Slow scroll trace");
-        }
       }
     };
 
