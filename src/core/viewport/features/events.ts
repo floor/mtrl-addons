@@ -30,9 +30,21 @@ export const withEvents = (config: EventsConfig = {}) => {
 
       const eventListeners = listeners.get(event);
       if (eventListeners) {
+        let listenerIndex = 0;
         eventListeners.forEach((listener) => {
           try {
+            const start = performance.now();
             listener(data);
+            const duration = performance.now() - start;
+            // Log slow listeners (> 10ms)
+            if (duration > 10) {
+              console.log(`[Events] SLOW listener for ${event}:`, {
+                listenerIndex,
+                duration: duration.toFixed(2) + "ms",
+                listenerName: listener.name || "(anonymous)",
+              });
+            }
+            listenerIndex++;
           } catch (error) {
             console.error(`[Events] Error in listener for ${event}:`, error);
           }
