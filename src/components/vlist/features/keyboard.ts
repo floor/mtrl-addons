@@ -93,6 +93,9 @@ export const withKeyboard = <T extends VListItem = VListItem>(
     let typeAheadBuffer = "";
     let typeAheadTimer: ReturnType<typeof setTimeout> | null = null;
 
+    // Debounce accessibility updates to prevent blocking scrolling
+    let accessibilityUpdateScheduled = false;
+
     // Track if last interaction was mouse (for focus styling)
     let lastMouseDownTime = 0;
 
@@ -128,7 +131,10 @@ export const withKeyboard = <T extends VListItem = VListItem>(
     /**
      * Update ARIA attributes on rendered items
      */
-    const updateItemAccessibility = () => {
+    /**
+     * Core accessibility update logic - updates ARIA attributes on rendered items
+     */
+    const updateItemAccessibilityCore = () => {
       const container = getItemsContainer(component.element);
       const items = getRenderedItems(container);
       const enhancedComponent = component as any;
@@ -157,6 +163,21 @@ export const withKeyboard = <T extends VListItem = VListItem>(
       } else {
         component.element?.removeAttribute(ARIA.ARIA_ACTIVEDESCENDANT);
       }
+    };
+
+    /**
+     * Debounced accessibility update - prevents blocking during scroll
+     * Uses requestAnimationFrame to batch updates and avoid duplicate calls
+     */
+    const updateItemAccessibility = () => {
+      // Skip if already scheduled - prevents duplicate work
+      if (accessibilityUpdateScheduled) return;
+
+      accessibilityUpdateScheduled = true;
+      requestAnimationFrame(() => {
+        accessibilityUpdateScheduled = false;
+        updateItemAccessibilityCore();
+      });
     };
 
     /**
@@ -513,10 +534,8 @@ export const withKeyboard = <T extends VListItem = VListItem>(
       }
 
       // Update ARIA attributes when items are rendered
-      (component as any).on?.(
-        "viewport:items-rendered",
-        updateItemAccessibility,
-      );
+      // Only listen to viewport:rendered (not both) to avoid duplicate work
+      // The RAF debounce in updateItemAccessibility provides additional protection
       (component as any).on?.("viewport:rendered", updateItemAccessibility);
 
       // Update ARIA when selection changes

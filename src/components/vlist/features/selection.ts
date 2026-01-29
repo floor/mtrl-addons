@@ -42,10 +42,13 @@ export const withSelection = <T extends VListItem = VListItem>(
 
     const requireModifiers = config.selection?.requireModifiers ?? false;
 
+    // Debounce selection updates to prevent blocking scrolling
+    let selectionUpdateScheduled = false;
+
     /**
-     * Apply selection class to rendered elements matching selected IDs
+     * Core selection application logic - applies selection class to rendered elements
      */
-    const applySelectionToElements = () => {
+    const applySelectionToElementsCore = () => {
       const container = component.element?.querySelector(
         `.${PREFIX}-viewport-items`,
       );
@@ -68,6 +71,21 @@ export const withSelection = <T extends VListItem = VListItem>(
             removeClass(element, VLIST_CLASSES.SELECTED);
           }
         }
+      });
+    };
+
+    /**
+     * Debounced selection update - prevents blocking during scroll
+     * Uses requestAnimationFrame to batch updates and avoid duplicate calls
+     */
+    const applySelectionToElements = () => {
+      // Skip if already scheduled - prevents duplicate work
+      if (selectionUpdateScheduled) return;
+
+      selectionUpdateScheduled = true;
+      requestAnimationFrame(() => {
+        selectionUpdateScheduled = false;
+        applySelectionToElementsCore();
       });
     };
 
@@ -183,10 +201,8 @@ export const withSelection = <T extends VListItem = VListItem>(
       }
 
       // Apply selection after each render
-      (component as any).on?.(
-        "viewport:items-rendered",
-        applySelectionToElements,
-      );
+      // Only listen to viewport:rendered (not both) to avoid duplicate work
+      // The RAF debounce in applySelectionToElements provides additional protection
       (component as any).on?.("viewport:rendered", applySelectionToElements);
 
       // Clean up selection when item is removed
