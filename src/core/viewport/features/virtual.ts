@@ -5,7 +5,7 @@
 
 import type { ViewportContext, ViewportComponent } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
-import { wrapInitialize, getViewportState } from "./utils";
+import { wrapInitialize, wrapDestroy, getViewportState } from "./utils";
 
 export interface VirtualConfig {
   itemSize?: number;
@@ -41,6 +41,7 @@ export const withVirtual = (config: VirtualConfig = {}) => {
     let viewportState: any;
     let hasCalculatedItemSize = false;
     let hasRecalculatedScrollForCompression = false; // Track if we've recalculated scroll position for compression
+    let resizeObserver: ResizeObserver | null = null;
 
     // Listen for reload:start to reset feature-specific state
     // NOTE: We do NOT reset scrollPosition here - the caller (reload or reloadAt)
@@ -107,6 +108,27 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       requestAnimationFrame(() => {
         updateContainerSize();
       });
+
+      // Set up ResizeObserver to handle viewport container resize
+      if (
+        viewportState.viewportElement &&
+        typeof ResizeObserver !== "undefined"
+      ) {
+        resizeObserver = new ResizeObserver((entries) => {
+          for (const entry of entries) {
+            // Use contentBoxSize if available, otherwise fall back to contentRect
+            const size =
+              orientation === "horizontal"
+                ? entry.contentRect.width
+                : entry.contentRect.height;
+
+            if (size > 0 && size !== viewportState?.containerSize) {
+              updateContainerSize();
+            }
+          }
+        });
+        resizeObserver.observe(viewportState.viewportElement);
+      }
     });
 
     // Helper functions
@@ -513,6 +535,14 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         }
       });
     }
+
+    // Clean up ResizeObserver on destroy
+    wrapDestroy(component, () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+        resizeObserver = null;
+      }
+    });
 
     // Expose virtual API
     const compressionRatio = getCompressionRatio();
