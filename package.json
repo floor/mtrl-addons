@@ -1,6 +1,6 @@
 {
   "name": "mtrl-addons",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "Additional components and utilities for the mtrl system, featuring forms, specialized elements, and extended functionality for modern applications",
   "type": "module",
   "main": "./dist/index.js",
