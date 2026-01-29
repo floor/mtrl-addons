@@ -116,6 +116,8 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       anchorMinDelta = Infinity;
       consecutiveIncreases = 0;
       sustainedHighCount = 0;
+      renderScheduled = false;
+      pendingScrollData = null;
 
       // Clear any pending timeouts
       if (idleTimeoutId) {
@@ -137,6 +139,14 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     let anchorMinDelta = Infinity; // Minimum delta seen since anchor (to detect reacceleration)
     let consecutiveIncreases = 0; // Count of consecutive delta increases (to detect sustained new scrolling)
     let sustainedHighCount = 0; // Count of events where delta is significantly above minimum (sustained new scrolling)
+
+    // RAF-based render throttling - prevents wasted renders during fast scrolling
+    let renderScheduled = false;
+    let pendingScrollData: {
+      position: number;
+      direction: "forward" | "backward";
+      previousPosition: number;
+    } | null = null;
 
     // console.log(`[Scrolling] Initial state - position: ${scrollPosition}`);
 
@@ -473,20 +483,41 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
           updateScrolledState(viewportEl, scrollPosition);
         }
 
-        // Emit events
-        component.emit?.("viewport:scroll", {
+        // Store pending scroll data for RAF-batched rendering
+        pendingScrollData = {
           position: scrollPosition,
           direction: speedTracker.direction,
           previousPosition,
-        });
+        };
 
-        component.emit?.("viewport:velocity-changed", {
-          velocity: speedTracker.velocity,
-          direction: speedTracker.direction,
-        });
+        // Schedule render via RAF if not already scheduled
+        // This ensures we render at most once per frame, even during fast scrolling
+        if (!renderScheduled) {
+          renderScheduled = true;
+          requestAnimationFrame(() => {
+            renderScheduled = false;
 
-        // Trigger render
-        component.viewport.renderItems();
+            // Use the latest scroll data (coalesces multiple wheel events)
+            if (pendingScrollData) {
+              // Emit events with the latest position
+              component.emit?.("viewport:scroll", {
+                position: pendingScrollData.position,
+                direction: pendingScrollData.direction,
+                previousPosition: pendingScrollData.previousPosition,
+              });
+
+              component.emit?.("viewport:velocity-changed", {
+                velocity: speedTracker.velocity,
+                direction: speedTracker.direction,
+              });
+
+              // Trigger render
+              component.viewport.renderItems();
+
+              pendingScrollData = null;
+            }
+          });
+        }
       }
     };
 
