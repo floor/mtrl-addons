@@ -279,23 +279,44 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       if (!viewportState) return { start: 0, end: 0 };
 
       const { containerSize, totalItems } = viewportState;
+
       if (!containerSize || !totalItems) return { start: 0, end: 0 };
 
       const itemSize = viewportState.itemSize;
       const visibleCount = Math.ceil(containerSize / itemSize);
-      const compressionRatio = viewportState.virtualTotalSize
-        ? (totalItems * itemSize) / viewportState.virtualTotalSize
-        : 1;
+      const actualSize = totalItems * itemSize;
+      const virtualSize = viewportState.virtualTotalSize || actualSize;
+      // compressionRatio < 1 means list is compressed (virtualSize < actualSize)
+      const compressionRatio = actualSize > 0 ? virtualSize / actualSize : 1;
 
       let start: number, end: number;
 
       if (compressionRatio < 1) {
         // Compressed space - calculate based on scroll ratio
-        const virtualSize =
-          viewportState.virtualTotalSize || totalItems * itemSize;
         const scrollRatio = scrollPosition / virtualSize;
         start = Math.floor(scrollRatio * totalItems);
         end = Math.min(totalItems - 1, start + visibleCount - 1);
+
+        // Near-bottom handling - ensure we show the actual last items at bottom
+        const maxScroll = virtualSize - containerSize;
+        const distanceFromBottom = maxScroll - scrollPosition;
+
+        if (distanceFromBottom <= containerSize && distanceFromBottom >= -1) {
+          const itemsAtBottom = Math.floor(containerSize / itemSize);
+          const firstVisibleAtBottom = Math.max(0, totalItems - itemsAtBottom);
+          const interpolation = Math.max(
+            0,
+            Math.min(1, 1 - distanceFromBottom / containerSize),
+          );
+
+          start = Math.floor(
+            start + (firstVisibleAtBottom - start) * interpolation,
+          );
+          end =
+            distanceFromBottom <= 1
+              ? totalItems - 1
+              : Math.min(totalItems - 1, start + visibleCount - 1);
+        }
       } else {
         // Direct calculation
         start = Math.floor(scrollPosition / itemSize);
