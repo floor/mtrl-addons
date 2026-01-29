@@ -279,18 +279,32 @@ export const withAPI = <T extends VListItem = VListItem>(
           component.viewport.collection.reset();
         }
 
+        // Reset viewport's internal state
+        if (component.viewport?.state) {
+          component.viewport.state.scrollPosition = 0;
+          component.viewport.state.totalItems = 0;
+          component.viewport.state.virtualTotalSize = 0;
+          component.viewport.state.visibleRange = { start: 0, end: 0 };
+        }
+
         // Reset scroll position to top
         if (component.viewport?.scrollTo) {
           component.viewport.scrollTo(0);
         }
 
-        // Clear rendered DOM content (items container)
+        // Clear rendered DOM content and reset height (items container)
         const itemsContainer = component.element?.querySelector(
           ".mtrl-viewport-items",
         );
         if (itemsContainer) {
           itemsContainer.innerHTML = "";
+          // Reset height to prevent scrolling on empty list
+          (itemsContainer as HTMLElement).style.height = "0px";
         }
+
+        // Reset component-level state
+        component.totalItems = 0;
+        component.items = [];
 
         component.emit?.("cleared");
       },

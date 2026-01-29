@@ -149,6 +149,7 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     // Listen for cleared event (from vlist.clear()) to reset scrolled state
     component.on?.("cleared", () => {
       scrollPosition = 0;
+      totalVirtualSize = 0;
       isScrolledFromTop = false;
       removeScrolledClass();
     });
