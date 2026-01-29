@@ -134,7 +134,7 @@ const updateElementText = (element: HTMLElement | null, text: string): void => {
  * @returns Feature function that enhances the VList component
  */
 export const withStats = <T extends VListItem = VListItem>(
-  config: VListConfig<T> & { stats?: StatsConfig }
+  config: VListConfig<T> & { stats?: StatsConfig },
 ) => {
   return (component: any): any => {
     const statsConfig = config.stats;
@@ -262,7 +262,7 @@ export const withStats = <T extends VListItem = VListItem>(
           "viewport:total-items-changed",
           (data: { total: number }) => {
             setCount(data.total);
-          }
+          },
         );
         if (unsubTotal) cleanupFns.push(unsubTotal);
 
@@ -271,7 +271,7 @@ export const withStats = <T extends VListItem = VListItem>(
           "viewport:items-changed",
           (data: { totalItems: number }) => {
             setCount(data.totalItems);
-          }
+          },
         );
         if (unsubItems) cleanupFns.push(unsubItems);
 
@@ -280,14 +280,14 @@ export const withStats = <T extends VListItem = VListItem>(
           "viewport:range-changed",
           (data: {
             range: { start: number; end: number };
-            actualRange?: { start: number; end: number };
+            visibleRange?: { start: number; end: number };
           }) => {
-            // Use actualRange (without overscan) if available, otherwise use range
-            const visibleRange = data.actualRange || data.range;
-            // Position is 1-based for display (first visible item)
-            const position = visibleRange.start + 1;
+            // Use visibleRange (without overscan) if available, otherwise use range
+            const actualVisible = data.visibleRange || data.range;
+            // Position is 1-based for display (last visible item)
+            const position = actualVisible.end + 1;
             setPosition(position);
-          }
+          },
         );
         if (unsubRange) cleanupFns.push(unsubRange);
 
