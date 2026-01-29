@@ -269,8 +269,6 @@ export const withVirtual = (config: VirtualConfig = {}) => {
         return { start: 0, end: 0 };
       }
 
-      // log(`Range: ${start}-${end} (scroll: ${scrollPosition})`);
-
       // Strategic log for last range
       // if (end >= totalItems - 10) {
       //   console.log(
@@ -528,6 +526,13 @@ export const withVirtual = (config: VirtualConfig = {}) => {
       ) {
         updateTotalVirtualSize(data.total);
       }
+
+      // Force visible range recalculation after data loads
+      // This is critical: totalItems may have been updated by collection.setTotalItems()
+      // which bypasses updateTotalVirtualSize, so lastScrollPosition wasn't reset.
+      // We must recalculate to ensure visibleRange reflects the new totalItems.
+      lastScrollPosition = -1;
+
       updateVisibleRange(viewportState?.scrollPosition || 0);
       component.viewport?.renderItems?.();
     });
