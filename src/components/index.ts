@@ -1,7 +1,13 @@
 /**
  * Components Module Exports
  *
- * Central export point for all components
+ * Central export point for all components.
+ *
+ * NOTE: Constants are NOT exported here to enable tree-shaking.
+ * Import constants directly from the component's constants file:
+ *   import { COLORPICKER_EVENTS } from 'mtrl-addons/components/colorpicker/constants'
+ *   import { FORM_EVENTS } from 'mtrl-addons/components/form/constants'
+ *   import { VLIST_CLASSES } from 'mtrl-addons/components/vlist/constants'
  */
 
 // VList component (virtual list with viewport)
@@ -26,14 +32,6 @@ export type {
   CancelHandler,
 } from "./form/types";
 
-// Form constants
-export {
-  DATA_STATE,
-  FORM_EVENTS,
-  FORM_CLASSES,
-  FORM_DEFAULTS,
-} from "./form/constants";
-
 // ColorPicker component
 export { createColorPicker } from "./colorpicker";
 export type {
@@ -44,17 +42,7 @@ export type {
   ColorSwatch,
 } from "./colorpicker/types";
 
-// ColorPicker constants and utilities
-export {
-  COLORPICKER_EVENTS,
-  COLORPICKER_SIZES,
-  COLORPICKER_VARIANTS,
-  COLORPICKER_CLASSES,
-  COLORPICKER_DEFAULTS,
-  SWATCH_SIZES,
-  PALETTE_SWATCH_ORDER,
-} from "./colorpicker/constants";
-
+// ColorPicker utilities (pure functions, tree-shakeable)
 export {
   hsvToRgb,
   rgbToHsv,

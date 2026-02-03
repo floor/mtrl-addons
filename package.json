@@ -3,6 +3,7 @@
   "version": "0.5.6",
   "description": "Additional components and utilities for the mtrl system, featuring forms, specialized elements, and extended functionality for modern applications",
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -12,6 +13,36 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./layout": {
+      "development": "./src/core/layout/index.ts",
+      "import": "./dist/core/layout/index.mjs",
+      "require": "./dist/core/layout/index.js",
+      "types": "./dist/core/layout/index.d.ts"
+    },
+    "./viewport": {
+      "development": "./src/core/viewport/index.ts",
+      "import": "./dist/core/viewport/index.mjs",
+      "require": "./dist/core/viewport/index.js",
+      "types": "./dist/core/viewport/index.d.ts"
+    },
+    "./gestures": {
+      "development": "./src/core/gestures/index.ts",
+      "import": "./dist/core/gestures/index.mjs",
+      "require": "./dist/core/gestures/index.js",
+      "types": "./dist/core/gestures/index.d.ts"
+    },
+    "./components": {
+      "development": "./src/components/index.ts",
+      "import": "./dist/components/index.mjs",
+      "require": "./dist/components/index.js",
+      "types": "./dist/components/index.d.ts"
+    },
+    "./components/*/constants": {
+      "development": "./src/components/*/constants.ts",
+      "import": "./dist/components/*/constants.mjs",
+      "require": "./dist/components/*/constants.js",
+      "types": "./dist/components/*/constants.d.ts"
     },
     "./styles": "./dist/styles.css"
   },

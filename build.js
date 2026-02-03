@@ -18,6 +18,30 @@ const MJS_OUTPUT = join(DIST_DIR, "index.mjs");
 const CSS_OUTPUT = join(DIST_DIR, "styles.css");
 const STYLES_ENTRY = join(__dirname, "src/styles/index.scss");
 
+// Granular module entry points for tree-shaking
+const MODULES = [
+  {
+    name: "layout",
+    entry: "src/core/layout/index.ts",
+    outDir: "dist/core/layout",
+  },
+  {
+    name: "viewport",
+    entry: "src/core/viewport/index.ts",
+    outDir: "dist/core/viewport",
+  },
+  {
+    name: "gestures",
+    entry: "src/core/gestures/index.ts",
+    outDir: "dist/core/gestures",
+  },
+  {
+    name: "components",
+    entry: "src/components/index.ts",
+    outDir: "dist/components",
+  },
+];
+
 // Log build mode
 console.log(`Building in ${isProduction ? "PRODUCTION" : "DEVELOPMENT"} mode`);
 
@@ -101,6 +125,57 @@ const buildStyles = async () => {
   }
 };
 
+const buildModule = async (module) => {
+  const entryPath = join(__dirname, module.entry);
+  const outDir = join(__dirname, module.outDir);
+
+  // Skip if entry doesn't exist
+  if (!existsSync(entryPath)) {
+    console.log(`  ⚠️ Skipping ${module.name}: entry not found`);
+    return true;
+  }
+
+  await mkdir(outDir, { recursive: true });
+
+  // Build CJS version
+  const cjsResult = await Bun.build({
+    entrypoints: [entryPath],
+    outdir: outDir,
+    minify: isProduction,
+    sourcemap: isProduction ? "none" : "inline",
+    format: "cjs",
+    target: "node",
+    external: ["mtrl"],
+  });
+
+  // Build ESM version
+  const esmResult = await Bun.build({
+    entrypoints: [entryPath],
+    outdir: outDir,
+    minify: isProduction,
+    sourcemap: isProduction ? "none" : "inline",
+    format: "esm",
+    target: "node",
+    naming: {
+      entry: "index.mjs",
+    },
+    external: ["mtrl"],
+  });
+
+  if (!cjsResult.success || !esmResult.success) {
+    console.error(`  ❌ ${module.name} build failed`);
+    return false;
+  }
+
+  const cjsSize = (await Bun.file(join(outDir, "index.js")).size) / 1024;
+  const esmSize = (await Bun.file(join(outDir, "index.mjs")).size) / 1024;
+  console.log(
+    `  ✓ ${module.name}: CJS ${cjsSize.toFixed(1)}KB, ESM ${esmSize.toFixed(1)}KB`,
+  );
+
+  return true;
+};
+
 const buildApp = async () => {
   try {
     console.log("┌─────────────────────────────────────────");
@@ -145,7 +220,7 @@ const buildApp = async () => {
       return false;
     }
 
-    console.log("✓ JavaScript build successful");
+    console.log("✓ Main bundle built");
     console.log(
       `  CJS bundle: ${((await Bun.file(JS_OUTPUT).size) / 1024).toFixed(2)} KB`,
     );
@@ -154,6 +229,17 @@ const buildApp = async () => {
         2,
       )} KB`,
     );
+
+    // Build granular modules
+    console.log("Building granular modules...");
+    for (const module of MODULES) {
+      const success = await buildModule(module);
+      if (!success) {
+        console.error(`❌ Module ${module.name} build failed`);
+        return false;
+      }
+    }
+    console.log("✓ All granular modules built");
 
     // Generate type definitions with better error handling
     console.log("Generating TypeScript declarations...");
