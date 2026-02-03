@@ -722,26 +722,76 @@ export const createPinchRecognizer = (config: PinchConfig) => {
 
 ### Package Configuration
 
-**package.json exports:**
+**package.json exports (tree-shaking optimized):**
 ```json
 {
   "name": "mtrl-addons",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "development": "./src/index.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     },
-    "./core/*": {
-      "import": "./dist/core/*.js",
-      "require": "./dist/core/*.cjs"
+    "./layout": {
+      "development": "./src/core/layout/index.ts",
+      "import": "./dist/core/layout/index.mjs",
+      "require": "./dist/core/layout/index.js",
+      "types": "./dist/core/layout/index.d.ts"
     },
-    "./components/*": {
-      "import": "./dist/components/*.js",
-      "require": "./dist/components/*.cjs"
-    }
+    "./viewport": {
+      "development": "./src/core/viewport/index.ts",
+      "import": "./dist/core/viewport/index.mjs",
+      "require": "./dist/core/viewport/index.js",
+      "types": "./dist/core/viewport/index.d.ts"
+    },
+    "./gestures": {
+      "development": "./src/core/gestures/index.ts",
+      "import": "./dist/core/gestures/index.mjs",
+      "require": "./dist/core/gestures/index.js",
+      "types": "./dist/core/gestures/index.d.ts"
+    },
+    "./components": {
+      "development": "./src/components/index.ts",
+      "import": "./dist/components/index.mjs",
+      "require": "./dist/components/index.js",
+      "types": "./dist/components/index.d.ts"
+    },
+    "./components/*/constants": {
+      "development": "./src/components/*/constants.ts",
+      "import": "./dist/components/*/constants.mjs",
+      "require": "./dist/components/*/constants.js",
+      "types": "./dist/components/*/constants.d.ts"
+    },
+    "./styles": "./dist/styles.css"
   }
 }
+```
+
+### Tree-Shaking Import Patterns
+
+Constants are **NOT** exported from main entry points to enable tree-shaking. Import them directly from constants files:
+
+| Import Type | Path |
+|-------------|------|
+| Component creators | `import { createColorPicker } from 'mtrl-addons'` |
+| ColorPicker constants | `import { COLORPICKER_EVENTS } from 'mtrl-addons/components/colorpicker/constants'` |
+| Form constants | `import { FORM_EVENTS, DATA_STATE } from 'mtrl-addons/components/form/constants'` |
+| VList constants | `import { VLIST_CLASSES } from 'mtrl-addons/components/vlist/constants'` |
+| Color utilities | `import { hsvToRgb, rgbToHex } from 'mtrl-addons'` (pure functions, kept in main) |
+| Layout system | `import { createLayout } from 'mtrl-addons/layout'` |
+| Viewport system | `import { createViewport } from 'mtrl-addons/viewport'` |
+
+**Example:**
+```typescript
+// ✅ Optimal - tree-shakeable
+import { createColorPicker } from 'mtrl-addons';
+import { COLORPICKER_EVENTS, PALETTE_SWATCH_ORDER } from 'mtrl-addons/components/colorpicker/constants';
+
+// ❌ No longer works - constants removed from main entry
+import { createColorPicker, COLORPICKER_EVENTS } from 'mtrl-addons';
 ```
 
 ### Build Commands
