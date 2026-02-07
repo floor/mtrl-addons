@@ -648,6 +648,26 @@ export const withAPI = <T extends VListItem = VListItem>(
       },
 
       /**
+       * Mark an item as pending removal without removing it
+       * Use this to prevent race conditions when the removal will happen later
+       * @param id - The item ID to mark as pending removal
+       * @param timeout - Optional timeout in ms to auto-clear (default: 10000)
+       */
+      markPendingRemoval(id: string | number, timeout: number = 10000): void {
+        if (id === undefined || id === null) {
+          console.warn(`[VList] markPendingRemoval: invalid id`);
+          return;
+        }
+
+        pendingRemovals.add(id);
+
+        // Auto-clear after timeout to prevent memory leaks if removal never happens
+        setTimeout(() => {
+          pendingRemovals.delete(id);
+        }, timeout);
+      },
+
+      /**
        * Clear a specific pending removal
        * @param id - The item ID to clear from pending removals
        */

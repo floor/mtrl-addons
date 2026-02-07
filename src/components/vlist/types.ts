@@ -463,6 +463,14 @@ export interface ListAPI<T extends ListItem = ListItem> {
   getPendingRemovals(): Set<string | number>;
 
   /**
+   * Mark an item as pending removal without removing it
+   * Use this to prevent race conditions when the removal will happen later
+   * @param id - The item ID to mark as pending removal
+   * @param timeout - Optional timeout in ms to auto-clear (default: 10000)
+   */
+  markPendingRemoval(id: string | number, timeout?: number): void;
+
+  /**
    * Clear a specific pending removal
    * @param id - The item ID to clear from pending removals
    */
