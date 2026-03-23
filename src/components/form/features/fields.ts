@@ -197,68 +197,54 @@ const valuesEqual = (a: FieldValue, b: FieldValue): boolean => {
  * emit for the same value (e.g., textfield input followed by blur)
  */
 /**
- * Tracks last emitted values per field for deduplication
- * Exposed so that setData can update it when setting values silently
- */
-let fieldValueTracker: Map<string, FieldValue> | null = null;
-
-/**
- * Updates the tracked value for a field
- * Called when setData is used with silent=true to keep deduplication in sync
+ * Updates the tracked value for a field in the given tracker
  */
 export const updateTrackedFieldValue = (
   name: string,
   value: FieldValue,
+  tracker?: Map<string, FieldValue>,
 ): void => {
-  if (fieldValueTracker) {
-    fieldValueTracker.set(name, value);
+  if (tracker) {
+    tracker.set(name, value);
   }
 };
 
 /**
  * Updates all tracked field values from a fields registry
  * Called after silent setData to sync deduplication state
+ *
+ * @param fields - The form's field registry
+ * @param tracker - The per-form tracker map (stored on the component as _fieldValueTracker)
  */
-export const syncTrackedFieldValues = (fields: FormFieldRegistry): void => {
-  if (fieldValueTracker) {
+export const syncTrackedFieldValues = (
+  fields: FormFieldRegistry,
+  tracker?: Map<string, FieldValue>,
+): void => {
+  if (tracker) {
     for (const [name, field] of fields) {
-      fieldValueTracker.set(name, getFieldValue(field));
+      tracker.set(name, getFieldValue(field));
     }
   }
-};
-
-/**
- * Resets the field value tracker for a new form
- * Should be called at the start of withFields before bindFieldEvents
- */
-export const resetFieldValueTracker = (): void => {
-  fieldValueTracker = new Map<string, FieldValue>();
 };
 
 const bindFieldEvents = (
   fields: FormFieldRegistry,
   onFieldChange: (name: string, value: FieldValue) => void,
+  tracker: Map<string, FieldValue>,
 ): void => {
-  // Use the shared tracker (should be initialized by resetFieldValueTracker before this)
-  if (!fieldValueTracker) {
-    fieldValueTracker = new Map<string, FieldValue>();
-  }
-
-  const lastEmittedValues = fieldValueTracker;
-
   for (const [name, field] of fields) {
     if (typeof field.on === "function") {
       // Initialize with current value
-      lastEmittedValues.set(name, getFieldValue(field));
+      tracker.set(name, getFieldValue(field));
 
       // Handler that dedupes based on value
       const handleChange = () => {
         const value = getFieldValue(field);
-        const lastValue = lastEmittedValues.get(name);
+        const lastValue = tracker.get(name);
 
         // Only emit if value actually changed
         if (!valuesEqual(value, lastValue)) {
-          lastEmittedValues.set(name, value);
+          tracker.set(name, value);
           onFieldChange(name, value);
         }
       };
@@ -290,28 +276,44 @@ export const withFields = (config: FormConfig) => {
     // Extract fields from UI registry
     const { fields, files } = extractFields(component.ui || {}, config);
 
-    // Reset tracker for this new form instance
-    // This ensures each form has its own tracker and prevents cross-form interference
-    resetFieldValueTracker();
+    // Each form gets its own deduplication tracker.
+    // Previously a module-level singleton was shared across all forms,
+    // which broke when multiple forms existed on the same page: the
+    // second form's reset replaced the map, so syncTrackedFieldValues
+    // for the first form wrote to the new map while its handleChange
+    // closures still read from the old one.
+    const tracker = new Map<string, FieldValue>();
 
     // Bind change events if component has emit
     if (component.emit) {
-      bindFieldEvents(fields, (name, value) => {
-        component.emit?.("field:change", { name, value });
-        component.emit?.("change", { name, value });
-      });
+      bindFieldEvents(
+        fields,
+        (name, value) => {
+          component.emit?.("field:change", { name, value });
+          component.emit?.("change", { name, value });
+        },
+        tracker,
+      );
 
       // Also bind change events to file fields
-      bindFieldEvents(files, (name, value) => {
-        component.emit?.("file:change", { name, value });
-        component.emit?.("change", { name, value });
-      });
+      bindFieldEvents(
+        files,
+        (name, value) => {
+          component.emit?.("file:change", { name, value });
+          component.emit?.("change", { name, value });
+        },
+        tracker,
+      );
     }
 
     return {
       ...component,
       fields,
       files,
+
+      // Expose the per-instance tracker so withData can pass it
+      // to syncTrackedFieldValues
+      _fieldValueTracker: tracker,
 
       /**
        * Get a field component by name

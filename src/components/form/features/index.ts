@@ -12,7 +12,6 @@ export {
   setFieldValue,
   updateTrackedFieldValue,
   syncTrackedFieldValues,
-  resetFieldValueTracker,
 } from "./fields";
 export { withData, flatToNested, getNestedValue, setNestedValue } from "./data";
 export { withController } from "./controller";

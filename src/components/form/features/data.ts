@@ -231,7 +231,10 @@ export const withData = (config: FormConfig) => {
       state.initialData = { ...state.currentData };
       // Sync the field value tracker for event deduplication
       // This ensures change detection works correctly when fields are modified
-      syncTrackedFieldValues(component.fields);
+      syncTrackedFieldValues(
+        component.fields,
+        (component as any)._fieldValueTracker,
+      );
     }
 
     // Initialize beforeunload protection if enabled
@@ -282,7 +285,10 @@ export const withData = (config: FormConfig) => {
         state.initialData = { ...state.currentData };
         state.modified = false;
         // Sync the field value tracker for event deduplication
-        syncTrackedFieldValues(component.fields);
+        syncTrackedFieldValues(
+          component.fields,
+          (component as any)._fieldValueTracker,
+        );
         // Update beforeunload state since we're no longer modified
         updateBeforeUnloadState(false);
       } else {
