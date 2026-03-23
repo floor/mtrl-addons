@@ -15,6 +15,8 @@ beforeEach(() => {
   global.document = document;
   global.HTMLElement = dom.window.HTMLElement;
   global.HTMLFormElement = dom.window.HTMLFormElement;
+  global.HTMLInputElement = dom.window.HTMLInputElement;
+  global.HTMLTextAreaElement = dom.window.HTMLTextAreaElement;
 });
 
 afterEach(() => {
@@ -208,9 +210,8 @@ describe("Change Detection", () => {
 describe("Form Field Utilities", () => {
   it("should get and set field values", async () => {
     // Import field utilities
-    const { getFieldValue, setFieldValue } = await import(
-      "../src/components/form/features/fields"
-    );
+    const { getFieldValue, setFieldValue } =
+      await import("../src/components/form/features/fields");
 
     // Mock field with getValue/setValue
     const mockField = {
@@ -231,9 +232,8 @@ describe("Form Field Utilities", () => {
   });
 
   it("should handle switch/checkbox with unified getValue/setValue API", async () => {
-    const { getFieldValue, setFieldValue } = await import(
-      "../src/components/form/features/fields"
-    );
+    const { getFieldValue, setFieldValue } =
+      await import("../src/components/form/features/fields");
 
     // Mock switch component with unified API (getValue returns boolean)
     const mockSwitch = {
@@ -271,9 +271,8 @@ describe("Form Field Utilities", () => {
   });
 
   it("should handle silent setValue for checkboxes", async () => {
-    const { setFieldValue } = await import(
-      "../src/components/form/features/fields"
-    );
+    const { setFieldValue } =
+      await import("../src/components/form/features/fields");
 
     // Mock checkbox with input element
     const input = document.createElement("input");
@@ -305,9 +304,8 @@ describe("Form Field Utilities", () => {
   });
 
   it("should update textfield --empty class on silent setValue", async () => {
-    const { setFieldValue } = await import(
-      "../src/components/form/features/fields"
-    );
+    const { setFieldValue } =
+      await import("../src/components/form/features/fields");
 
     // Mock textfield with input element
     const input = document.createElement("input");
@@ -388,9 +386,8 @@ describe("Event Deduplication", () => {
   });
 
   it("should deduplicate input and change events for same value", async () => {
-    const { withFields } = await import(
-      "../src/components/form/features/fields"
-    );
+    const { withFields } =
+      await import("../src/components/form/features/fields");
 
     // Track emitted events
     const emittedEvents: Array<{ name: string; value: string }> = [];
@@ -448,9 +445,8 @@ describe("Event Deduplication", () => {
   });
 
   it("should emit for each unique value change", async () => {
-    const { withFields } = await import(
-      "../src/components/form/features/fields"
-    );
+    const { withFields } =
+      await import("../src/components/form/features/fields");
 
     const emittedValues: string[] = [];
     const inputHandlers: Function[] = [];
@@ -493,9 +489,8 @@ describe("Event Deduplication", () => {
   });
 
   it("should sync tracked values after silent setData", async () => {
-    const { withFields, syncTrackedFieldValues } = await import(
-      "../src/components/form/features/fields"
-    );
+    const { withFields, syncTrackedFieldValues } =
+      await import("../src/components/form/features/fields");
 
     const emittedEvents: Array<{ name: string; value: boolean }> = [];
     const changeHandlers: Function[] = [];
@@ -535,7 +530,7 @@ describe("Event Deduplication", () => {
     mockSwitch._checked = true;
 
     // Sync tracked values (simulates what setData does)
-    syncTrackedFieldValues(enhanced.fields);
+    syncTrackedFieldValues(enhanced.fields, enhanced._fieldValueTracker);
 
     // Now toggle switch back to false
     mockSwitch._checked = false;
@@ -555,9 +550,8 @@ describe("Event Deduplication", () => {
   });
 
   it("should deduplicate array values (chips/multi-select)", async () => {
-    const { withFields } = await import(
-      "../src/components/form/features/fields"
-    );
+    const { withFields } =
+      await import("../src/components/form/features/fields");
 
     const emittedCount = { count: 0 };
     const changeHandlers: Function[] = [];
@@ -606,17 +600,260 @@ describe("Event Deduplication", () => {
   });
 });
 
+describe("Reset Tracker Sync", () => {
+  it("should detect changes after reset (cancel-then-change-again)", async () => {
+    const { withFields } =
+      await import("../src/components/form/features/fields");
+    const { withData } = await import("../src/components/form/features/data");
+
+    const emittedEvents: Array<{ event: string; data: any }> = [];
+    const changeHandlers: Function[] = [];
+
+    // Mock checkbox (like the "Enabled" toggle in the islands form)
+    // getValue/setValue use the real input.checked so they stay in sync
+    // with silent setFieldValue which writes directly to the DOM input
+    const checkboxInput = Object.assign(document.createElement("input"), {
+      type: "checkbox",
+    });
+    checkboxInput.checked = true;
+
+    const checkboxElement = document.createElement("div");
+    checkboxElement.classList.add("mtrl-checkbox");
+    checkboxElement.classList.add("mtrl-checkbox--checked");
+
+    const mockCheckbox = {
+      element: checkboxElement,
+      input: checkboxInput,
+      getValue() {
+        return checkboxInput.checked;
+      },
+      setValue(value: boolean) {
+        checkboxInput.checked = value;
+      },
+      on(event: string, handler: Function) {
+        if (event === "change" || event === "input") {
+          changeHandlers.push(handler);
+        }
+      },
+    };
+
+    const eventHandlers: Record<string, Function[]> = {};
+
+    const mockComponent = {
+      element: document.createElement("div"),
+      ui: { "info.enabled": mockCheckbox },
+      emit(event: string, data: any) {
+        emittedEvents.push({ event, data });
+        // Dispatch to registered handlers
+        if (eventHandlers[event]) {
+          eventHandlers[event].forEach((h) => h(data));
+        }
+      },
+      on(event: string, handler: Function) {
+        if (!eventHandlers[event]) eventHandlers[event] = [];
+        eventHandlers[event].push(handler);
+      },
+    };
+
+    // Build component with fields + data (like createForm does)
+    const withFieldsApplied = withFields({})(mockComponent as any);
+    const form = withData({ useChanges: true })(withFieldsApplied as any);
+
+    // Load initial data: enabled = true (simulates renderInfo calling setData silent)
+    form.setData({ enabled: true }, true);
+    expect(form.isModified()).toBe(false);
+
+    // Step 1: User unchecks "Enabled" (true -> false)
+    checkboxInput.checked = false;
+    changeHandlers.forEach((h) => h());
+    expect(form.isModified()).toBe(true);
+
+    // Step 2: User clicks Cancel -> form.reset()
+    form.reset();
+    expect(checkboxInput.checked).toBe(true); // field restored to initial
+    expect(form.isModified()).toBe(false);
+
+    // Clear event log to focus on what happens next
+    emittedEvents.length = 0;
+
+    // Step 3: User unchecks "Enabled" again (true -> false)
+    // BUG before fix: tracker still had `false` from step 1, so this
+    // change was deduplicated and no field:change event fired
+    checkboxInput.checked = false;
+    changeHandlers.forEach((h) => h());
+
+    // Should detect the modification
+    const fieldChangeEvents = emittedEvents.filter(
+      (e) => e.event === "field:change",
+    );
+    expect(fieldChangeEvents.length).toBe(1);
+    expect(fieldChangeEvents[0].data.name).toBe("enabled");
+    expect(fieldChangeEvents[0].data.value).toBe(false);
+    expect(form.isModified()).toBe(true);
+  });
+
+  it("should detect changes after clear (clear-then-change-again)", async () => {
+    const { withFields } =
+      await import("../src/components/form/features/fields");
+    const { withData } = await import("../src/components/form/features/data");
+
+    const changeHandlers: Function[] = [];
+
+    // getValue/setValue use the real input.value so they stay in sync
+    // with silent setFieldValue which writes directly to the DOM input
+    const textInput = Object.assign(document.createElement("input"), {
+      type: "text",
+    });
+    textInput.value = "hello";
+
+    const textElement = document.createElement("div");
+    textElement.classList.add("mtrl-textfield");
+
+    const mockTextfield = {
+      element: textElement,
+      input: textInput,
+      getValue() {
+        return textInput.value;
+      },
+      setValue(value: string) {
+        textInput.value = value;
+      },
+      on(event: string, handler: Function) {
+        if (event === "change" || event === "input") {
+          changeHandlers.push(handler);
+        }
+      },
+    };
+
+    const eventHandlers: Record<string, Function[]> = {};
+    const emittedEvents: Array<{ event: string; data: any }> = [];
+
+    const mockComponent = {
+      element: document.createElement("div"),
+      ui: { "info.name": mockTextfield },
+      emit(event: string, data: any) {
+        emittedEvents.push({ event, data });
+        if (eventHandlers[event]) {
+          eventHandlers[event].forEach((h) => h(data));
+        }
+      },
+      on(event: string, handler: Function) {
+        if (!eventHandlers[event]) eventHandlers[event] = [];
+        eventHandlers[event].push(handler);
+      },
+    };
+
+    const withFieldsApplied = withFields({})(mockComponent as any);
+    const form = withData({ useChanges: true })(withFieldsApplied as any);
+
+    // Load initial data
+    form.setData({ name: "hello" }, true);
+    expect(form.isModified()).toBe(false);
+
+    // User types "world"
+    textInput.value = "world";
+    changeHandlers.forEach((h) => h());
+    expect(form.isModified()).toBe(true);
+
+    // Clear the form
+    form.clear();
+
+    // After clear, initialData is {} but the DOM input reads "" (null → ""),
+    // so isModified() may return true — that's a pre-existing quirk of clear().
+    // What matters here is that the tracker was synced so subsequent changes
+    // are not silently deduplicated.
+
+    emittedEvents.length = 0;
+
+    // User types "world" — tracker should not deduplicate this even though
+    // "world" was the last value before clear
+    textInput.value = "world";
+    changeHandlers.forEach((h) => h());
+
+    const fieldChangeEvents = emittedEvents.filter(
+      (e) => e.event === "field:change",
+    );
+    expect(fieldChangeEvents.length).toBe(1);
+    expect(fieldChangeEvents[0].data.value).toBe("world");
+    expect(form.isModified()).toBe(true);
+  });
+
+  it("should allow multiple reset cycles without losing change detection", async () => {
+    const { withFields } =
+      await import("../src/components/form/features/fields");
+    const { withData } = await import("../src/components/form/features/data");
+
+    const changeHandlers: Function[] = [];
+
+    const cbInput = Object.assign(document.createElement("input"), {
+      type: "checkbox",
+    });
+    cbInput.checked = true;
+
+    const cbElement = document.createElement("div");
+    cbElement.classList.add("mtrl-checkbox");
+    cbElement.classList.add("mtrl-checkbox--checked");
+
+    const mockCheckbox = {
+      element: cbElement,
+      input: cbInput,
+      getValue() {
+        return cbInput.checked;
+      },
+      setValue(value: boolean) {
+        cbInput.checked = value;
+      },
+      on(event: string, handler: Function) {
+        if (event === "change" || event === "input") {
+          changeHandlers.push(handler);
+        }
+      },
+    };
+
+    const eventHandlers: Record<string, Function[]> = {};
+
+    const mockComponent = {
+      element: document.createElement("div"),
+      ui: { "info.enabled": mockCheckbox },
+      emit(event: string, data: any) {
+        if (eventHandlers[event]) {
+          eventHandlers[event].forEach((h) => h(data));
+        }
+      },
+      on(event: string, handler: Function) {
+        if (!eventHandlers[event]) eventHandlers[event] = [];
+        eventHandlers[event].push(handler);
+      },
+    };
+
+    const withFieldsApplied = withFields({})(mockComponent as any);
+    const form = withData({ useChanges: true })(withFieldsApplied as any);
+
+    form.setData({ enabled: true }, true);
+
+    // Repeat the change → cancel cycle 3 times
+    for (let i = 0; i < 3; i++) {
+      expect(form.isModified()).toBe(false);
+
+      // Uncheck
+      cbInput.checked = false;
+      changeHandlers.forEach((h) => h());
+      expect(form.isModified()).toBe(true);
+
+      // Reset (cancel)
+      form.reset();
+      expect(cbInput.checked).toBe(true);
+      expect(form.isModified()).toBe(false);
+    }
+  });
+});
+
 describe("Form Validation", () => {
   it("should validate and show errors on fields", async () => {
-    const { withFields, resetFieldValueTracker } = await import(
-      "../src/components/form/features/fields"
-    );
-    const { withSubmit } = await import(
-      "../src/components/form/features/submit"
-    );
-
-    // Reset tracker for clean state
-    resetFieldValueTracker();
+    const { withFields } =
+      await import("../src/components/form/features/fields");
+    const { withSubmit } =
+      await import("../src/components/form/features/submit");
 
     let fieldErrorState: { error: boolean; message?: string } | null = null;
 
@@ -689,15 +926,10 @@ describe("Form Validation", () => {
   });
 
   it("should clear field error when value becomes valid", async () => {
-    const { withFields, resetFieldValueTracker } = await import(
-      "../src/components/form/features/fields"
-    );
-    const { withSubmit } = await import(
-      "../src/components/form/features/submit"
-    );
-
-    // Reset tracker for clean state
-    resetFieldValueTracker();
+    const { withFields } =
+      await import("../src/components/form/features/fields");
+    const { withSubmit } =
+      await import("../src/components/form/features/submit");
 
     let fieldErrorState: { error: boolean; message?: string } | null = null;
     const changeHandlers: Function[] = [];
@@ -784,15 +1016,10 @@ describe("Form Validation", () => {
   });
 
   it("should validate single field", async () => {
-    const { withFields, resetFieldValueTracker } = await import(
-      "../src/components/form/features/fields"
-    );
-    const { withSubmit } = await import(
-      "../src/components/form/features/submit"
-    );
-
-    // Reset tracker for clean state
-    resetFieldValueTracker();
+    const { withFields } =
+      await import("../src/components/form/features/fields");
+    const { withSubmit } =
+      await import("../src/components/form/features/submit");
 
     let usernameError: { error: boolean; message?: string } | null = null;
     let emailError: { error: boolean; message?: string } | null = null;
@@ -876,14 +1103,10 @@ describe("Form Validation", () => {
   });
 
   it("should clear all errors", async () => {
-    const { withFields, resetFieldValueTracker } = await import(
-      "../src/components/form/features/fields"
-    );
-    const { withSubmit } = await import(
-      "../src/components/form/features/submit"
-    );
-
-    resetFieldValueTracker();
+    const { withFields } =
+      await import("../src/components/form/features/fields");
+    const { withSubmit } =
+      await import("../src/components/form/features/submit");
 
     let fieldErrorState: { error: boolean; message?: string } | null = null;
 

@@ -304,6 +304,13 @@ export const withData = (config: FormConfig) => {
       state.currentData = { ...state.initialData };
       state.modified = false;
       state.errors = {};
+      // Sync the field value tracker so change deduplication matches the reset state
+      // Without this, the tracker retains pre-reset values and silently drops
+      // subsequent changes that match the old (pre-cancel) value
+      syncTrackedFieldValues(
+        component.fields,
+        (component as any)._fieldValueTracker,
+      );
       // Update beforeunload state since we're no longer modified
       updateBeforeUnloadState(false);
       // Emit state:change so protection overlay gets removed
@@ -326,6 +333,11 @@ export const withData = (config: FormConfig) => {
       state.currentData = {};
       state.initialData = {};
       state.modified = false;
+      // Sync the field value tracker so change deduplication matches the cleared state
+      syncTrackedFieldValues(
+        component.fields,
+        (component as any)._fieldValueTracker,
+      );
       // Update beforeunload state
       updateBeforeUnloadState(false);
       // Emit state:change so protection overlay gets removed
