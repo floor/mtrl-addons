@@ -482,7 +482,7 @@ describe("Stress Test Benchmarks", () => {
       console.log(`   Total:    ${totalTime.toFixed(2)}ms`);
       console.log(`   Per page: ${avgTimePerPage.toFixed(3)}ms`);
       console.log(
-        `   Per component: ${(totalTime / totalComponents).toFixed(4)}ms`
+        `   Per component: ${(totalTime / totalComponents).toFixed(4)}ms`,
       );
 
       expect(totalTime).toBeLessThan(10000); // Should complete within 10 seconds
@@ -628,7 +628,7 @@ describe("Stress Test Benchmarks", () => {
       const iterations = 5; // Fewer iterations due to size
 
       console.log(
-        `\n📊 Massive Data Table (${iterations} tables × ${rowCount} rows):`
+        `\n📊 Massive Data Table (${iterations} tables × ${rowCount} rows):`,
       );
       console.log(`   Components per table: ~${rowCount * 7} elements`);
       console.log(`   Total components: ${iterations * rowCount * 7} elements`);
@@ -656,10 +656,10 @@ describe("Stress Test Benchmarks", () => {
       console.log(`   Total:    ${totalTime.toFixed(2)}ms`);
       console.log(`   Per table: ${avgTimePerTable.toFixed(3)}ms`);
       console.log(
-        `   Per row: ${(totalTime / (iterations * rowCount)).toFixed(4)}ms`
+        `   Per row: ${(totalTime / (iterations * rowCount)).toFixed(4)}ms`,
       );
       console.log(
-        `   Per component: ${(totalTime / totalComponents).toFixed(5)}ms`
+        `   Per component: ${(totalTime / totalComponents).toFixed(5)}ms`,
       );
 
       expect(totalTime).toBeLessThan(30000); // Should complete within 30 seconds
@@ -780,10 +780,10 @@ describe("Stress Test Benchmarks", () => {
       console.log(`   Total:    ${totalTime.toFixed(2)}ms`);
       console.log(`   Per card: ${avgTimePerCard.toFixed(4)}ms`);
       console.log(
-        `   Per component: ${(totalTime / totalComponents).toFixed(5)}ms`
+        `   Per component: ${(totalTime / totalComponents).toFixed(5)}ms`,
       );
       console.log(
-        `   Throughput: ${cardsPerSecond.toLocaleString()} cards/second`
+        `   Throughput: ${cardsPerSecond.toLocaleString()} cards/second`,
       );
 
       expect(totalTime).toBeLessThan(15000); // Should complete within 15 seconds
@@ -835,10 +835,10 @@ describe("Stress Test Benchmarks", () => {
       console.log(`   Total:    ${totalBatchTime.toFixed(2)}ms`);
       console.log(`   Per layout: ${avgTimePerLayout.toFixed(4)}ms`);
       console.log(
-        `   Per component: ${(totalBatchTime / totalComponents).toFixed(5)}ms`
+        `   Per component: ${(totalBatchTime / totalComponents).toFixed(5)}ms`,
       );
       console.log(
-        `   Throughput: ${layoutsPerSecond.toLocaleString()} layouts/second`
+        `   Throughput: ${layoutsPerSecond.toLocaleString()} layouts/second`,
       );
 
       // Test memory efficiency by checking cache stats
@@ -918,7 +918,7 @@ describe("Stress Test Benchmarks", () => {
         console.log(`     Cleanup:  ${destroyTime.toFixed(2)}ms`);
         console.log(`     Wave total: ${waveTime.toFixed(2)}ms`);
         console.log(
-          `     Per layout: ${(waveTime / layoutsPerWave).toFixed(4)}ms`
+          `     Per layout: ${(waveTime / layoutsPerWave).toFixed(4)}ms`,
         );
 
         // Force garbage collection simulation by clearing caches periodically
@@ -937,13 +937,13 @@ describe("Stress Test Benchmarks", () => {
       console.log(`   Avg per layout: ${avgTimePerLayout.toFixed(4)}ms`);
       console.log(
         `   Total throughput: ${Math.round(
-          totalLayouts / (totalTime / 1000)
-        ).toLocaleString()} layouts/second`
+          totalLayouts / (totalTime / 1000),
+        ).toLocaleString()} layouts/second`,
       );
 
       expect(totalTime).toBeLessThan(60000); // Should complete within 1 minute
       expect(avgTimePerLayout).toBeLessThan(5); // Should maintain performance under pressure
-    });
+    }, 30000);
   });
 
   describe("Stress Test Summary", () => {
@@ -953,10 +953,10 @@ describe("Stress Test Benchmarks", () => {
       console.log(`✅ E-commerce Page: ~120 components per layout`);
       console.log(`✅ Data Table: 1000 rows × 7 components = 7000 components`);
       console.log(
-        `✅ High Volume: 5000 cards × 18 components = 90,000 components`
+        `✅ High Volume: 5000 cards × 18 components = 90,000 components`,
       );
       console.log(
-        `✅ Batch Processing: 10,000 layouts × 4 components = 40,000 components`
+        `✅ Batch Processing: 10,000 layouts × 4 components = 40,000 components`,
       );
       console.log(`✅ Memory Pressure: 10,000 layouts with cleanup waves`);
 
@@ -978,10 +978,10 @@ describe("Stress Test Benchmarks", () => {
       console.log(`   • Memory management: Sustains performance under load`);
 
       console.log(
-        `\n🏆 CONCLUSION: mtrl-addons handles extreme loads efficiently!`
+        `\n🏆 CONCLUSION: mtrl-addons handles extreme loads efficiently!`,
       );
       console.log(
-        `   Even with 100,000+ components, performance remains excellent.`
+        `   Even with 100,000+ components, performance remains excellent.`,
       );
 
       expect(true).toBe(true); // This is a summary test

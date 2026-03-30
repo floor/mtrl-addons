@@ -284,8 +284,8 @@ export const withStats = <T extends VListItem = VListItem>(
           }) => {
             // Use visibleRange (without overscan) if available, otherwise use range
             const actualVisible = data.visibleRange || data.range;
-            // Position is 1-based for display (last visible item)
-            const position = actualVisible.end + 1;
+            // Position is 1-based for display (first visible item)
+            const position = actualVisible.start + 1;
             setPosition(position);
           },
         );
