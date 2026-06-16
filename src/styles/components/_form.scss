@@ -91,3 +91,25 @@ $_transition-easing: v.motion("easing-standard");
         background: t.alpha("on-surface", 0.02);
     }
 }
+
+// ===========================
+// Disabled State
+// ===========================
+
+// Applied to the form root while disabled. A blocking overlay (below) sits on
+// top to intercept interaction; this just provides the greyed-out appearance.
+.#{$_component}--disabled {
+    opacity: 0.6;
+    user-select: none;
+}
+
+// Overlay that covers the form root and swallows all pointer interaction while
+// disabled. Inputs underneath are never touched, so disabling cannot emit a
+// change event or re-enable the Apply control.
+.#{$_component}-disabled-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    background: transparent;
+    cursor: not-allowed;
+}

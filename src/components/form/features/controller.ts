@@ -45,6 +45,38 @@ const setFieldsEnabled = (
 };
 
 /**
+ * Creates the blocking overlay used to disable the form.
+ *
+ * The overlay sits on top of the form root and intercepts every pointer
+ * interaction. Crucially, it does this WITHOUT touching any input, so a
+ * field's value can never change as a side effect of disabling — which means
+ * `field:change` never fires and the Apply/submit button can never be
+ * re-enabled by the act of disabling. It also swallows the events it catches
+ * so nothing leaks through to a field underneath.
+ */
+const createDisabledOverlay = (
+  prefix: string,
+  componentName: string,
+): HTMLElement => {
+  const overlay = document.createElement("div");
+  overlay.className = `${prefix}-${componentName}-disabled-overlay`;
+  overlay.setAttribute("aria-hidden", "true");
+  // Inline styles so the overlay works even before/without the stylesheet.
+  overlay.style.cssText =
+    "position:absolute;inset:0;z-index:5;background:transparent;cursor:not-allowed;";
+
+  const swallow = (event: Event): void => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  overlay.addEventListener("mousedown", swallow);
+  overlay.addEventListener("click", swallow);
+  overlay.addEventListener("touchstart", swallow, { passive: false });
+
+  return overlay;
+};
+
+/**
  * Gets control button components from the UI registry
  */
 const getControlButtons = (
@@ -117,6 +149,10 @@ export const withController = (config: FormConfig) => {
       setControlsEnabled(controls, false);
     }
 
+    // Blocking overlay used to prevent edition while disabled (created lazily)
+    const disabledClass = `${prefix}-${componentName}--${FORM_CLASSES.DISABLED}`;
+    let disabledOverlay: HTMLElement | null = null;
+
     const enhanced = {
       ...component,
       controls,
@@ -145,19 +181,47 @@ export const withController = (config: FormConfig) => {
       },
 
       /**
-       * Enable all form fields
+       * Enable all form fields and lift the blocking overlay.
        */
       enableFields(): void {
         setFieldsEnabled(component.fields, true);
         component.state.disabled = false;
+
+        const root = component.element;
+        if (root) {
+          root.classList.remove(disabledClass);
+          root.removeAttribute("aria-disabled");
+        }
+        if (disabledOverlay) {
+          disabledOverlay.remove();
+          disabledOverlay = null;
+        }
       },
 
       /**
-       * Disable all form fields
+       * Disable the form to prevent edition.
+       *
+       * Prevention is layered so it cannot accidentally enable Apply:
+       *  1. A blocking overlay swallows all pointer interaction — inputs are
+       *     never touched, so no `field:change` is emitted.
+       *  2. `field.disable()` drops each field out of the tab order so the
+       *     overlay can't be bypassed with the keyboard.
+       * Neither step alters a field's value, so the form's `modified` state
+       * stays false and the submit/cancel controls remain disabled.
        */
       disableFields(): void {
         setFieldsEnabled(component.fields, false);
         component.state.disabled = true;
+
+        const root = component.element;
+        if (root) {
+          root.classList.add(disabledClass);
+          root.setAttribute("aria-disabled", "true");
+          if (!disabledOverlay) {
+            disabledOverlay = createDisabledOverlay(prefix, componentName);
+            root.appendChild(disabledOverlay);
+          }
+        }
       },
     };
 
