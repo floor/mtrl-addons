@@ -1,0 +1,28 @@
+# Runs on every push and pull request. Without it a version tag publishes
+# whatever is on that commit having run nothing: `prepublishOnly` builds, so a
+# broken build fails the release, but the tests were never run in CI at all.
+#
+# No type check step: this package has no `ts:check` script yet. Worth adding.
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Tests
+        run: bun test
+      - name: Build
+        run: bun run build
