@@ -1,6 +1,6 @@
 {
   "name": "mtrl-addons",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "description": "Additional components and utilities for the mtrl system, featuring forms, specialized elements, and extended functionality for modern applications",
   "type": "module",
   "sideEffects": false,
@@ -9,40 +9,34 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./layout": {
-      "development": "./src/core/layout/index.ts",
+      "types": "./dist/core/layout/index.d.ts",
       "import": "./dist/core/layout/index.mjs",
-      "require": "./dist/core/layout/index.js",
-      "types": "./dist/core/layout/index.d.ts"
+      "require": "./dist/core/layout/index.js"
     },
     "./viewport": {
-      "development": "./src/core/viewport/index.ts",
+      "types": "./dist/core/viewport/index.d.ts",
       "import": "./dist/core/viewport/index.mjs",
-      "require": "./dist/core/viewport/index.js",
-      "types": "./dist/core/viewport/index.d.ts"
+      "require": "./dist/core/viewport/index.js"
     },
     "./gestures": {
-      "development": "./src/core/gestures/index.ts",
+      "types": "./dist/core/gestures/index.d.ts",
       "import": "./dist/core/gestures/index.mjs",
-      "require": "./dist/core/gestures/index.js",
-      "types": "./dist/core/gestures/index.d.ts"
+      "require": "./dist/core/gestures/index.js"
     },
     "./components": {
-      "development": "./src/components/index.ts",
+      "types": "./dist/components/index.d.ts",
       "import": "./dist/components/index.mjs",
-      "require": "./dist/components/index.js",
-      "types": "./dist/components/index.d.ts"
+      "require": "./dist/components/index.js"
     },
     "./components/*/constants": {
-      "development": "./src/components/*/constants.ts",
+      "types": "./dist/components/*/constants.d.ts",
       "import": "./dist/components/*/constants.mjs",
-      "require": "./dist/components/*/constants.js",
-      "types": "./dist/components/*/constants.d.ts"
+      "require": "./dist/components/*/constants.js"
     },
     "./styles": "./dist/styles.css"
   },
