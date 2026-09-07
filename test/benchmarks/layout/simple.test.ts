@@ -1,5 +1,6 @@
 // test/core/layout/simple-benchmarks.test.ts - Simple Performance Benchmarks
 import { describe, test, expect, beforeAll } from "bun:test";
+import { benchmark } from "../bench";
 
 // Mock DOM environment for lightweight testing
 const mockDocument = {
@@ -43,7 +44,7 @@ import {
   performance as addonsPerformance,
 } from "../../../src/core/layout";
 
-describe("Simple Layout Benchmarks", () => {
+benchmark("Simple Layout Benchmarks", () => {
   describe("Basic Performance Tests", () => {
     test("simple layout creation speed", () => {
       const iterations = 1000;

@@ -1,6 +1,7 @@
 // test/core/layout/stress-benchmarks.test.ts - Stress Test Benchmarks
 // @ts-nocheck
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { benchmark } from "../bench";
 import { JSDOM } from "jsdom";
 
 // Setup for DOM testing environment
@@ -71,7 +72,7 @@ import {
   performance as addonsPerformance,
 } from "../../../src/core/layout";
 
-describe("Stress Test Benchmarks", () => {
+benchmark("Stress Test Benchmarks", () => {
   beforeAll(() => {
     // Clear all caches before stress tests
     addonsPerformance.clearAll();

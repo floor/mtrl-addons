@@ -1,6 +1,7 @@
 // test/integration/performance-comparison.test.ts - Mock vs Real Component Performance
 // @ts-nocheck
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { benchmark } from "../bench";
 import { JSDOM } from "jsdom";
 
 // Setup for DOM testing environment
@@ -69,7 +70,7 @@ import {
 } from "../../../src/core/layout";
 import { createButton, createTextfield, createCard } from "mtrl";
 
-describe("Performance Comparison: Mock vs Real Components", () => {
+benchmark("Performance Comparison: Mock vs Real Components", () => {
   describe("Mock Components Baseline", () => {
     test("mock component performance baseline", () => {
       const iterations = 1000;

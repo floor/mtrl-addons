@@ -1,5 +1,6 @@
 // test/core/layout/advanced-benchmarks.test.ts - Advanced Performance Benchmarks
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { benchmark } from "../bench";
 import { JSDOM } from "jsdom";
 
 // Setup for DOM testing environment with performance fix
@@ -193,7 +194,7 @@ class MockMtrlSystem {
   }
 }
 
-describe("Advanced Layout Benchmarks", () => {
+benchmark("Advanced Layout Benchmarks", () => {
   let tracker: PerformanceTracker;
   let memoryTracker: MemoryTracker;
   let mockMtrl: MockMtrlSystem;

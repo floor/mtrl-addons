@@ -1,13 +1,6 @@
 // test/core/layout/benchmarks.test.ts - Layout Performance Benchmarks
-import {
-  describe,
-  test,
-  expect,
-  beforeAll,
-  afterAll,
-  beforeEach,
-  afterEach,
-} from "bun:test";
+import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach } from "bun:test";
+import { benchmark } from "../bench";
 import { JSDOM } from "jsdom";
 
 // Setup for DOM testing environment
@@ -136,7 +129,7 @@ const mockMtrlLayout = (schema: any) => {
   return processSchema(Array.isArray(schema) ? schema : [schema]);
 };
 
-describe("Layout Performance Benchmarks", () => {
+benchmark("Layout Performance Benchmarks", () => {
   let container: HTMLElement;
 
   beforeEach(() => {

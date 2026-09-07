@@ -1,6 +1,7 @@
 // test/integration/real-components.test.ts - Integration Tests with Real mtrl Components
 // @ts-nocheck
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
+import { benchmark } from "../bench";
 import { JSDOM } from "jsdom";
 
 // Setup for DOM testing environment
@@ -79,7 +80,7 @@ import {
   createList,
 } from "mtrl";
 
-describe("Real Component Integration Tests", () => {
+benchmark("Real Component Integration Tests", () => {
   beforeAll(() => {
     // Clear all caches before tests
     addonsPerformance.clearAll();

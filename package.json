@@ -48,6 +48,7 @@
     "build": "bun run ./build.js",
     "build:app": "bun run ../mtrl-app/build.js",
     "dev": "bun run ./build.js --watch",
+    "bench": "ADDONS_BENCH=1 bun test test/benchmarks/",
     "test": "bun test",
     "prepublishOnly": "bun run build",
     "server:start": "pm2 start ../mtrl-app/ecosystem.config.js",
