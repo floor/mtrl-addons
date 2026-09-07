@@ -1,10 +1,10 @@
 // src/styles/components/_colorpicker.scss
 // ColorPicker component styles
-@use "../../../../mtrl/src/styles/abstract/base" as base;
-@use "../../../../mtrl/src/styles/abstract/variables" as v;
-@use "../../../../mtrl/src/styles/abstract/mixins" as m;
-@use "../../../../mtrl/src/styles/abstract/functions" as f;
-@use "../../../../mtrl/src/styles/abstract/theme" as t;
+@use "mtrl/src/styles/abstract/base" as base;
+@use "mtrl/src/styles/abstract/variables" as v;
+@use "mtrl/src/styles/abstract/mixins" as m;
+@use "mtrl/src/styles/abstract/functions" as f;
+@use "mtrl/src/styles/abstract/theme" as t;
 @use "sass:map";
 
 // ============= Variables =============

@@ -1,7 +1,7 @@
 // src/styles/components/_vlist.scss
-@use "../../../../mtrl/src/styles/abstract/base" as base;
-@use "../../../../mtrl/src/styles/abstract/variables" as v;
-@use "../../../../mtrl/src/styles/abstract/mixins" as m;
+@use "mtrl/src/styles/abstract/base" as base;
+@use "mtrl/src/styles/abstract/variables" as v;
+@use "mtrl/src/styles/abstract/mixins" as m;
 
 @use "sass:map";
 @use "sass:list";

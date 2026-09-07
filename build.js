@@ -64,6 +64,11 @@ const buildStyles = async () => {
       STYLES_ENTRY,
       CSS_OUTPUT,
       isProduction ? "--style=compressed" : "--style=expanded",
+      // mtrl's abstracts are used by @use "mtrl/src/styles/…"; it publishes
+      // src/styles for exactly this. Without a load path sass would only find
+      // them through a sibling checkout on disk, which is how this build came
+      // to work on a developer's machine and nowhere else.
+      "--load-path=node_modules",
     ];
 
     // Add source map in development
