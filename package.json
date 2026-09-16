@@ -18,11 +18,6 @@
       "import": "./dist/core/layout/index.mjs",
       "require": "./dist/core/layout/index.js"
     },
-    "./viewport": {
-      "types": "./dist/core/viewport/index.d.ts",
-      "import": "./dist/core/viewport/index.mjs",
-      "require": "./dist/core/viewport/index.js"
-    },
     "./gestures": {
       "types": "./dist/core/gestures/index.d.ts",
       "import": "./dist/core/gestures/index.mjs",

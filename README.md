@@ -10,7 +10,6 @@ mtrl-addons provides high-performance, specialized components and core systems t
 - 🎨 **Color Picker** - Full-featured HSV picker with swatches, pipette, and variants
 - 📐 **Layout System** - Flexible array-based layout schemas with JSX support
 - 👆 **Gesture Recognition** - Touch and mouse gesture detection (tap, swipe, pinch, etc.)
-- 🎯 **Viewport System** - Composable virtual scrolling foundation
 - 🌳 **Tree-Shaking Optimized** - Import only what you need
 
 ## Installation
@@ -45,7 +44,6 @@ mtrl-addons is optimized for tree-shaking. Constants are exported separately fro
 | Form constants | `import { FORM_EVENTS, DATA_STATE } from 'mtrl-addons/components/form/constants'` |
 | Color utilities | `import { hsvToRgb, rgbToHex } from 'mtrl-addons'` |
 | Layout system | `import { createLayout } from 'mtrl-addons/layout'` |
-| Viewport system | `import { createViewport } from 'mtrl-addons/viewport'` |
 | Gestures | `import { createGestureManager } from 'mtrl-addons/gestures'` |
 
 ---
@@ -261,57 +259,6 @@ const rowLayout = row({ gap: '1rem', mobileStack: true });
 
 // Responsive grid
 const gridLayout = grid('auto-fit', { gap: '1rem' });
-```
-
----
-
-### Viewport System
-
-Low-level composable virtual scrolling foundation for building your own virtualised components.
-
-```javascript
-import { createViewport } from 'mtrl-addons/viewport';
-
-const viewport = createViewport({
-  container: document.getElementById('scroll-container'),
-  itemCount: 100000,
-  estimatedItemSize: 48,
-  overscan: 5, // Extra items to render outside viewport
-  
-  renderItem: (index) => {
-    const div = document.createElement('div');
-    div.textContent = `Item ${index}`;
-    return div;
-  },
-  
-  onRangeChange: ({ start, end }) => {
-    console.log(`Rendering items ${start} to ${end}`);
-  }
-});
-
-// API
-viewport.scrollToIndex(500);
-viewport.refresh();
-viewport.destroy();
-```
-
-#### Feature Composition
-
-```javascript
-import { 
-  withBase, 
-  withVirtual, 
-  withScrolling, 
-  withRendering 
-} from 'mtrl-addons/viewport';
-
-// Build custom viewport with specific features
-const customViewport = pipe(
-  withBase,
-  withVirtual,
-  withScrolling,
-  withRendering
-)(config);
 ```
 
 ---
