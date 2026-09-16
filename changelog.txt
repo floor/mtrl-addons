@@ -49,6 +49,8 @@ initial commit → latest
   ci: publish from a version tag, as mtrl does
   fix(package): drop the development condition from every export
 
+  → v0.7.2
+
 
 2026-06-16
 
