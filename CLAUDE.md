@@ -267,7 +267,7 @@ const createEnhancedComponent = (config: Config) => {
 - No summary .md files for coding sessions
 
 **Component File Organization:**
-- Main module: `list-manager.ts`
+- Main module: the component's own file, for example `form.ts`
 - Types: `types.ts`
 - Constants: `constants.ts`
 - API: `api.ts` (special features)
@@ -748,11 +748,11 @@ bun run typecheck
 ## Conventional Commits
 
 ```bash
-feat(list-manager): add infinite scroll support
+feat(layout): add responsive column spans
 fix(collection): correct cache invalidation logic
 refactor(layout): simplify schema resolution
 perf(scrolling): improve scroll performance by 30%
-test(list-manager): add virtual scrolling benchmarks
+test(layout): add schema building benchmarks
 docs(readme): update installation guide
 style(list): fix formatting
 chore(deps): update mtrl peer dependency
