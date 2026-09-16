@@ -115,7 +115,7 @@ mtrl-addons/
 **MANDATORY WORKFLOW:**
 1. ✅ Make changes to files
 2. ✅ Test the changes thoroughly (`bun test`)
-3. ✅ Run type checking (`bun run typecheck`)
+3. ✅ Run type checking (`bun run ts:check`)
 4. ✅ Build the package (`bun run build`)
 5. ✅ Show `git status` and `git diff` to user
 6. ✅ **STOP and ASK**: "Should I commit these changes?"
@@ -145,7 +145,7 @@ bun run build
 bun test
 
 # Type check
-bun run typecheck
+bun run ts:check
 ```
 
 ### Key Commands
@@ -155,7 +155,7 @@ bun run typecheck
 bun run dev                # Development mode with watch
 bun run build              # Build package for distribution
 bun run build:app          # Build for mtrl-app integration
-bun run typecheck          # TypeScript type checking
+bun run ts:check           # TypeScript type checking
 
 # Testing
 bun test                   # Run all tests
@@ -640,7 +640,7 @@ bun run build:app
 bun run dev
 
 # Type checking
-bun run typecheck
+bun run ts:check
 ```
 
 **⚠️ Important:** Use `bun run build:app` when building for mtrl-app, NOT `bun run build`
