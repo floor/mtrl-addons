@@ -14,16 +14,6 @@ export {
 } from "./layout";
 export type { LayoutConfig } from "./layout/types";
 
-// Viewport system
-export { createViewport } from "./viewport";
-export type {
-  ViewportConfig,
-  ViewportComponent,
-  ViewportContext,
-  ItemRange,
-  ViewportInfo,
-} from "./viewport/types";
-
 // Gesture system
 export { createGestureManager } from "./gestures";
 export type {

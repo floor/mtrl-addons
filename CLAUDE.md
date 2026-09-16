@@ -50,9 +50,7 @@ Clone related packages as siblings for easier cross-package development:
 mtrl-addons/
 ├── src/
 │   ├── components/           # Extended components
-│   │   └── vlist/           # Virtual list component
 │   ├── core/                # Advanced core features
-│   │   ├── viewport/        # Viewport and virtual scrolling
 │   │   ├── layout/          # Layout schema system (JSX-like)
 │   │   ├── compose/         # Enhanced composition utilities
 │   │   └── gestures/        # Touch and gesture handling
@@ -77,8 +75,6 @@ mtrl-addons/
 - **DOM Testing**: JSDOM
 
 ### Key Features
-- **VList Component**: High-performance virtual list with direct viewport integration
-- **Viewport System**: Virtual scrolling and positioning engine
 - **Layout Schema**: Declarative UI composition system (JSX-like, array-based)
 - **Gesture System**: Touch and gesture handling for interactive components
 - **Compose Utilities**: Enhanced functional composition patterns
@@ -96,8 +92,6 @@ mtrl-addons/
 
 ### Design Decisions
 
-- **Why VList?** Handle 100k+ items without performance degradation
-- **Why Viewport System?** Flexible virtual scrolling for any component
 - **Why Layout Schema?** Declarative, composable UI patterns (JSX-like without JSX)
 - **Why Gestures?** Rich interaction patterns for touch devices
 - **Why Extend mtrl?** Specialized features not needed in base library
@@ -209,45 +203,39 @@ function createListManager(config: any): any {  // NEVER DO THIS
 
 **Standard Component File Structure:**
 ```typescript
-// src/components/advanced-list/advanced-list.ts
+// src/components/swatchbook/swatchbook.ts
 
 // 1. Imports
-import { pipe } from 'mtrl/core/compose'
-import { createList } from 'mtrl/components/list'
-import { createListManager } from '../../core/list-manager'
+import { pipe, createBase, withElement, withEvents } from 'mtrl/core/compose'
+import { createLayout } from '../../core/layout'
 
 // 2. Types
-interface AdvancedListConfig {
-  collection: CollectionConfig
-  viewport: ViewportConfig
-  scrollbar?: ScrollbarConfig
+interface SwatchbookConfig {
+  swatches: string[]
+  columns?: number
 }
 
 // 3. Constants
-const DEFAULTS: Partial<AdvancedListConfig> = {
-  viewport: {
-    orientation: 'vertical',
-    overscan: 5
-  }
+const DEFAULTS: Partial<SwatchbookConfig> = {
+  columns: 8
 }
 
 // 4. Features (composable functions)
-const withListManager = (config: ListManagerConfig) => (element: HTMLElement): HTMLElement => {
-  const manager = createListManager(config)
-  // Attach manager to element
-  return element
+const withSwatches = (config: SwatchbookConfig) => <C extends { element: HTMLElement }>(component: C): C => {
+  createLayout(config.swatches.map((colour) => [{ class: 'swatch', style: { background: colour } }]), component.element)
+  return component
 }
 
 // 5. Main creator function
-export const createAdvancedList = <T>(config: AdvancedListConfig): HTMLElement => {
+export const createSwatchbook = (config: SwatchbookConfig) => {
   const finalConfig = { ...DEFAULTS, ...config }
-  
+
   return pipe(
-    createList({ variant: 'basic' }),
-    withListManager(finalConfig),
-    withCollection(finalConfig.collection),
-    withScrollbar(finalConfig.scrollbar)
-  )
+    createBase,
+    withEvents(),
+    withElement({ tag: 'div', componentName: 'swatchbook' }),
+    withSwatches(finalConfig)
+  )(finalConfig)
 }
 ```
 
@@ -258,13 +246,14 @@ export const createAdvancedList = <T>(config: AdvancedListConfig): HTMLElement =
 import { pipe } from 'mtrl/core/compose'
 
 // Compose features using pipe
-const createEnhancedComponent = <T>(config: Config): HTMLElement => {
+const createEnhancedComponent = (config: Config) => {
   return pipe(
-    createBaseComponent(config),
-    withVirtualScrolling(config.viewport),
-    withDataLoading(config.collection),
-    withCustomScrollbar(config.scrollbar)
-  )
+    createBase,
+    withEvents(),
+    withElement(config.element),
+    withLayout(config.layout),
+    withGestures(config.gestures)
+  )(config)
 }
 ```
 
@@ -278,7 +267,7 @@ const createEnhancedComponent = <T>(config: Config): HTMLElement => {
 - No summary .md files for coding sessions
 
 **Component File Organization:**
-- Main module: `list-manager.ts`
+- Main module: the component's own file, for example `form.ts`
 - Types: `types.ts`
 - Constants: `constants.ts`
 - API: `api.ts` (special features)
@@ -286,81 +275,6 @@ const createEnhancedComponent = <T>(config: Config): HTMLElement => {
 - Index: `index.ts` (exports)
 
 ## Core Systems
-
-### VList Component
-
-**Purpose:** High-performance virtual list with direct viewport integration
-
-**Key Features:**
-- Virtual scrolling for massive datasets (100k+ items)
-- Direct viewport integration (no abstraction layer)
-- Configurable pagination strategies
-- Template-based item rendering
-- Built-in selection support
-
-**Architecture:**
-```
-vlist/
-├── vlist.ts              # Main component
-├── types.ts              # Type definitions
-├── config.ts             # Configuration defaults
-├── constants.ts          # Constants
-├── features.ts           # Feature composition
-├── features/
-│   ├── viewport/         # Virtual scrolling integration
-│   ├── api/              # Public API methods
-│   └── selection/        # Item selection handling
-└── index.ts
-```
-
-**Usage Pattern:**
-```typescript
-import { createVList } from 'mtrl-addons/components/vlist'
-
-const vlist = createVList({
-  container: '#my-list',
-  collection: myAdapter,
-  rangeSize: 20,
-  paginationStrategy: 'page',
-  template: (item, index) => [
-    { class: 'viewport-item', attributes: { 'data-id': item.id }},
-    [{ class: 'viewport-item__name', text: item.name }],
-    [{ class: 'viewport-item__value', text: item.value }]
-  ]
-})
-
-// VList automatically handles:
-// - Virtual scrolling
-// - Item positioning
-// - Data loading
-// - Template rendering
-```
-
-### Viewport System
-
-**Purpose:** Virtual scrolling and positioning engine
-
-**Key Features:**
-- Flexible viewport for any component
-- Item size calculation and caching
-- Scroll position management
-- Range-based rendering
-- Orientation support (vertical/horizontal)
-
-**Usage Pattern:**
-```typescript
-import { withViewport } from 'mtrl-addons/core/viewport'
-
-// Apply viewport to any component
-const component = pipe(
-  createBaseComponent(config),
-  withViewport({
-    orientation: 'vertical',
-    estimatedItemSize: 60,
-    overscan: 5
-  })
-)
-```
 
 ### Layout Schema System
 
@@ -470,12 +384,12 @@ const component = pipe(
 ### Test Structure
 
 ```typescript
-// test/core/list-manager/list-manager.test.ts
+// test/core/layout/layout.test.ts
 import { describe, it, expect, beforeEach } from 'bun:test'
 import { JSDOM } from 'jsdom'
-import { createListManager } from '../../src/core/list-manager'
+import { createLayout } from '../../src/core/layout'
 
-describe('ListManager', () => {
+describe('Layout', () => {
   let dom: JSDOM
   
   beforeEach(() => {
@@ -484,30 +398,15 @@ describe('ListManager', () => {
     global.HTMLElement = dom.window.HTMLElement as any
   })
   
-  it('should handle large datasets efficiently', async () => {
-    const vlist = createVList({
-      collection: {
-        loadData: async (range) => generateMockData(range),
-        totalItems: 100000
-      },
-      rangeSize: 20,
-      template: (item) => [{ text: item.name }]
-    })
+  it('should build a schema into the container', () => {
+    const container = document.createElement('div')
+    const layout = createLayout([
+      ['header', { class: 'head' }],
+      ['body', { class: 'content' }]
+    ], container)
     
-    expect(vlist).toBeDefined()
-    // Performance assertions
-  })
-  
-  it('should render visible items only', async () => {
-    const vlist = createVList({
-      collection: mockAdapter,
-      rangeSize: 20,
-      template: (item) => [{ text: item.name }]
-    })
-    
-    // Only visible range should be rendered
-    const renderedItems = vlist.element.querySelectorAll('.viewport-item')
-    expect(renderedItems.length).toBeLessThanOrEqual(20)
+    expect(layout.component).toBeDefined()
+    expect(container.querySelectorAll('.head, .content').length).toBe(2)
   })
 })
 ```
@@ -515,37 +414,17 @@ describe('ListManager', () => {
 ### Performance Benchmarks
 
 ```typescript
-// test/benchmarks/virtual-scrolling.bench.ts
-import { describe, it, bench } from 'bun:test'
-import { createListManager } from '../../src/core/list-manager'
+// test/benchmarks/layout/stress.test.ts
+import { describe, bench } from 'bun:test'
+import { createLayout } from '../../../src/core/layout'
 
-describe('Virtual Scrolling Performance', () => {
-  bench('render 100k items', () => {
-    const vlist = createVList({
-      collection: {
-        loadData: async (range) => generateMockData(range),
-        totalItems: 100000
-      },
-      template: (item) => [{ text: item.name }]
-    })
-    
-    // Initial render
-    vlist.render()
-  })
-  
-  bench('scroll through 100k items', async () => {
-    const vlist = createVList({
-      collection: {
-        loadData: async (range) => generateMockData(range),
-        totalItems: 100000
-      },
-      template: (item) => [{ text: item.name }]
-    })
-    
-    // Simulate scrolling
-    for (let i = 0; i < 100; i++) {
-      await vlist.scrollToIndex(i * 100)
-    }
+describe('Layout Performance', () => {
+  bench('build a 1000-element schema', () => {
+    const container = document.createElement('div')
+    createLayout(
+      Array.from({ length: 1000 }, (_, i) => [{ class: 'row', text: `row ${i}` }]),
+      container
+    )
   })
 })
 ```
@@ -570,8 +449,6 @@ describe('Virtual Scrolling Performance', () => {
 - Data loading: < 200ms for range requests
 
 **Bundle Size:**
-- VList component: < 12KB gzipped
-- Viewport system: < 8KB gzipped
 - Layout schema: < 5KB gzipped
 - Gesture system: < 4KB gzipped
 - Compose utilities: < 2KB gzipped
@@ -581,7 +458,7 @@ describe('Virtual Scrolling Performance', () => {
 
 **Virtual Scrolling:**
 ```typescript
-// ✅ Good - Efficient viewport calculations
+// ✅ Good - Memoize an expensive layout calculation
 const calculateVisibleRange = memoize((scrollTop: number, viewportHeight: number, itemHeight: number) => {
   const start = Math.floor(scrollTop / itemHeight)
   const end = Math.ceil((scrollTop + viewportHeight) / itemHeight)
@@ -649,42 +526,6 @@ const showcase = [
 
 ## Common Development Tasks
 
-### Adding New Feature to VList
-
-**1. Create feature module:**
-```bash
-mkdir -p src/components/vlist/features/new-feature
-touch src/components/vlist/features/new-feature/new-feature.ts
-touch src/components/vlist/features/new-feature/types.ts
-touch src/components/vlist/features/new-feature/index.ts
-```
-
-**2. Implement feature:**
-```typescript
-// src/components/vlist/features/new-feature/new-feature.ts
-import type { NewFeatureConfig } from './types'
-
-export const withNewFeature = (config: NewFeatureConfig) => (vlist: VListComponent) => {
-  // Feature implementation
-  return vlist
-}
-```
-
-**3. Integrate with VList:**
-```typescript
-// src/components/vlist/vlist.ts
-import { withNewFeature } from './features/new-feature'
-
-export const createVList = <T>(config: VListConfig<T>) => {
-  return pipe(
-    createBase(config),
-    withViewport(config),
-    withAPI(config),
-    config.newFeature && withNewFeature(config.newFeature)
-  )
-}
-```
-
 ### Extending Layout Schema
 
 **Add new layout type:**
@@ -741,12 +582,6 @@ export const createPinchRecognizer = (config: PinchConfig) => {
       "require": "./dist/core/layout/index.js",
       "types": "./dist/core/layout/index.d.ts"
     },
-    "./viewport": {
-      "development": "./src/core/viewport/index.ts",
-      "import": "./dist/core/viewport/index.mjs",
-      "require": "./dist/core/viewport/index.js",
-      "types": "./dist/core/viewport/index.d.ts"
-    },
     "./gestures": {
       "development": "./src/core/gestures/index.ts",
       "import": "./dist/core/gestures/index.mjs",
@@ -779,10 +614,8 @@ Constants are **NOT** exported from main entry points to enable tree-shaking. Im
 | Component creators | `import { createColorPicker } from 'mtrl-addons'` |
 | ColorPicker constants | `import { COLORPICKER_EVENTS } from 'mtrl-addons/components/colorpicker/constants'` |
 | Form constants | `import { FORM_EVENTS, DATA_STATE } from 'mtrl-addons/components/form/constants'` |
-| VList constants | `import { VLIST_CLASSES } from 'mtrl-addons/components/vlist/constants'` |
 | Color utilities | `import { hsvToRgb, rgbToHex } from 'mtrl-addons'` (pure functions, kept in main) |
 | Layout system | `import { createLayout } from 'mtrl-addons/layout'` |
-| Viewport system | `import { createViewport } from 'mtrl-addons/viewport'` |
 
 **Example:**
 ```typescript
@@ -866,13 +699,11 @@ bun run typecheck
 ## Key Files Reference
 
 ### Core Systems
-- `src/core/viewport/` - Viewport and virtual scrolling engine
 - `src/core/layout/` - Layout schema system (JSX-like)
 - `src/core/compose/` - Enhanced composition utilities
 - `src/core/gestures/` - Touch and gesture handling
 
 ### Components
-- `src/components/vlist/` - Virtual list component with direct viewport
 - `src/components/index.ts` - Component exports
 
 ### Testing
@@ -917,11 +748,11 @@ bun run typecheck
 ## Conventional Commits
 
 ```bash
-feat(list-manager): add infinite scroll support
+feat(layout): add responsive column spans
 fix(collection): correct cache invalidation logic
-refactor(viewport): optimize range calculations
+refactor(layout): simplify schema resolution
 perf(scrolling): improve scroll performance by 30%
-test(list-manager): add virtual scrolling benchmarks
+test(layout): add schema building benchmarks
 docs(readme): update installation guide
 style(list): fix formatting
 chore(deps): update mtrl peer dependency

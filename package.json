@@ -1,6 +1,6 @@
 {
   "name": "mtrl-addons",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "Additional components and utilities for the mtrl system, featuring forms, specialized elements, and extended functionality for modern applications",
   "type": "module",
   "sideEffects": false,
@@ -17,11 +17,6 @@
       "types": "./dist/core/layout/index.d.ts",
       "import": "./dist/core/layout/index.mjs",
       "require": "./dist/core/layout/index.js"
-    },
-    "./viewport": {
-      "types": "./dist/core/viewport/index.d.ts",
-      "import": "./dist/core/viewport/index.mjs",
-      "require": "./dist/core/viewport/index.js"
     },
     "./gestures": {
       "types": "./dist/core/gestures/index.d.ts",
@@ -55,11 +50,7 @@
     "server:stop": "pm2 stop mtrl-app",
     "server:reload": "pm2 restart mtrl-app",
     "server:logs": "pm2 logs mtrl-app",
-    "link:mtrl": "rm -rf node_modules/mtrl && ln -sf ../../mtrl node_modules/mtrl",
-    "debug:vlist": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist",
-    "debug:vlist:interactive": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist --interactive",
-    "debug:vlist-cursor": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist-cursor",
-    "debug:vlist-cursor:interactive": "bun run ../mtrl-app/scripts/debug/vlist examples/vlist-cursor --interactive"
+    "link:mtrl": "rm -rf node_modules/mtrl && ln -sf ../../mtrl node_modules/mtrl"
   },
   "repository": {
     "type": "git",

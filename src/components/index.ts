@@ -7,12 +7,7 @@
  * Import constants directly from the component's constants file:
  *   import { COLORPICKER_EVENTS } from 'mtrl-addons/components/colorpicker/constants'
  *   import { FORM_EVENTS } from 'mtrl-addons/components/form/constants'
- *   import { VLIST_CLASSES } from 'mtrl-addons/components/vlist/constants'
  */
-
-// VList component (virtual list with viewport)
-export { createVList } from "./vlist";
-export type { VListConfig, VListComponent } from "./vlist/types";
 
 // Form component (functional form builder)
 export { createForm } from "./form";

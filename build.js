@@ -26,11 +26,6 @@ const MODULES = [
     outDir: "dist/core/layout",
   },
   {
-    name: "viewport",
-    entry: "src/core/viewport/index.ts",
-    outDir: "dist/core/viewport",
-  },
-  {
     name: "gestures",
     entry: "src/core/gestures/index.ts",
     outDir: "dist/core/gestures",

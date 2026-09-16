@@ -6,12 +6,10 @@ mtrl-addons provides high-performance, specialized components and core systems t
 
 ## Features
 
-- 🚀 **Virtual Scrolling** - Handle millions of items with smooth 60fps scrolling
 - 📝 **Form Builder** - Declarative form creation with validation and state management
 - 🎨 **Color Picker** - Full-featured HSV picker with swatches, pipette, and variants
 - 📐 **Layout System** - Flexible array-based layout schemas with JSX support
 - 👆 **Gesture Recognition** - Touch and mouse gesture detection (tap, swipe, pinch, etc.)
-- 🎯 **Viewport System** - Composable virtual scrolling foundation
 - 🌳 **Tree-Shaking Optimized** - Import only what you need
 
 ## Installation
@@ -30,7 +28,7 @@ bun add mtrl-addons mtrl
 ## Quick Start
 
 ```javascript
-import { createVList, createForm, createColorPicker } from 'mtrl-addons';
+import { createForm, createColorPicker } from 'mtrl-addons';
 ```
 
 ## Tree-Shaking Optimized Imports
@@ -44,129 +42,13 @@ mtrl-addons is optimized for tree-shaking. Constants are exported separately fro
 | Component creators | `import { createColorPicker } from 'mtrl-addons'` |
 | ColorPicker constants | `import { COLORPICKER_EVENTS } from 'mtrl-addons/components/colorpicker/constants'` |
 | Form constants | `import { FORM_EVENTS, DATA_STATE } from 'mtrl-addons/components/form/constants'` |
-| VList constants | `import { VLIST_CLASSES } from 'mtrl-addons/components/vlist/constants'` |
 | Color utilities | `import { hsvToRgb, rgbToHex } from 'mtrl-addons'` |
 | Layout system | `import { createLayout } from 'mtrl-addons/layout'` |
-| Viewport system | `import { createViewport } from 'mtrl-addons/viewport'` |
 | Gestures | `import { createGestureManager } from 'mtrl-addons/gestures'` |
 
 ---
 
 ## Components
-
-### VList (Virtual List)
-
-High-performance virtual scrolling list for large datasets. Renders only visible items while maintaining smooth scrolling with millions of rows.
-
-#### Features
-- 📊 Handles 100,000+ items efficiently
-- 🔍 Built-in search with debouncing
-- 🎛️ Filter panel integration
-- ⌨️ Keyboard navigation
-- 📍 Scroll position restoration
-- 🎯 Item selection (single/multi)
-- 📈 Stats tracking (render time, visible items)
-- ⚡ Velocity-based scroll optimization
-
-#### Basic Usage
-
-```javascript
-import { createVList } from 'mtrl-addons';
-
-const vlist = createVList({
-  container: '#my-list',
-  template: (item) => ({
-    class: 'list-item',
-    children: [
-      { tag: 'span', class: 'name', text: item.name },
-      { tag: 'span', class: 'email', text: item.email }
-    ]
-  }),
-  collection: {
-    adapter: {
-      read: async ({ page, limit }) => {
-        const response = await fetch(`/api/users?page=${page}&limit=${limit}`);
-        return response.json();
-      }
-    }
-  }
-});
-```
-
-#### With Layout, Search & Filters
-
-```javascript
-import { createVList } from 'mtrl-addons';
-import { createIconButton, createSearch, createSelect } from 'mtrl';
-
-const vlist = createVList({
-  container: '#users-list',
-  class: 'users',
-  
-  // Layout schema - declarative UI structure
-  layout: [
-    ['head', { class: 'list-head' },
-      [createIconButton, 'searchBtn', { icon: iconSearch, toggle: true }],
-      [createIconButton, 'filterBtn', { icon: iconFilter, toggle: true }]
-    ],
-    ['filter-panel', { class: 'filter-panel' },
-      [createSelect, 'country', { label: 'Country', options: countries }],
-      [createSelect, 'role', { label: 'Role', options: roles }]
-    ],
-    [createSearch, 'searchBar', { placeholder: 'Search users...' }],
-    ['viewport'], // Virtual scrolling area
-    ['foot', { class: 'list-foot' },
-      ['stats', { text: 'Loading...' }]
-    ]
-  ],
-  
-  // Search configuration
-  search: {
-    toggleButton: 'searchBtn',
-    searchBar: 'searchBar',
-    debounce: 300
-  },
-  
-  // Filter configuration
-  filter: {
-    toggleButton: 'filterBtn',
-    panel: 'filter-panel',
-    controls: {
-      country: 'country',
-      role: 'role'
-    }
-  },
-  
-  // Stats display
-  stats: {
-    element: 'stats',
-    format: ({ total, rendered }) => `${rendered} of ${total} users`
-  },
-  
-  template: userTemplate,
-  collection: {
-    adapter: {
-      read: async ({ page, limit, search, filters }) => {
-        // search and filters are automatically populated
-        return fetchUsers({ page, limit, search, ...filters });
-      }
-    }
-  }
-});
-
-// Events
-vlist.on('search:change', ({ query }) => console.log('Search:', query));
-vlist.on('filter:change', ({ filters }) => console.log('Filters:', filters));
-vlist.on('item:select', ({ item }) => console.log('Selected:', item));
-
-// API
-vlist.search('john');
-vlist.setFilter('country', 'US');
-vlist.scrollToIndex(50);
-vlist.refresh();
-```
-
----
 
 ### Form
 
@@ -381,57 +263,6 @@ const gridLayout = grid('auto-fit', { gap: '1rem' });
 
 ---
 
-### Viewport System
-
-Low-level composable virtual scrolling foundation. Used internally by VList but available for custom implementations.
-
-```javascript
-import { createViewport } from 'mtrl-addons/viewport';
-
-const viewport = createViewport({
-  container: document.getElementById('scroll-container'),
-  itemCount: 100000,
-  estimatedItemSize: 48,
-  overscan: 5, // Extra items to render outside viewport
-  
-  renderItem: (index) => {
-    const div = document.createElement('div');
-    div.textContent = `Item ${index}`;
-    return div;
-  },
-  
-  onRangeChange: ({ start, end }) => {
-    console.log(`Rendering items ${start} to ${end}`);
-  }
-});
-
-// API
-viewport.scrollToIndex(500);
-viewport.refresh();
-viewport.destroy();
-```
-
-#### Feature Composition
-
-```javascript
-import { 
-  withBase, 
-  withVirtual, 
-  withScrolling, 
-  withRendering 
-} from 'mtrl-addons/viewport';
-
-// Build custom viewport with specific features
-const customViewport = pipe(
-  withBase,
-  withVirtual,
-  withScrolling,
-  withRendering
-)(config);
-```
-
----
-
 ### Gesture System
 
 Touch and mouse gesture recognition with support for tap, swipe, long-press, pinch, rotate, and pan.
@@ -534,6 +365,16 @@ getContrastColor('#000000'); // '#ffffff'
 ```
 
 ---
+
+## Upgrading from 0.7
+
+0.8.0 drops two systems from the package:
+
+- **vlist** is gone: `createVList`, its types, its constants entry and its styles. For virtual lists, use the standalone [vlist](https://www.npmjs.com/package/vlist) package.
+- **The viewport** is gone with it: `createViewport`, the feature enhancers including `withCollection`, the viewport types and the `mtrl-addons/viewport` entry point. Nothing in the package used them once vlist left, and no test covered them.
+- **The list manager**, removed in an earlier release, leaves no references behind.
+
+What remains is unchanged: the layout schema, the gesture system, the compose utilities, the form builder and the colour picker. The form now works with mtrl 0.8 as well as 0.7.
 
 ## Development
 
