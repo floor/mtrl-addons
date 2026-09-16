@@ -20,6 +20,7 @@ import type {
   FieldValue,
 } from "../types";
 import { FORM_EVENTS } from "../constants";
+import type { EventCallback } from "mtrl";
 
 /**
  * Wires up click handlers for control buttons (submit, cancel)
@@ -116,8 +117,8 @@ interface EnhancedFormComponent extends BaseFormComponent {
   getFieldError: (field: string) => string | undefined;
 
   // Event methods
-  on?: (event: string, handler: Function) => void;
-  off?: (event: string, handler: Function) => void;
+  on?: (event: string, handler: EventCallback) => void;
+  off?: (event: string, handler: EventCallback) => void;
   emit?: (event: string, data?: unknown) => void;
 
   // Lifecycle
@@ -369,7 +370,7 @@ export const withAPI = (config: FormConfig) => {
        * @param event - Event name
        * @param handler - Event handler function
        */
-      on(event: string, handler: Function): FormComponent {
+      on(event: string, handler: EventCallback): FormComponent {
         component.on?.(event, handler);
         return api;
       },
@@ -379,7 +380,7 @@ export const withAPI = (config: FormConfig) => {
        * @param event - Event name
        * @param handler - Event handler function
        */
-      off(event: string, handler: Function): FormComponent {
+      off(event: string, handler: EventCallback): FormComponent {
         component.off?.(event, handler);
         return api;
       },

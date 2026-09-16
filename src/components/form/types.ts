@@ -1,6 +1,7 @@
 // src/components/form/types.ts
 
 import type { DATA_STATE, FORM_EVENTS } from "./constants";
+import type { EventCallback } from "mtrl";
 
 /**
  * Configuration for form change protection
@@ -97,10 +98,10 @@ export interface FormField {
   isError?: () => boolean;
 
   /** Add event listener */
-  on?: (event: string, handler: Function) => void;
+  on?: (event: string, handler: EventCallback) => void;
 
   /** Remove event listener */
-  off?: (event: string, handler: Function) => void;
+  off?: (event: string, handler: EventCallback) => void;
 
   /** Destroy the field */
   destroy?: () => void;
@@ -414,10 +415,10 @@ export interface FormComponent extends FormAPI {
   state: FormState;
 
   /** Add event listener */
-  on: (event: string, handler: Function) => FormComponent;
+  on: (event: string, handler: EventCallback) => FormComponent;
 
   /** Remove event listener */
-  off: (event: string, handler: Function) => FormComponent;
+  off: (event: string, handler: EventCallback) => FormComponent;
 
   /** Emit an event */
   emit: (event: string, data?: unknown) => void;
@@ -438,8 +439,8 @@ export interface BaseFormComponent {
   config?: FormConfig;
   componentName?: string;
   getClass?: (name: string) => string;
-  on?: (event: string, handler: Function) => void;
-  off?: (event: string, handler: Function) => void;
+  on?: (event: string, handler: EventCallback) => void;
+  off?: (event: string, handler: EventCallback) => void;
   emit?: (event: string, data?: unknown) => void;
   lifecycle?: {
     destroy: () => void;

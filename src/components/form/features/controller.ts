@@ -14,6 +14,8 @@ import type {
 } from "../types";
 import { DATA_STATE, FORM_EVENTS, FORM_CLASSES } from "../constants";
 import { FORM_DEFAULTS } from "../config";
+import type { EventCallback } from "mtrl";
+import type { DataState } from "../types";
 
 /**
  * Updates the form's state CSS class
@@ -121,13 +123,13 @@ export const withController = (config: FormConfig) => {
       fields: FormFieldRegistry;
       state: FormState;
       emit?: (event: string, data?: unknown) => void;
-      on?: (event: string, handler: Function) => void;
+      on?: (event: string, handler: EventCallback) => void;
     },
   >(
     component: T,
   ): T & {
     controls: Map<string, FormField>;
-    getDataState: () => string;
+    getDataState: () => DataState;
     enableControls: () => void;
     disableControls: () => void;
     enableFields: () => void;
@@ -160,7 +162,7 @@ export const withController = (config: FormConfig) => {
       /**
        * Get current data state (pristine or dirty)
        */
-      getDataState(): string {
+      getDataState(): DataState {
         return component.state.modified
           ? DATA_STATE.DIRTY
           : DATA_STATE.PRISTINE;
