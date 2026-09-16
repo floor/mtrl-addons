@@ -43,6 +43,7 @@
     "build": "bun run ./build.js",
     "build:app": "bun run ../mtrl-app/build.js",
     "dev": "bun run ./build.js --watch",
+    "ts:check": "tsc --noEmit -p tsconfig.check.json",
     "bench": "ADDONS_BENCH=1 bun test test/benchmarks/",
     "test": "bun test",
     "prepublishOnly": "bun run build",
@@ -77,6 +78,6 @@
     "mtrl": "^0.8.0",
     "sass": "^1.94.2",
     "standard": "^17.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.8.0"
   }
 }

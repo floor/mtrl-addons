@@ -2,7 +2,9 @@
 # whatever is on that commit having run nothing: `prepublishOnly` builds, so a
 # broken build fails the release, but the tests were never run in CI at all.
 #
-# No type check step: this package has no `ts:check` script yet. Worth adding.
+# The type check runs tsconfig.check.json, which covers src/ under strict mode.
+# `bun run build` does not type check: bun's bundler strips types without
+# reading them, so a type error reaches npm unless this step catches it.
 name: CI
 
 on:
@@ -22,6 +24,8 @@ jobs:
         with:
           bun-version: "1.4"
       - run: bun install --frozen-lockfile
+      - name: Types
+        run: bun run ts:check
       - name: Tests
         run: bun test
       - name: Build
