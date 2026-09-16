@@ -15,6 +15,7 @@ import type {
   DataConflictEvent,
 } from "../types";
 import { FORM_EVENTS } from "../constants";
+import type { EventCallback } from "mtrl";
 
 /**
  * Normalizes protection config to a consistent object format
@@ -44,7 +45,7 @@ export const withProtection = (config: FormConfig) => {
       fields: FormFieldRegistry;
       state: FormState;
       emit?: (event: string, data?: unknown) => void;
-      on?: (event: string, handler: Function) => void;
+      on?: (event: string, handler: EventCallback) => void;
       reset?: (force?: boolean) => boolean;
       clearErrors?: () => void;
       disableControls?: () => void;
