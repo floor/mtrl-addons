@@ -1,6 +1,6 @@
 mtrl-addons — full changelog
 initial commit → latest
-233 commits · Apr 30, 2025 – Sep 16, 2026
+239 commits · Apr 30, 2025 – Sep 16, 2026
 
 
 0.8.0
