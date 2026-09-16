@@ -366,6 +366,16 @@ getContrastColor('#000000'); // '#ffffff'
 
 ---
 
+## Upgrading from 0.7
+
+0.8.0 drops two systems from the package:
+
+- **vlist** is gone: `createVList`, its types, its constants entry and its styles. For virtual lists, use the standalone [vlist](https://www.npmjs.com/package/vlist) package.
+- **The viewport** is gone with it: `createViewport`, the feature enhancers including `withCollection`, the viewport types and the `mtrl-addons/viewport` entry point. Nothing in the package used them once vlist left, and no test covered them.
+- **The list manager**, removed in an earlier release, leaves no references behind.
+
+What remains is unchanged: the layout schema, the gesture system, the compose utilities, the form builder and the colour picker. The form now works with mtrl 0.8 as well as 0.7.
+
 ## Development
 
 ```bash

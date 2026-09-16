@@ -1,6 +1,58 @@
 mtrl-addons — full changelog
 initial commit → latest
-222 commits · Apr 30, 2025 – Mar 30, 2026
+233 commits · Apr 30, 2025 – Sep 16, 2026
+
+
+0.8.0
+
+  vlist and the viewport leave the package. mtrl-addons is the layout
+  schema, the gesture system, the compose utilities, the form builder and
+  the colour picker.
+
+  Breaking changes
+
+  - createVList, VListConfig, VListComponent and the
+    mtrl-addons/components/vlist/constants entry are removed, with the
+    vlist styles. For virtual lists, use the standalone vlist package.
+  - createViewport, the viewport feature enhancers (withBase, withVirtual,
+    withScrolling, withScrollbar, withRendering, withCollection,
+    withPlaceholders, withEvents), the viewport types and constants, and
+    the mtrl-addons/viewport entry point are removed. Nothing in the
+    package used them once vlist was gone, and no test covered them.
+  - The list manager, removed earlier, leaves no references behind; the
+    orphaned-function script that analysed it is gone.
+
+  Changed
+
+  - The form's event handlers and the controller's data state declare
+    their real types, so a composed form type-checks against mtrl 0.8,
+    whose pipe is typed. The peer range accepts mtrl 0.7 and 0.8.
+  - README, CLAUDE.md and AI.md describe what the package still contains;
+    their examples use the layout system.
+
+  → v0.8.0
+
+
+2026-09-16
+
+  chore(build): drop the viewport build entry and the last list-manager mentions
+  feat(viewport)!: remove the viewport and the last list-manager references
+  feat(vlist)!: remove the virtual list component
+
+
+2026-09-07
+
+  test: benchmarks stop failing the suite when the machine is busy
+  chore(ci): pin the runners to bun 1.4, the version we develop on
+  fix(build): the stylesheets resolve mtrl as a package, not as a sibling folder
+  ci: run the tests and the build on every push and pull request
+  ci: publish from a version tag, as mtrl does
+  fix(package): drop the development condition from every export
+
+
+2026-06-16
+
+  feat(form): add blocking-overlay disable that can't re-enable Apply
 
 
 2026-03-30
