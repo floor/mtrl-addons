@@ -8,9 +8,8 @@
 import type { ViewportContext, ViewportComponent } from "../types";
 
 /**
- * Mutable reference for late binding in functional composition.
- * Used by VList to allow collection (applied early) to access
- * search/filter features (applied later).
+ * Mutable reference for late binding in functional composition, so a feature
+ * applied early can reach search and filter features applied later.
  */
 interface SelfRef<T> {
   current: T | null;

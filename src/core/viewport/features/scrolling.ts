@@ -3,7 +3,6 @@
  * Handles wheel events, touch/mouse events, scroll position management, velocity measurement, and momentum scrolling
  */
 
-import { PREFIX } from "mtrl";
 import type { ViewportContext, ViewportComponent } from "../types";
 import { VIEWPORT_CONSTANTS } from "../constants";
 import { wrapInitialize, getViewportState, clamp } from "./utils";
@@ -97,30 +96,14 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
     let totalVirtualSize = 0;
     let containerSize = 0;
     let isScrolling = false;
-    let isScrolledFromTop = false; // Track if scrolled away from top
     let lastScrollTime = 0;
 
-    /**
-     * Helper to remove the --scrolled class from the vlist container
-     */
-    const removeScrolledClass = () => {
-      const viewportEl =
-        (component as any).viewportElement ||
-        (component as any)._scrollingViewportElement;
-      if (viewportEl) {
-        const vlistContainer = viewportEl.closest(`.${PREFIX}-vlist`);
-        if (vlistContainer) {
-          vlistContainer.classList.remove(`${PREFIX}-vlist--scrolled`);
-        }
-      }
-    };
 
     // Listen for reload:start to reset feature-specific state
     component.on?.("reload:start", () => {
       scrollPosition = 0;
       totalVirtualSize = 0;
       isScrolling = false;
-      isScrolledFromTop = false;
       lastScrollTime = 0;
       speedTracker = createSpeedTracker();
       hasEmittedIdle = false;
@@ -142,16 +125,12 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
       }
       stopIdleDetection();
 
-      // Remove --scrolled class from DOM since we're resetting to top
-      removeScrolledClass();
     });
 
-    // Listen for cleared event (from vlist.clear()) to reset scrolled state
+    // Listen for cleared event to reset scroll state
     component.on?.("cleared", () => {
       scrollPosition = 0;
       totalVirtualSize = 0;
-      isScrolledFromTop = false;
-      removeScrolledClass();
     });
     let speedTracker = createSpeedTracker();
     let idleTimeoutId: number | null = null;
@@ -177,30 +156,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
 
     // console.log(`[Scrolling] Initial state - position: ${scrollPosition}`);
 
-    // Threshold for considering the list "scrolled" (in pixels)
-    const SCROLLED_THRESHOLD = 1;
-
-    /**
-     * Updates the scrolled state class on the vlist container
-     * Adds --scrolled modifier when list is not at the top
-     */
-    const updateScrolledState = (
-      viewportElement: HTMLElement,
-      position: number,
-    ) => {
-      const shouldBeScrolled = position > SCROLLED_THRESHOLD;
-      if (shouldBeScrolled !== isScrolledFromTop) {
-        isScrolledFromTop = shouldBeScrolled;
-        // Find the vlist container (parent of viewport)
-        const vlistContainer = viewportElement.closest(`.${PREFIX}-vlist`);
-        if (vlistContainer) {
-          vlistContainer.classList.toggle(
-            `${PREFIX}-vlist--scrolled`,
-            shouldBeScrolled,
-          );
-        }
-      }
-    };
 
     // Get viewport state
     let viewportState: any;
@@ -254,7 +209,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         });
 
         // Initialize scrolled state based on current scroll position
-        updateScrolledState(viewportElement, scrollPosition);
 
         // Add mousedown listener to stop scrolling on click
         if (stopOnClick) {
@@ -507,7 +461,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         const viewportEl =
           viewportState?.viewportElement || (component as any).viewportElement;
         if (viewportEl) {
-          updateScrolledState(viewportEl, scrollPosition);
         }
 
         // Store pending scroll data for RAF-batched rendering
@@ -578,7 +531,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         const viewportEl =
           viewportState?.viewportElement || (component as any).viewportElement;
         if (viewportEl) {
-          updateScrolledState(viewportEl, scrollPosition);
         }
 
         // Emit scroll event
@@ -848,7 +800,6 @@ export const withScrolling = (config: ScrollingConfig = {}) => {
         const viewportEl =
           viewportState?.viewportElement || (component as any).viewportElement;
         if (viewportEl) {
-          updateScrolledState(viewportEl, scrollPosition);
         }
 
         // Emit scroll event
