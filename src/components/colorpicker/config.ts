@@ -1,5 +1,6 @@
 // src/components/colorpicker/config.ts
 
+import type { withElement } from "mtrl";
 import {
   COLORPICKER_DEFAULTS,
   COLORPICKER_SIZES,
@@ -101,7 +102,9 @@ export const createBaseConfig = (
  * @category Components
  * @internal
  */
-export const getElementConfig = (config: ColorPickerConfig) => {
+export const getElementConfig = (
+  config: ColorPickerConfig,
+): Parameters<typeof withElement>[0] & { style: Partial<CSSStyleDeclaration> } => {
   const dimensions = getSizeDimensions(config.size || "m");
   const variant = config.variant || COLORPICKER_VARIANTS.INLINE;
   const density = config.density || COLORPICKER_DENSITIES.DEFAULT;
@@ -128,7 +131,7 @@ export const getElementConfig = (config: ColorPickerConfig) => {
     className: [variantClass, densityClass, config.class].filter(
       Boolean,
     ) as string[],
-    style: `width: ${dimensions.width}px`,
+    style: { width: `${dimensions.width}px` },
   };
 };
 
