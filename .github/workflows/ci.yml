@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Match the npm CLI used by trusted publishing in release.yml.
+      - run: npm install -g npm@latest
       - run: bun install --frozen-lockfile
       - name: Types
         run: bun run ts:check

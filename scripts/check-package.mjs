@@ -14,7 +14,9 @@ const run = (command, args, cwd) => {
 const root = process.cwd();
 const fixture = mkdtempSync(join(tmpdir(), "mtrl-addons-package-"));
 try {
-  const [packed] = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--cache", join(fixture, "cache"), "--pack-destination", fixture], root));
+  const result = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--cache", join(fixture, "cache"), "--pack-destination", fixture], root));
+  // npm 11 returns an array; npm 12 keys the results by package name.
+  const [packed] = Array.isArray(result) ? result : Object.values(result);
   const modules = join(fixture, "node_modules");
   const addon = join(modules, "mtrl-addons");
   mkdirSync(addon, { recursive: true });
