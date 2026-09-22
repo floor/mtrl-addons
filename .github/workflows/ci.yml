@@ -1,10 +1,4 @@
-# Runs on every push and pull request. Without it a version tag publishes
-# whatever is on that commit having run nothing: `prepublishOnly` builds, so a
-# broken build fails the release, but the tests were never run in CI at all.
-#
-# The type check runs tsconfig.check.json, which covers src/ under strict mode.
-# `bun run build` does not type check: bun's bundler strips types without
-# reading them, so a type error reaches npm unless this step catches it.
+# Check source compatibility and the package consumers will install.
 name: CI
 
 on:
@@ -23,10 +17,15 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: "1.4"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - run: bun install --frozen-lockfile
       - name: Types
         run: bun run ts:check
       - name: Tests
         run: bun test
       - name: Build
-        run: bun run build
+        run: bun run build --production
+      - name: Packed exports
+        run: bun run check:package

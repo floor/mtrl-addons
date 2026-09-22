@@ -43,7 +43,7 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      # prepublishOnly runs the build (bun run build) before npm packs
+      # prepublishOnly checks types, tests, production build and packed exports
       - name: Publish
         run: |
           version="$(node -p "require('./package.json').version")"

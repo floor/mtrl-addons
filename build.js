@@ -1,5 +1,5 @@
 // build.js
-import { mkdir } from "fs/promises";
+import { mkdir, rm } from "fs/promises";
 import { existsSync } from "fs";
 import { join, dirname, extname } from "path";
 import { fileURLToPath } from "url";
@@ -13,13 +13,25 @@ const isProduction =
 
 // Define consistent output paths
 const DIST_DIR = join(__dirname, "dist");
-const JS_OUTPUT = join(DIST_DIR, "index.js");
+const JS_OUTPUT = join(DIST_DIR, "index.cjs");
 const MJS_OUTPUT = join(DIST_DIR, "index.mjs");
 const CSS_OUTPUT = join(DIST_DIR, "styles.css");
 const STYLES_ENTRY = join(__dirname, "src/styles/index.scss");
 
 // Granular module entry points for tree-shaking
 const MODULES = [
+  {
+    name: "form constants",
+    entry: "src/components/form/constants.ts",
+    outDir: "dist/components/form",
+    basename: "constants",
+  },
+  {
+    name: "colorpicker constants",
+    entry: "src/components/colorpicker/constants.ts",
+    outDir: "dist/components/colorpicker",
+    basename: "constants",
+  },
   {
     name: "layout",
     entry: "src/core/layout/index.ts",
@@ -128,6 +140,7 @@ const buildStyles = async () => {
 const buildModule = async (module) => {
   const entryPath = join(__dirname, module.entry);
   const outDir = join(__dirname, module.outDir);
+  const basename = module.basename ?? "index";
 
   // Skip if entry doesn't exist
   if (!existsSync(entryPath)) {
@@ -144,6 +157,7 @@ const buildModule = async (module) => {
     minify: isProduction,
     sourcemap: isProduction ? "none" : "inline",
     format: "cjs",
+    naming: { entry: `${basename}.cjs` },
     target: "node",
     external: ["mtrl"],
   });
@@ -157,7 +171,7 @@ const buildModule = async (module) => {
     format: "esm",
     target: "node",
     naming: {
-      entry: "index.mjs",
+      entry: `${basename}.mjs`,
     },
     external: ["mtrl"],
   });
@@ -167,8 +181,8 @@ const buildModule = async (module) => {
     return false;
   }
 
-  const cjsSize = (await Bun.file(join(outDir, "index.js")).size) / 1024;
-  const esmSize = (await Bun.file(join(outDir, "index.mjs")).size) / 1024;
+  const cjsSize = (await Bun.file(join(outDir, `${basename}.cjs`)).size) / 1024;
+  const esmSize = (await Bun.file(join(outDir, `${basename}.mjs`)).size) / 1024;
   console.log(
     `  ✓ ${module.name}: CJS ${cjsSize.toFixed(1)}KB, ESM ${esmSize.toFixed(1)}KB`,
   );
@@ -195,6 +209,7 @@ const buildApp = async () => {
       minify: isProduction,
       sourcemap: isProduction ? "none" : "inline",
       format: "cjs",
+      naming: { entry: "index.cjs" },
       target: "node",
       external: ["mtrl"],
     });
@@ -261,7 +276,7 @@ const buildApp = async () => {
 
       if (tscExitCode !== 0) {
         console.warn(
-          "⚠️ TypeScript declaration generation had errors (non-blocking)",
+          "⚠️ TypeScript declaration generation failed",
         );
         if (stdout.trim()) {
           console.warn(
@@ -290,8 +305,8 @@ const buildApp = async () => {
           console.error("   bun add -g typescript");
         }
 
-        // Continue build despite tsc errors (JS bundles are still valid)
-        return true;
+        // Published entry points require declarations.
+        return false;
       }
 
       console.log("✓ TypeScript declarations generated");
@@ -328,8 +343,8 @@ const buildApp = async () => {
         console.warn("   bun add -g typescript");
       }
 
-      // Continue build despite tsc errors (JS bundles are still valid)
-      return true;
+      // Published entry points require declarations.
+      return false;
     }
   } catch (error) {
     console.error("❌ JavaScript build error:", error);
@@ -355,6 +370,8 @@ const build = async () => {
     console.log("└───────────────────────────────────────────────");
     console.log("");
 
+    // Drop stale bundles and source maps before a complete build.
+    await rm(DIST_DIR, { recursive: true, force: true });
     // Create output directory
     await mkdir(DIST_DIR, { recursive: true });
 

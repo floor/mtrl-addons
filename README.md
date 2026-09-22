@@ -25,6 +25,12 @@ yarn add mtrl-addons mtrl
 bun add mtrl-addons mtrl
 ```
 
+For the prerelease compatible with `mtrl@next`:
+
+```bash
+npm install mtrl-addons@next mtrl@next
+```
+
 ## Quick Start
 
 ```javascript
@@ -409,7 +415,7 @@ mtrl-addons supports modern browsers:
 
 ## Peer Dependencies
 
-- `mtrl` ^0.6.2 - Core Material Design 3 component library
+- `mtrl` ^0.10.0-next.0 - Core Material Design 3 component library (prerelease)
 
 ## Related Packages
 
