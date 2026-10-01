@@ -223,7 +223,7 @@ Flexible array-based layout schemas for declarative UI construction. Supports mt
 
 ```javascript
 import { createLayout } from 'mtrl-addons/layout';
-import { createButton, createTextField } from 'mtrl';
+import { createButton, createTextfield } from 'mtrl';
 
 // Array-based schema
 const layout = createLayout([
@@ -233,9 +233,9 @@ const layout = createLayout([
       ['h2', { text: 'Contact Form' }]
     ],
     ['main', { class: 'form-body' },
-      [createTextField, 'name', { label: 'Name' }],
-      [createTextField, 'email', { label: 'Email', type: 'email' }],
-      [createTextField, 'message', { label: 'Message', multiline: true }]
+      [createTextfield, 'name', { label: 'Name' }],
+      [createTextfield, 'email', { label: 'Email', type: 'email' }],
+      [createTextfield, 'message', { label: 'Message', multiline: true }]
     ],
     ['footer', { class: 'form-footer' },
       [createButton, 'submit', { text: 'Send', variant: 'filled' }],
