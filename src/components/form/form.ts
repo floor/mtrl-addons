@@ -11,9 +11,9 @@
 import type { FormConfig, FormComponent } from "./types";
 
 // Import mtrl compose system
-import { pipe } from "mtrl";
-import { createBase, withElement } from "mtrl";
-import { withEvents, withLifecycle } from "mtrl";
+import { pipe } from "mtrl/core/compose";
+import { createBase, withElement } from "mtrl/core/compose";
+import { withEvents, withLifecycle } from "mtrl/core/compose";
 
 // Import form features
 import {

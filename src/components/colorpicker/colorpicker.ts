@@ -1,8 +1,8 @@
 // src/components/colorpicker/colorpicker.ts
 
-import { pipe } from "mtrl";
-import { createBase, withElement } from "mtrl";
-import { withEvents, withDisabled, withLifecycle } from "mtrl";
+import { pipe } from "mtrl/core/compose";
+import { createBase, withElement } from "mtrl/core/compose";
+import { withEvents, withDisabled, withLifecycle } from "mtrl/core/compose";
 import { withArea } from "./features/area";
 import { withHue } from "./features/hue";
 import { withSwatches } from "./features/swatches";
