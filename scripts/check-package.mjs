@@ -42,12 +42,12 @@ try {
     const require = createRequire(import.meta.url);
     for (const specifier of ${JSON.stringify(specifiers)}) {
       const esm = await import(specifier);
-      const cjs = require(specifier);
       assert.ok(Object.keys(esm).length, specifier + ' has no exports');
-      assert.deepEqual(Object.keys(cjs).sort(), Object.keys(esm).sort(), specifier);
+      // ESM only since 1.0, as mtrl 1.0: no require condition, so require does not resolve
+      assert.throws(() => require(specifier), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' }, specifier);
     }
   `], fixture);
-  console.log(`Packed ${pkg.name}@${pkg.version}: ${specifiers.length} entry points passed ESM/CommonJS checks; types and CSS exist.`);
+  console.log(`Packed ${pkg.name}@${pkg.version}: ${specifiers.length} entry points import as ESM and refuse require; types and CSS exist.`);
 } finally {
   rmSync(fixture, { recursive: true, force: true });
 }

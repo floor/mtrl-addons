@@ -3,6 +3,34 @@ initial commit → latest
 239 commits · Apr 30, 2025 – Sep 16, 2026
 
 
+1.0.0 (unreleased)
+
+  For mtrl 1.0. mtrl-addons is ESM-only, and takes mtrl's composition
+  core from its subpaths, as mtrl 1.0 removes it from the package root.
+
+  Breaking changes
+
+  - ESM only. The CommonJS builds (dist/**/*.cjs) and every require
+    condition are removed; main is dist/index.mjs. require('mtrl-addons')
+    no longer resolves: use import, or await import('mtrl-addons') from
+    CommonJS. mtrl 1.0 made the same change.
+  - The peer range is mtrl ^1.0.0. mtrl 1.0 removed pipe, createBase,
+    withElement, withEvents, withLifecycle, withDisabled, hasEmit,
+    hasLifecycle and their types from its root. mtrl-addons now imports
+    them from mtrl/core/compose, and EventCallback from mtrl/core/state.
+
+  Migration
+
+  - Import mtrl-addons with import, not require.
+  - Upgrade mtrl to 1.0 alongside it. Code of your own that imported the
+    composition core from 'mtrl' moves it to 'mtrl/core/compose' (mtrl's
+    migration table lists every name).
+
+  Fixed
+
+  - The README's form example named createTextField; it is
+    createTextfield.
+
 0.8.0
 
   vlist and the viewport leave the package. mtrl-addons is the layout

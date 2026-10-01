@@ -7,34 +7,29 @@
     "**/*.css",
     "**/*.scss"
   ],
-  "main": "./dist/index.cjs",
+  "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.mjs"
     },
     "./layout": {
       "types": "./dist/core/layout/index.d.ts",
-      "import": "./dist/core/layout/index.mjs",
-      "require": "./dist/core/layout/index.cjs"
+      "import": "./dist/core/layout/index.mjs"
     },
     "./gestures": {
       "types": "./dist/core/gestures/index.d.ts",
-      "import": "./dist/core/gestures/index.mjs",
-      "require": "./dist/core/gestures/index.cjs"
+      "import": "./dist/core/gestures/index.mjs"
     },
     "./components": {
       "types": "./dist/components/index.d.ts",
-      "import": "./dist/components/index.mjs",
-      "require": "./dist/components/index.cjs"
+      "import": "./dist/components/index.mjs"
     },
     "./components/*/constants": {
       "types": "./dist/components/*/constants.d.ts",
-      "import": "./dist/components/*/constants.mjs",
-      "require": "./dist/components/*/constants.cjs"
+      "import": "./dist/components/*/constants.mjs"
     },
     "./styles": "./dist/styles.css"
   },
@@ -71,7 +66,7 @@
   "author": "floor",
   "license": "MIT",
   "peerDependencies": {
-    "mtrl": "^0.10.0-next.0"
+    "mtrl": "^1.0.0"
   },
   "devDependencies": {
     "@types/jsdom": "^21.1.7",
