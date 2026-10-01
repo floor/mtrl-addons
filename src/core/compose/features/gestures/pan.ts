@@ -4,9 +4,9 @@
  * @description Adds pan gesture recognition to components
  */
 
-import type { BaseComponent, ElementComponent } from "mtrl";
+import type { BaseComponent, ElementComponent } from "mtrl/core/compose";
 import { PanEvent, GestureHandler } from "../../../gestures";
-import { hasLifecycle, hasEmit } from "mtrl";
+import { hasLifecycle, hasEmit } from "mtrl/core/compose";
 
 /**
  * Configuration for pan gesture feature
