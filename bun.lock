@@ -16,7 +16,7 @@
         "typescript": "^5.8.0",
       },
       "peerDependencies": {
-        "mtrl": "^0.10.0-next.0",
+        "mtrl": "^1.0.0",
       },
     },
   },
