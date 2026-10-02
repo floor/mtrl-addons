@@ -48,6 +48,10 @@ package root.
 
 For mtrl 0.10.5, which writes "text field" as two words.
 
+Note, 2026-10-02: the release this entry calls mtrl 1.0 was published as
+material 3.0.0, and the mtrl-addons 1.0 it names as material-addons 3.0.0.
+The entry is kept as it was published.
+
 ### Breaking changes
 
 - The peer range is mtrl ^0.10.5 (it was ^0.10.0-next.0). mtrl-addons
