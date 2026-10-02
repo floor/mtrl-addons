@@ -6,16 +6,17 @@ import { fileURLToPath } from "url";
 import { watch } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT_DIR = join(__dirname, "..");
 const isWatch = process.argv.includes("--watch");
 const isProduction =
   process.argv.includes("--production") ||
   process.env.NODE_ENV === "production";
 
 // Define consistent output paths
-const DIST_DIR = join(__dirname, "dist");
+const DIST_DIR = join(ROOT_DIR, "dist");
 const MJS_OUTPUT = join(DIST_DIR, "index.mjs");
 const CSS_OUTPUT = join(DIST_DIR, "styles.css");
-const STYLES_ENTRY = join(__dirname, "src/styles/index.scss");
+const STYLES_ENTRY = join(ROOT_DIR, "src/styles/index.scss");
 
 // Granular module entry points for tree-shaking
 const MODULES = [
@@ -85,7 +86,7 @@ const buildStyles = async () => {
     }
 
     const sassProcess = Bun.spawn(["npx", ...sassArgs], {
-      cwd: __dirname,
+      cwd: ROOT_DIR,
       stdio: ["inherit", "pipe", "pipe"],
     });
 
@@ -137,8 +138,8 @@ const buildStyles = async () => {
 };
 
 const buildModule = async (module) => {
-  const entryPath = join(__dirname, module.entry);
-  const outDir = join(__dirname, module.outDir);
+  const entryPath = join(ROOT_DIR, module.entry);
+  const outDir = join(ROOT_DIR, module.outDir);
   const basename = module.basename ?? "index";
 
   // Skip if entry doesn't exist
@@ -189,7 +190,7 @@ const buildApp = async () => {
     // ESM only, as material 3 (its subpaths have no require condition)
     // Build ESM version
     const esmResult = await Bun.build({
-      entrypoints: [join(__dirname, "src/index.ts")],
+      entrypoints: [join(ROOT_DIR, "src/index.ts")],
       outdir: DIST_DIR,
       minify: isProduction,
       sourcemap: isProduction ? "none" : "inline",
@@ -232,7 +233,7 @@ const buildApp = async () => {
       const tscProcess = Bun.spawn(
         ["tsc", "--emitDeclarationOnly", "--outDir", DIST_DIR],
         {
-          cwd: __dirname,
+          cwd: ROOT_DIR,
           stdio: ["inherit", "pipe", "pipe"],
         },
       );
@@ -356,7 +357,7 @@ const build = async () => {
       console.log("└───────────────────────────────────────────────");
 
       // Watch src directory for changes
-      const srcDir = join(__dirname, "src");
+      const srcDir = join(ROOT_DIR, "src");
       let debounceTimer = null;
       let isBuilding = false;
 

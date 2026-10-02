@@ -38,9 +38,9 @@
     "src/styles"
   ],
   "scripts": {
-    "build": "bun run ./build.js",
+    "build": "bun run ./scripts/build.js",
     "build:app": "bun run ../mtrl-app/build.js",
-    "dev": "bun run ./build.js --watch",
+    "dev": "bun run ./scripts/build.js --watch",
     "ts:check": "tsc --noEmit -p tsconfig.check.json",
     "bench": "ADDONS_BENCH=1 bun test test/benchmarks/",
     "test": "bun test",
