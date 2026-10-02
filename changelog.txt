@@ -3,6 +3,24 @@ initial commit → latest
 239 commits · Apr 30, 2025 – Sep 16, 2026
 
 
+Unreleased
+
+  For mtrl 0.10.5, which writes "text field" as two words.
+
+  Breaking changes
+
+  - The peer range is mtrl ^0.10.5 (it was ^0.10.0-next.0). mtrl-addons
+    now imports createTextField, which mtrl exports from 0.10.5; an
+    older mtrl no longer satisfies the range. Upgrade mtrl to 0.10.5.
+
+  Changed
+
+  - The colour picker's hex field is made with createTextField, and
+    the README's and the form's examples use it. mtrl 0.10.5 deprecates
+    createTextfield, and mtrl 1.0 removes it.
+  - The form's doc example gives its chips a label, not a text: mtrl
+    1.0 removes a chip's text.
+
 0.8.0
 
   vlist and the viewport leave the package. mtrl-addons is the layout
