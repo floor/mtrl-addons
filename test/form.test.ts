@@ -1428,7 +1428,9 @@ describe("Form setData modified state", () => {
     ) as any;
     const saveDisabled = () =>
       (submit.element as HTMLButtonElement).disabled;
-    return { form, name, events, saveDisabled };
+    const cancelDisabled = () =>
+      (cancel.element as HTMLButtonElement).disabled;
+    return { form, name, events, saveDisabled, cancelDisabled };
   };
 
   const typeInto = (field: { input: HTMLInputElement }, value: string) => {
@@ -1622,6 +1624,32 @@ describe("Form setData modified state", () => {
       stateChange: [],
       modifiedTrue: 0,
       saveDisabled: true,
+      dataSet: 0,
+    });
+  });
+
+  it("silent setData on an edited form disables Save and Cancel", async () => {
+    // A user edit enables Save. Loading the next record moves the
+    // baseline and must tell the controls: one state:change, modified
+    // false. data:set stays silent.
+    const { form, name, events, saveDisabled, cancelDisabled } = await make();
+    typeInto(name, "Ada");
+    expect(saveDisabled()).toBe(false);
+    events.length = 0;
+    form.setData({ name: "Grace" }, true);
+
+    expect({
+      modified: form.isModified(),
+      stateChange: stateChanges(events),
+      saveDisabled: saveDisabled(),
+      cancelDisabled: cancelDisabled(),
+      dataSet: events.filter((entry) => entry.event === FORM_EVENTS.DATA_SET)
+        .length,
+    }).toEqual({
+      modified: false,
+      stateChange: [{ modified: false, state: DATA_STATE.PRISTINE }],
+      saveDisabled: true,
+      cancelDisabled: true,
       dataSet: 0,
     });
   });
