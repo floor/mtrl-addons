@@ -4,10 +4,10 @@
  * @description Adds rotate gesture recognition to components
  */
 
-import type { BaseComponent, ElementComponent } from "mtrl/core/compose";
+import type { BaseComponent, ElementComponent } from "mtrl";
 import { RotateEvent, GestureHandler } from "../../../gestures";
 import { getAngle } from "../../../gestures/utils";
-import { hasLifecycle, hasEmit } from "mtrl/core/compose";
+import { hasLifecycle, hasEmit } from "mtrl";
 
 /**
  * Extend the RotateEvent interface to support our custom event types

@@ -4,9 +4,9 @@
  * @description Adds tap gesture recognition to components
  */
 
-import type { BaseComponent, ElementComponent } from "mtrl/core/compose";
+import type { BaseComponent, ElementComponent } from "mtrl";
 import { TapEvent, GestureHandler } from "../../../gestures";
-import { hasLifecycle, hasEmit } from "mtrl/core/compose";
+import { hasLifecycle, hasEmit } from "mtrl";
 
 /**
  * Configuration for tap gesture feature

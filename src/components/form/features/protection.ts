@@ -15,7 +15,7 @@ import type {
   DataConflictEvent,
 } from "../types";
 import { FORM_EVENTS } from "../constants";
-import type { EventCallback } from "mtrl/core/state";
+import type { EventCallback } from "mtrl";
 
 /**
  * Normalizes protection config to a consistent object format
