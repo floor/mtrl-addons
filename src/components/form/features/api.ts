@@ -20,7 +20,7 @@ import type {
   FieldValue,
 } from "../types";
 import { FORM_EVENTS } from "../constants";
-import type { EventCallback } from "mtrl";
+import type { EventCallback } from "material/core/state";
 
 /**
  * Wires up click handlers for control buttons (submit, cancel)

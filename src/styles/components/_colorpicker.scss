@@ -1,10 +1,10 @@
 // src/styles/components/_colorpicker.scss
 // ColorPicker component styles
-@use "mtrl/src/styles/abstract/base" as base;
-@use "mtrl/src/styles/abstract/variables" as v;
-@use "mtrl/src/styles/abstract/mixins" as m;
-@use "mtrl/src/styles/abstract/functions" as f;
-@use "mtrl/src/styles/abstract/theme" as t;
+@use "material/src/styles/abstract/base" as base;
+@use "material/src/styles/abstract/variables" as v;
+@use "material/src/styles/abstract/mixins" as m;
+@use "material/src/styles/abstract/functions" as f;
+@use "material/src/styles/abstract/theme" as t;
 @use "sass:map";
 
 // ============= Variables =============
@@ -202,11 +202,11 @@ $_prefix: base.$prefix;
 
 // Textfield in value row
 .#{$_prefix}-colorpicker__value {
-    .#{$_prefix}-textfield {
+    .#{$_prefix}-text-field {
         flex: 1;
         min-width: 0;
 
-        .#{$_prefix}-textfield__input {
+        .#{$_prefix}-text-field__input {
             font-family: monospace;
             text-transform: uppercase;
             letter-spacing: 0.5px;

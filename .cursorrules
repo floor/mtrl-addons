@@ -1,15 +1,15 @@
-# mtrl-addons Package Development Rules
+# material-addons Package Development Rules
 
 ## Package Overview
 
-mtrl-addons is an extension library for the mtrl Material Design 3 component system, providing specialized elements and extended functionality for modern applications. It maintains the same "less is more" philosophy with zero external dependencies (mtrl as peer dependency only).
+material-addons is an extension library for material, the Material Design 3 component system, providing specialized elements and extended functionality for modern applications. It maintains the same "less is more" philosophy with zero external dependencies (material as peer dependency only).
 
 ## Environment & Architecture
 
-- Part of workspace alongside mtrl and mtrl-app packages
+- Part of workspace alongside material and mtrl-app packages
 - mtrl-app serves as the information hub with documentation and showcases
-- Follows mtrl core architecture patterns and conventions
-- Primary dependency: mtrl
+- Follows material core architecture patterns and conventions
+- Primary dependency: material
 
 ## Development Philosophy
 
@@ -21,9 +21,9 @@ mtrl-addons is an extension library for the mtrl Material Design 3 component sys
 
 ## Pre-Development Checklist
 
-1. Check if functionality already exists in mtrl (mtrl/src/core)
-2. Check mtrl styles system (mtrl/src/styles) before creating new styles
-3. Create tests first (mtrl-addons/test/) - test-driven development
+1. Check if functionality already exists in material (material/src/core)
+2. Check material styles system (material/src/styles) before creating new styles
+3. Create tests first (material-addons/test/) - test-driven development
 4. Use mtrl-app/docs for all documentation (no .md files in this package)
 
 ## Code Standards
@@ -31,7 +31,7 @@ mtrl-addons is an extension library for the mtrl Material Design 3 component sys
 ### TypeScript & Structure
 
 - Use TypeScript for all components
-- Follow mtrl component and core structure conventions
+- Follow material component and core structure conventions
 - Use pipe pattern for core and component composition
 - Add comprehensive TypeDoc comments for all public APIs
 - Maintain zero external dependencies policy
@@ -40,7 +40,7 @@ mtrl-addons is an extension library for the mtrl Material Design 3 component sys
 
 - No inline CSS - use external SCSS files in src/styles/
 - Follow BEM naming: mtrl-component\_\_element--modifier
-- Use mtrl styles system as foundation
+- Use material styles system as foundation
 
 ### File Management
 
@@ -54,7 +54,7 @@ mtrl-addons is an extension library for the mtrl Material Design 3 component sys
 
 ### Component Development
 
-- Follow established mtrl component patterns (config, types, constants, features)
+- Follow established material component patterns (config, types, constants, features)
 - Always use functional composition over class inheritance
 - Implement proper lifecycle management
 - Ensure accessibility compliance - this is important!
@@ -71,7 +71,7 @@ mtrl-addons is an extension library for the mtrl Material Design 3 component sys
 ## Showcase & Documentation
 
 - Create showcases in mtrl-app/client/content only and follow the hierarchy
-- Always use mtrl components via layout system (mtrl-app/docs/layout/usages.md)
+- Always use material components via layout system (mtrl-app/docs/layout/usages.md)
 - Prefer array-based layout schema
 - Format schema following the formatting convention (mtrl-app/docs/core/layout/array-schema.md)
 - Avoid manual DOM element creation in showcases
@@ -86,7 +86,7 @@ mtrl-addons is an extension library for the mtrl Material Design 3 component sys
 - Do not start development servers (bun/node)
 - Follow conventional commit format
 - Use `bun run build` for package builds
-- Ensure compatibility with both ES modules and CommonJS
+- The package is ESM-only: import it, do not require() it
 
 ## Performance & Optimization
 
@@ -98,10 +98,10 @@ mtrl-addons is an extension library for the mtrl Material Design 3 component sys
 
 ## Extension Development
 
-- Build upon mtrl core without duplicating functionality
-- Create specialized components not found in base mtrl package
-- Ensure seamless integration with mtrl component ecosystem
-- Maintain API consistency with mtrl patterns
+- Build upon material core without duplicating functionality
+- Create specialized components not found in base material package
+- Ensure seamless integration with material component ecosystem
+- Maintain API consistency with material patterns
 - Design for modularity - components should be importable individually
 
 ## Prohibited Actions
@@ -110,7 +110,7 @@ mtrl-addons is an extension library for the mtrl Material Design 3 component sys
 - Do not create markdown documentation for enhancements
 - Do not run server commands
 - Do not create workarounds or hacks
-- Do not duplicate mtrl core functionality
+- Do not duplicate material core functionality
 - Do not enhance during bug fixes - stay focused on the issue
 - Do not harcode prefix
 - Do not use global Window object to store things

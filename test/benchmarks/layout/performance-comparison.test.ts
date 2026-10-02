@@ -68,7 +68,7 @@ import {
   createLayout,
   performance as addonsPerformance,
 } from "../../../src/core/layout";
-import { createButton, createTextField, createCard } from "mtrl";
+import { createButton, createTextField, createCard } from "material";
 
 benchmark("Performance Comparison: Mock vs Real Components", () => {
   describe("Mock Components Baseline", () => {
@@ -251,7 +251,7 @@ benchmark("Performance Comparison: Mock vs Real Components", () => {
         `   ✅ Real component overhead is minimal (10-15x vs expected 100-300x)`
       );
       console.log(
-        `   ✅ mtrl-addons layout system maintains performance with real components`
+        `   ✅ material-addons layout system maintains performance with real components`
       );
       console.log(`   ✅ Fragment pooling and class caching work excellently`);
       console.log(`   ✅ Sub-millisecond performance for complex layouts`);
@@ -264,7 +264,7 @@ benchmark("Performance Comparison: Mock vs Real Components", () => {
       console.log(`   • Layout system overhead: <1% of frame budget`);
 
       console.log(`\n🚀 Conclusion:`);
-      console.log(`   The mtrl-addons layout system + real mtrl components`);
+      console.log(`   The material-addons layout system + real mtrl components`);
       console.log(
         `   deliver exceptional performance for production applications!`
       );

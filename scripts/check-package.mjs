@@ -12,16 +12,16 @@ const run = (command, args, cwd) => {
 
 // Exercise the tarball consumers receive, outside the source checkout.
 const root = process.cwd();
-const fixture = mkdtempSync(join(tmpdir(), "mtrl-addons-package-"));
+const fixture = mkdtempSync(join(tmpdir(), "material-addons-package-"));
 try {
   const result = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--cache", join(fixture, "cache"), "--pack-destination", fixture], root));
   // npm 11 returns an array; npm 12 keys the results by package name.
   const [packed] = Array.isArray(result) ? result : Object.values(result);
   const modules = join(fixture, "node_modules");
-  const addon = join(modules, "mtrl-addons");
+  const addon = join(modules, "material-addons");
   mkdirSync(addon, { recursive: true });
   run("tar", ["-xzf", join(fixture, packed.filename), "--strip-components=1", "-C", addon], root);
-  symlinkSync(resolve(root, "node_modules/mtrl"), join(modules, "mtrl"), "junction");
+  symlinkSync(resolve(root, "node_modules/material"), join(modules, "material"), "junction");
   const pkg = JSON.parse(readFileSync(join(addon, "package.json"), "utf8"));
   const specifiers = [];
   for (const [entry, conditions] of Object.entries(pkg.exports)) {
@@ -42,12 +42,12 @@ try {
     const require = createRequire(import.meta.url);
     for (const specifier of ${JSON.stringify(specifiers)}) {
       const esm = await import(specifier);
-      const cjs = require(specifier);
       assert.ok(Object.keys(esm).length, specifier + ' has no exports');
-      assert.deepEqual(Object.keys(cjs).sort(), Object.keys(esm).sort(), specifier);
+      // ESM only, as material 3: no require condition, so require does not resolve
+      assert.throws(() => require(specifier), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' }, specifier);
     }
   `], fixture);
-  console.log(`Packed ${pkg.name}@${pkg.version}: ${specifiers.length} entry points passed ESM/CommonJS checks; types and CSS exist.`);
+  console.log(`Packed ${pkg.name}@${pkg.version}: ${specifiers.length} entry points import as ESM and refuse require; types and CSS exist.`);
 } finally {
   rmSync(fixture, { recursive: true, force: true });
 }

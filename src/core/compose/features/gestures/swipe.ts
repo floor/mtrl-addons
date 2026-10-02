@@ -4,13 +4,13 @@
  * @description Adds swipe gesture recognition to components
  */
 
-import type { BaseComponent, ElementComponent } from "mtrl";
+import type { BaseComponent, ElementComponent } from "material/core/compose";
 import {
   SwipeEvent,
   SWIPE_DIRECTIONS,
   GestureHandler,
 } from "../../../gestures";
-import { hasLifecycle, hasEmit } from "mtrl";
+import { hasLifecycle, hasEmit } from "material/core/compose";
 
 /**
  * Configuration for swipe gesture feature

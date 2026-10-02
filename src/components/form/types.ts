@@ -1,7 +1,7 @@
 // src/components/form/types.ts
 
 import type { DATA_STATE, FORM_EVENTS } from "./constants";
-import type { EventCallback } from "mtrl";
+import type { EventCallback } from "material/core/state";
 
 /**
  * Configuration for form change protection

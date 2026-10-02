@@ -313,8 +313,8 @@ describe("Form Field Utilities", () => {
     input.value = "";
 
     const element = document.createElement("div");
-    element.classList.add("mtrl-textfield");
-    element.classList.add("mtrl-textfield--empty");
+    element.classList.add("mtrl-text-field");
+    element.classList.add("mtrl-text-field--empty");
 
     const mockTextfield = {
       element,
@@ -330,12 +330,12 @@ describe("Form Field Utilities", () => {
     // Silent update should set value and remove --empty class
     setFieldValue(mockTextfield as any, "Hello", true);
     expect(input.value).toBe("Hello");
-    expect(element.classList.contains("mtrl-textfield--empty")).toBe(false);
+    expect(element.classList.contains("mtrl-text-field--empty")).toBe(false);
 
     // Setting empty value should add --empty class back
     setFieldValue(mockTextfield as any, "", true);
     expect(input.value).toBe("");
-    expect(element.classList.contains("mtrl-textfield--empty")).toBe(true);
+    expect(element.classList.contains("mtrl-text-field--empty")).toBe(true);
   });
 });
 
@@ -707,7 +707,7 @@ describe("Reset Tracker Sync", () => {
     textInput.value = "hello";
 
     const textElement = document.createElement("div");
-    textElement.classList.add("mtrl-textfield");
+    textElement.classList.add("mtrl-text-field");
 
     const mockTextfield = {
       element: textElement,
@@ -758,10 +758,9 @@ describe("Reset Tracker Sync", () => {
     // Clear the form
     form.clear();
 
-    // After clear, initialData is {} but the DOM input reads "" (null → ""),
-    // so isModified() may return true — that's a pre-existing quirk of clear().
-    // What matters here is that the tracker was synced so subsequent changes
-    // are not silently deduplicated.
+    // clear() writes null, and this text input stores that as "". The modified
+    // check treats null, undefined and "" as one empty value, so isModified()
+    // stays false. The tracker is synced so the next edit is not dropped.
 
     emittedEvents.length = 0;
 
@@ -1166,5 +1165,174 @@ describe("Form Validation", () => {
 
     expect(fieldErrorState?.error).toBe(false);
     expect(Object.keys(form.state.errors).length).toBe(0);
+  });
+});
+
+describe("Select field", () => {
+  const formWithSelect = async (shape: "0.10" | "1.0") => {
+    const { withFields } =
+      await import("../src/components/form/features/fields");
+    const { withData } = await import("../src/components/form/features/data");
+
+    let value: string | null = "red";
+    const setValueCalls: Array<string | null> = [];
+    const changeHandlers: Array<() => void> = [];
+    const element = document.createElement("div");
+
+    const field: Record<string, unknown> = {
+      element,
+      getValue() {
+        return value;
+      },
+      setValue(next: string | null) {
+        setValueCalls.push(next);
+        value = next;
+      },
+      getOptions() {
+        return [
+          { id: "red", text: "Red" },
+          { id: "blue", text: "Blue" },
+        ];
+      },
+      on(event: string, handler: () => void) {
+        if (event === "change" || event === "input") changeHandlers.push(handler);
+      },
+    };
+
+    // 0.10 publishes textfield and menu. 1.0 publishes textField and no menu.
+    // Neither shape has an input of its own; that lives on the text field.
+    if (shape === "0.10") {
+      field.textfield = {};
+      field.menu = {};
+    } else {
+      field.textField = {};
+    }
+
+    const emitted: Array<{ event: string; data: { name: string; value: unknown } }> =
+      [];
+    const eventHandlers: Record<string, Array<(data: unknown) => void>> = {};
+    const host = {
+      element: document.createElement("div"),
+      ui: { "info.colour": field },
+      emit(event: string, data: { name: string; value: unknown }) {
+        emitted.push({ event, data });
+        eventHandlers[event]?.forEach((handler) => handler(data));
+      },
+      on(event: string, handler: (data: unknown) => void) {
+        (eventHandlers[event] ??= []).push(handler);
+      },
+    };
+
+    const form = withData({})(withFields({})(host as any) as any);
+    return {
+      form,
+      field,
+      emitted,
+      changeHandlers,
+      setValueCalls,
+      store(next: string | null) {
+        value = next;
+      },
+    };
+  };
+
+  for (const shape of ["0.10", "1.0"] as const) {
+    it(`getData, setFieldValue and change on a ${shape} select`, async () => {
+      const { form, field, emitted, changeHandlers, setValueCalls, store } =
+        await formWithSelect(shape);
+
+      expect("textfield" in field && "menu" in field).toBe(shape === "0.10");
+      expect(typeof field.getOptions).toBe("function");
+      expect(form.getData()).toEqual({ colour: "red" });
+
+      store("blue");
+      changeHandlers.forEach((handler) => handler());
+      const changes = emitted.filter((event) => event.event === "change");
+      expect(changes).toEqual([
+        { event: "change", data: { name: "colour", value: "blue" } },
+      ]);
+      expect(form.getData()).toEqual({ colour: "blue" });
+
+      form.setFieldValue("colour", "red");
+      expect(setValueCalls).toEqual(["red"]);
+      expect(form.getData()).toEqual({ colour: "red" });
+
+      // Silent. The 1.0 object fails the old textfield+menu check and has no
+      // input, so this still reaches setValue: that check is dead, not wrong.
+      setValueCalls.length = 0;
+      form.setFieldValue("colour", "blue", true);
+      expect(setValueCalls).toEqual(["blue"]);
+      expect(form.getData()).toEqual({ colour: "blue" });
+    });
+  }
+});
+
+describe("Radios null", () => {
+  it("pins an empty radios field: null and '' leave no modified data", async () => {
+    const { withFields } =
+      await import("../src/components/form/features/fields");
+    const { withData } = await import("../src/components/form/features/data");
+
+    let value: string | null = null;
+    const changeHandlers: Array<() => void> = [];
+    const field = {
+      element: document.createElement("div"),
+      getValue() {
+        return value;
+      },
+      setValue(next: string | null) {
+        value = next;
+      },
+      on(event: string, handler: () => void) {
+        if (event === "change" || event === "input") changeHandlers.push(handler);
+      },
+    };
+
+    const emitted: Array<{ event: string; data: { name?: string; value?: unknown } }> =
+      [];
+    const eventHandlers: Record<string, Array<(data: unknown) => void>> = {};
+    const host = {
+      element: document.createElement("div"),
+      ui: { "info.tone": field },
+      emit(event: string, data: { name?: string; value?: unknown }) {
+        emitted.push({ event, data });
+        eventHandlers[event]?.forEach((handler) => handler(data));
+      },
+      on(event: string, handler: (data: unknown) => void) {
+        (eventHandlers[event] ??= []).push(handler);
+      },
+    };
+
+    const form = withData({})(withFields({})(host as any) as any);
+
+    form.setData({ tone: null }, true);
+    expect(form.isModified()).toBe(false);
+    expect(form.getData()).toEqual({ tone: null });
+
+    form.setFieldValue("tone", "");
+    expect(form.getData()).toEqual({ tone: "" });
+    expect(form.isModified()).toBe(false);
+    expect(form.getModifiedData()).toEqual({});
+
+    form.setData({ tone: "" }, true);
+    expect(form.isModified()).toBe(false);
+    form.setFieldValue("tone", null);
+    expect(form.getData()).toEqual({ tone: null });
+    expect(form.isModified()).toBe(false);
+    expect(form.getModifiedData()).toEqual({});
+
+    form.setData({ tone: "high" }, true);
+    expect(form.isModified()).toBe(false);
+    emitted.length = 0;
+    value = null;
+    changeHandlers.forEach((handler) => handler());
+
+    const changes = emitted.filter((event) => event.event === "change");
+    expect(changes).toEqual([
+      { event: "change", data: { name: "tone", value: null } },
+    ]);
+    expect(form.getData()).toEqual({ tone: null });
+    expect(form.isModified()).toBe(true);
+    expect(form.getModifiedData()).toEqual({ tone: null });
   });
 });

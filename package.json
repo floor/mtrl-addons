@@ -1,40 +1,35 @@
 {
-  "name": "mtrl-addons",
-  "version": "0.9.0",
-  "description": "Additional components and utilities for the mtrl system, featuring forms, specialized elements, and extended functionality for modern applications",
+  "name": "material-addons",
+  "version": "3.0.0-next.0",
+  "description": "Additional components and utilities for the material system, featuring forms, specialized elements, and extended functionality for modern applications",
   "type": "module",
   "sideEffects": [
     "**/*.css",
     "**/*.scss"
   ],
-  "main": "./dist/index.cjs",
+  "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": "./dist/index.mjs"
     },
     "./layout": {
       "types": "./dist/core/layout/index.d.ts",
-      "import": "./dist/core/layout/index.mjs",
-      "require": "./dist/core/layout/index.cjs"
+      "import": "./dist/core/layout/index.mjs"
     },
     "./gestures": {
       "types": "./dist/core/gestures/index.d.ts",
-      "import": "./dist/core/gestures/index.mjs",
-      "require": "./dist/core/gestures/index.cjs"
+      "import": "./dist/core/gestures/index.mjs"
     },
     "./components": {
       "types": "./dist/components/index.d.ts",
-      "import": "./dist/components/index.mjs",
-      "require": "./dist/components/index.cjs"
+      "import": "./dist/components/index.mjs"
     },
     "./components/*/constants": {
       "types": "./dist/components/*/constants.d.ts",
-      "import": "./dist/components/*/constants.mjs",
-      "require": "./dist/components/*/constants.cjs"
+      "import": "./dist/components/*/constants.mjs"
     },
     "./styles": "./dist/styles.css"
   },
@@ -43,10 +38,10 @@
     "src/styles"
   ],
   "scripts": {
-    "build": "bun run ./build.js",
+    "build": "bun run ./scripts/build.js",
     "build:app": "bun run ../mtrl-app/build.js",
-    "dev": "bun run ./build.js --watch",
-    "ts:check": "tsc --noEmit -p tsconfig.check.json",
+    "dev": "bun run ./scripts/build.js --watch",
+    "ts:check": "tsc --noEmit -p scripts/tsconfig.check.json",
     "bench": "ADDONS_BENCH=1 bun test test/benchmarks/",
     "test": "bun test",
     "prepublishOnly": "bun run ts:check && bun test && bun run build --production && bun run check:package",
@@ -54,12 +49,12 @@
     "server:stop": "pm2 stop mtrl-app",
     "server:reload": "pm2 restart mtrl-app",
     "server:logs": "pm2 logs mtrl-app",
-    "link:mtrl": "rm -rf node_modules/mtrl && ln -sf ../../mtrl node_modules/mtrl",
+    "link:material": "rm -rf node_modules/material && ln -sf ../../material node_modules/material",
     "check:package": "node scripts/check-package.mjs"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/floor/mtrl-addons.git"
+    "url": "git+https://github.com/floor/material-addons.git"
   },
   "keywords": [
     "mtrl",
@@ -71,7 +66,7 @@
   "author": "floor",
   "license": "MIT",
   "peerDependencies": {
-    "mtrl": "^0.10.5"
+    "material": "^3.0.0-next.0"
   },
   "devDependencies": {
     "@types/jsdom": "^21.1.7",
@@ -79,9 +74,13 @@
     "bun-types": "^1.0.0",
     "jsdom": "^26.1.0",
     "madge": "^8.0.0",
-    "mtrl": "0.10.5",
+    "material": "3.0.0-next.0",
     "sass": "^1.94.2",
     "standard": "^17.0.0",
     "typescript": "^5.8.0"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/floor/material-addons/issues"
+  },
+  "homepage": "https://github.com/floor/material-addons#readme"
 }

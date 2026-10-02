@@ -1,6 +1,6 @@
 // src/components/colorpicker/config.ts
 
-import type { withElement } from "mtrl";
+import type { withElement } from "material/core/compose";
 import {
   COLORPICKER_DEFAULTS,
   COLORPICKER_SIZES,

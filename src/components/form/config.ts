@@ -128,6 +128,13 @@ export const isValueEqual = (a: unknown, b: unknown): boolean => {
 };
 
 /**
+ * null, undefined and "" are one empty value for the modified check only.
+ * isValueEqual stays unchanged: its other callers still tell those apart.
+ */
+const sameEmptyForModified = (left: unknown, right: unknown): boolean =>
+  (left == null || left === "") && (right == null || right === "");
+
+/**
  * Checks if form data has been modified from initial state
  */
 export const hasDataChanged = (
@@ -137,7 +144,10 @@ export const hasDataChanged = (
   const allKeys = new Set([...Object.keys(initial), ...Object.keys(current)]);
 
   for (const key of allKeys) {
-    if (!isValueEqual(initial[key], current[key])) {
+    const left = initial[key];
+    const right = current[key];
+    if (sameEmptyForModified(left, right)) continue;
+    if (!isValueEqual(left, right)) {
       return true;
     }
   }
@@ -156,8 +166,11 @@ export const getModifiedFields = (
   const allKeys = new Set([...Object.keys(initial), ...Object.keys(current)]);
 
   for (const key of allKeys) {
-    if (!isValueEqual(initial[key], current[key])) {
-      modified[key] = current[key];
+    const left = initial[key];
+    const right = current[key];
+    if (sameEmptyForModified(left, right)) continue;
+    if (!isValueEqual(left, right)) {
+      modified[key] = right;
     }
   }
 

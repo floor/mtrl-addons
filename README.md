@@ -1,8 +1,12 @@
-# mtrl-addons
+# material-addons
 
-> Extended components and utilities for the [mtrl](https://github.com/nicholasgriffintn/mtrl) Material Design 3 component library
+> Extended components and utilities for [material](https://github.com/nicholasgriffintn/mtrl), a Material Design 3 component library
 
-mtrl-addons provides high-performance, specialized components and core systems that extend mtrl's capabilities for building modern web applications. Built with the same functional composition philosophy and zero external dependencies (except mtrl as a peer dependency).
+material-addons provides high-performance, specialized components and core systems that extend material's capabilities for building modern web applications. Built with the same functional composition philosophy and zero external dependencies (except material as a peer dependency).
+
+## Where this came from
+
+Published as `mtrl-addons` up to 0.9.x, for `mtrl` 0.10.x. This is its continuation for `material` 3.
 
 ## Features
 
@@ -16,39 +20,38 @@ mtrl-addons provides high-performance, specialized components and core systems t
 
 ```bash
 # npm
-npm install mtrl-addons mtrl
+npm install material-addons material
 
 # yarn
-yarn add mtrl-addons mtrl
+yarn add material-addons material
 
 # bun
-bun add mtrl-addons mtrl
+bun add material-addons material
 ```
 
-mtrl-addons 0.9.x is for mtrl 0.10.x only: it needs mtrl 0.10.5 or a later 0.10 release (the
-peer range is `^0.10.5`, which excludes mtrl 1.0, an ESM-only release). mtrl 1.0 needs
-mtrl-addons 1.0.
+The peer range is `material` ^3.0.0-next.0. `material@3.0.0-next.0` is not on npm yet, so this
+package is not installable from the registry until that version is published. The 3.0.0 release moves the peer to `^3.0.0`.
 
 ## Quick Start
 
 ```javascript
-import { createForm, createColorPicker } from 'mtrl-addons';
+import { createForm, createColorPicker } from 'material-addons';
 ```
 
 ## Tree-Shaking Optimized Imports
 
-mtrl-addons is optimized for tree-shaking. Constants are exported separately from component creators to minimize bundle size.
+material-addons is optimized for tree-shaking. Constants are exported separately from component creators to minimize bundle size.
 
 ### Import Patterns
 
 | Import Type | Path |
 |-------------|------|
-| Component creators | `import { createColorPicker } from 'mtrl-addons'` |
-| ColorPicker constants | `import { COLORPICKER_EVENTS } from 'mtrl-addons/components/colorpicker/constants'` |
-| Form constants | `import { FORM_EVENTS, DATA_STATE } from 'mtrl-addons/components/form/constants'` |
-| Color utilities | `import { hsvToRgb, rgbToHex } from 'mtrl-addons'` |
-| Layout system | `import { createLayout } from 'mtrl-addons/layout'` |
-| Gestures | `import { createGestureManager } from 'mtrl-addons/gestures'` |
+| Component creators | `import { createColorPicker } from 'material-addons'` |
+| ColorPicker constants | `import { COLORPICKER_EVENTS } from 'material-addons/components/colorpicker/constants'` |
+| Form constants | `import { FORM_EVENTS, DATA_STATE } from 'material-addons/components/form/constants'` |
+| Color utilities | `import { hsvToRgb, rgbToHex } from 'material-addons'` |
+| Layout system | `import { createLayout } from 'material-addons/layout'` |
+| Gestures | `import { createGestureManager } from 'material-addons/gestures'` |
 
 ---
 
@@ -69,8 +72,8 @@ Functional form builder with declarative field configuration, validation, and st
 #### Basic Usage
 
 ```javascript
-import { createForm } from 'mtrl-addons';
-import { FORM_EVENTS, DATA_STATE } from 'mtrl-addons/components/form/constants';
+import { createForm } from 'material-addons';
+import { FORM_EVENTS, DATA_STATE } from 'material-addons/components/form/constants';
 
 const form = createForm({
   fields: [
@@ -144,8 +147,8 @@ Full-featured color picker with HSV color area, hue slider, swatches, and multip
 #### Basic Usage
 
 ```javascript
-import { createColorPicker } from 'mtrl-addons';
-import { COLORPICKER_EVENTS, COLORPICKER_VARIANTS } from 'mtrl-addons/components/colorpicker/constants';
+import { createColorPicker } from 'material-addons';
+import { COLORPICKER_EVENTS, COLORPICKER_VARIANTS } from 'material-addons/components/colorpicker/constants';
 
 // Inline picker (always visible)
 const picker = createColorPicker({
@@ -217,11 +220,11 @@ const pickedColor = await picker.pickColor();
 
 ### Layout System
 
-Flexible array-based layout schemas for declarative UI construction. Supports mtrl components, HTML elements, and nested structures.
+Flexible array-based layout schemas for declarative UI construction. Supports material components, HTML elements, and nested structures.
 
 ```javascript
-import { createLayout } from 'mtrl-addons/layout';
-import { createButton, createTextField } from 'mtrl';
+import { createLayout } from 'material-addons/layout';
+import { createButton, createTextField } from 'material';
 
 // Array-based schema
 const layout = createLayout([
@@ -253,7 +256,7 @@ document.body.appendChild(layout.element);
 #### Convenience Functions
 
 ```javascript
-import { layout, row, stack, grid } from 'mtrl-addons/layout';
+import { layout, row, stack, grid } from 'material-addons/layout';
 
 // Vertical stack
 const stackLayout = stack({ gap: '1rem' });
@@ -272,7 +275,7 @@ const gridLayout = grid('auto-fit', { gap: '1rem' });
 Touch and mouse gesture recognition with support for tap, swipe, long-press, pinch, rotate, and pan.
 
 ```javascript
-import { createGestureManager } from 'mtrl-addons/gestures';
+import { createGestureManager } from 'material-addons/gestures';
 
 const gestures = createGestureManager(element, {
   // Tap detection
@@ -323,7 +326,7 @@ gestures.destroy();
 #### Individual Gesture Detectors
 
 ```javascript
-import { detectTap, detectSwipe, detectPinch } from 'mtrl-addons/gestures';
+import { detectTap, detectSwipe, detectPinch } from 'material-addons/gestures';
 
 // Use specific detectors for lighter bundles
 const tapDetector = detectTap(element, { onTap: handleTap });
@@ -347,7 +350,7 @@ import {
   isValidHex,
   normalizeHex,
   getContrastColor
-} from 'mtrl-addons';
+} from 'material-addons';
 
 // HSV ↔ RGB
 const rgb = hsvToRgb({ h: 200, s: 80, v: 90 }); // { r: 46, g: 184, b: 230 }
@@ -398,13 +401,13 @@ bun test
 # Watch mode
 bun run dev
 
-# Link mtrl for local development
-bun run link:mtrl
+# Link material for local development
+bun run link:material
 ```
 
 ## Browser Support
 
-mtrl-addons supports modern browsers:
+material-addons supports modern browsers:
 
 - Chrome (latest)
 - Firefox (latest)
@@ -413,11 +416,11 @@ mtrl-addons supports modern browsers:
 
 ## Peer Dependencies
 
-- `mtrl` ^0.10.5 (0.10.5 or a later 0.10.x) - Core Material Design 3 component library. mtrl-addons 0.9.x is for mtrl 0.10.x only; mtrl 1.0 needs mtrl-addons 1.0.
+- `material` ^3.0.0-next.0 - Core Material Design 3 component library. `material@3.0.0-next.0` is not on npm yet. The 3.0.0 release moves the peer to `^3.0.0`.
 
 ## Related Packages
 
-- [mtrl](https://github.com/floor/mtrl) - Core Material Design 3 component library
+- [material](https://github.com/floor/mtrl) - Core Material Design 3 component library
 - [mtrl-app](https://github.com/floor/mtrl-app) - Documentation and showcase application
 
 ## License

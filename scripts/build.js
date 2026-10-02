@@ -6,17 +6,17 @@ import { fileURLToPath } from "url";
 import { watch } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT_DIR = join(__dirname, "..");
 const isWatch = process.argv.includes("--watch");
 const isProduction =
   process.argv.includes("--production") ||
   process.env.NODE_ENV === "production";
 
 // Define consistent output paths
-const DIST_DIR = join(__dirname, "dist");
-const JS_OUTPUT = join(DIST_DIR, "index.cjs");
+const DIST_DIR = join(ROOT_DIR, "dist");
 const MJS_OUTPUT = join(DIST_DIR, "index.mjs");
 const CSS_OUTPUT = join(DIST_DIR, "styles.css");
-const STYLES_ENTRY = join(__dirname, "src/styles/index.scss");
+const STYLES_ENTRY = join(ROOT_DIR, "src/styles/index.scss");
 
 // Granular module entry points for tree-shaking
 const MODULES = [
@@ -71,7 +71,7 @@ const buildStyles = async () => {
       STYLES_ENTRY,
       CSS_OUTPUT,
       isProduction ? "--style=compressed" : "--style=expanded",
-      // mtrl's abstracts are used by @use "mtrl/src/styles/…"; it publishes
+      // material's abstracts are used by @use "material/src/styles/…"; it publishes
       // src/styles for exactly this. Without a load path sass would only find
       // them through a sibling checkout on disk, which is how this build came
       // to work on a developer's machine and nowhere else.
@@ -86,7 +86,7 @@ const buildStyles = async () => {
     }
 
     const sassProcess = Bun.spawn(["npx", ...sassArgs], {
-      cwd: __dirname,
+      cwd: ROOT_DIR,
       stdio: ["inherit", "pipe", "pipe"],
     });
 
@@ -138,8 +138,8 @@ const buildStyles = async () => {
 };
 
 const buildModule = async (module) => {
-  const entryPath = join(__dirname, module.entry);
-  const outDir = join(__dirname, module.outDir);
+  const entryPath = join(ROOT_DIR, module.entry);
+  const outDir = join(ROOT_DIR, module.outDir);
   const basename = module.basename ?? "index";
 
   // Skip if entry doesn't exist
@@ -149,18 +149,6 @@ const buildModule = async (module) => {
   }
 
   await mkdir(outDir, { recursive: true });
-
-  // Build CJS version
-  const cjsResult = await Bun.build({
-    entrypoints: [entryPath],
-    outdir: outDir,
-    minify: isProduction,
-    sourcemap: isProduction ? "none" : "inline",
-    format: "cjs",
-    naming: { entry: `${basename}.cjs` },
-    target: "node",
-    external: ["mtrl"],
-  });
 
   // Build ESM version
   const esmResult = await Bun.build({
@@ -173,19 +161,16 @@ const buildModule = async (module) => {
     naming: {
       entry: `${basename}.mjs`,
     },
-    external: ["mtrl"],
+    external: ["material"],
   });
 
-  if (!cjsResult.success || !esmResult.success) {
+  if (!esmResult.success) {
     console.error(`  ❌ ${module.name} build failed`);
     return false;
   }
 
-  const cjsSize = (await Bun.file(join(outDir, `${basename}.cjs`)).size) / 1024;
   const esmSize = (await Bun.file(join(outDir, `${basename}.mjs`)).size) / 1024;
-  console.log(
-    `  ✓ ${module.name}: CJS ${cjsSize.toFixed(1)}KB, ESM ${esmSize.toFixed(1)}KB`,
-  );
+  console.log(`  ✓ ${module.name}: ESM ${esmSize.toFixed(1)}KB`);
 
   return true;
 };
@@ -202,21 +187,10 @@ const buildApp = async () => {
     // Create dist directory if it doesn't exist
     await mkdir(DIST_DIR, { recursive: true });
 
-    // Build CJS version
-    const cjsResult = await Bun.build({
-      entrypoints: [join(__dirname, "src/index.ts")],
-      outdir: DIST_DIR,
-      minify: isProduction,
-      sourcemap: isProduction ? "none" : "inline",
-      format: "cjs",
-      naming: { entry: "index.cjs" },
-      target: "node",
-      external: ["mtrl"],
-    });
-
+    // ESM only, as material 3 (its subpaths have no require condition)
     // Build ESM version
     const esmResult = await Bun.build({
-      entrypoints: [join(__dirname, "src/index.ts")],
+      entrypoints: [join(ROOT_DIR, "src/index.ts")],
       outdir: DIST_DIR,
       minify: isProduction,
       sourcemap: isProduction ? "none" : "inline",
@@ -225,20 +199,16 @@ const buildApp = async () => {
       naming: {
         entry: "index.mjs",
       },
-      external: ["mtrl"],
+      external: ["material"],
     });
 
-    if (!cjsResult.success || !esmResult.success) {
+    if (!esmResult.success) {
       console.error("❌ JavaScript build failed");
-      console.error(cjsResult.logs);
       console.error(esmResult.logs);
       return false;
     }
 
     console.log("✓ Main bundle built");
-    console.log(
-      `  CJS bundle: ${((await Bun.file(JS_OUTPUT).size) / 1024).toFixed(2)} KB`,
-    );
     console.log(
       `  ESM bundle: ${((await Bun.file(MJS_OUTPUT).size) / 1024).toFixed(
         2,
@@ -263,7 +233,7 @@ const buildApp = async () => {
       const tscProcess = Bun.spawn(
         ["tsc", "--emitDeclarationOnly", "--outDir", DIST_DIR],
         {
-          cwd: __dirname,
+          cwd: ROOT_DIR,
           stdio: ["inherit", "pipe", "pipe"],
         },
       );
@@ -387,7 +357,7 @@ const build = async () => {
       console.log("└───────────────────────────────────────────────");
 
       // Watch src directory for changes
-      const srcDir = join(__dirname, "src");
+      const srcDir = join(ROOT_DIR, "src");
       let debounceTimer = null;
       let isBuilding = false;
 

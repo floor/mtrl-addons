@@ -2,7 +2,7 @@
 
 /**
  * Layout feature for Form component
- * Builds the form structure from a layout schema using mtrl-addons layout system
+ * Builds the form structure from a layout schema using material-addons layout system
  */
 
 import { createLayout } from "../../../core/layout";
@@ -53,7 +53,7 @@ const processLayoutSchema = (
     return { ui: {}, layoutResult: null };
   }
 
-  // Use mtrl-addons createLayout to process the schema
+  // Use material-addons createLayout to process the schema
   const layoutResult = createLayout(schema, form, {});
 
   // Extract named components from layout result

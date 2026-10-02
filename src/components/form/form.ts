@@ -3,7 +3,7 @@
 /**
  * Form Component - Functional form builder with mtrl composition
  *
- * A form component that uses the mtrl-addons layout system to build
+ * A form component that uses the material-addons layout system to build
  * forms from schema definitions, with built-in data management,
  * validation, and submission handling.
  */
@@ -11,9 +11,9 @@
 import type { FormConfig, FormComponent } from "./types";
 
 // Import mtrl compose system
-import { pipe } from "mtrl";
-import { createBase, withElement } from "mtrl";
-import { withEvents, withLifecycle } from "mtrl";
+import { pipe } from "material/core/compose";
+import { createBase, withElement } from "material/core/compose";
+import { withEvents, withLifecycle } from "material/core/compose";
 
 // Import form features
 import {
@@ -37,8 +37,8 @@ import { createBaseConfig, getElementConfig } from "./config";
  *
  * @example
  * ```typescript
- * import { createForm } from 'mtrl-addons'
- * import { createTextField, createSwitch, createChips } from 'mtrl'
+ * import { createForm } from 'material-addons'
+ * import { createTextField, createSwitch, createChips } from 'material'
  *
  * const form = createForm({
  *   class: 'account-form',

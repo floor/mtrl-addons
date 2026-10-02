@@ -979,7 +979,7 @@ benchmark("Stress Test Benchmarks", () => {
       console.log(`   • Memory management: Sustains performance under load`);
 
       console.log(
-        `\n🏆 CONCLUSION: mtrl-addons handles extreme loads efficiently!`,
+        `\n🏆 CONCLUSION: material-addons handles extreme loads efficiently!`,
       );
       console.log(
         `   Even with 100,000+ components, performance remains excellent.`,

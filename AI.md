@@ -21,17 +21,17 @@ This project uses **CLAUDE.md** as the primary development guide and documentati
   - Development philosophy and standards
   - TypeScript and SCSS guidelines
   - Testing strategy and performance benchmarks
-  - Integration with mtrl core
+  - Integration with material core
   - Git commit/push rules
 
-- **[mtrl](../mtrl/CLAUDE.md)** - Core Material Design 3 library
+- **[material](../mtrl/CLAUDE.md)** - Core Material Design 3 library
 - **[mtrl-app](../mtrl-app/.cursorrules)** - Documentation and showcase
 
 ---
 
-**Package:** mtrl-addons - Extended Components for mtrl  
-**Philosophy:** "Less is more" - Zero dependencies (mtrl peer only)  
+**Package:** material-addons - Extended Components for material  
+**Philosophy:** "Less is more" - Zero dependencies (material peer only)  
 **Key Features:** Layout schema, Form builder, Color picker, Gesture handling  
 **Documentation:** Everything you need is in CLAUDE.md
 
-Enjoy building with mtrl-addons! 🚀
+Enjoy building with material-addons! 🚀

@@ -1,6 +1,6 @@
 // src/components/colorpicker/features/input.ts
 
-import { createTextField } from "mtrl";
+import { createTextField } from "material";
 import { COLORPICKER_CLASSES, COLORPICKER_EVENTS } from "../constants";
 import { ColorPickerConfig, ColorPickerState } from "../types";
 import { isValidHex, normalizeHex, hexToHsv } from "../utils";
