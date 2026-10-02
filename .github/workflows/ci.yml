@@ -31,3 +31,7 @@ jobs:
         run: bun run build --production
       - name: Packed exports
         run: bun run check:package
+      - name: Chromium for the README's examples
+        run: npx playwright install --with-deps chromium
+      - name: README examples, as written, against the packed package
+        run: bun run readme:check
