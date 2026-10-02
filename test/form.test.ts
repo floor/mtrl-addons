@@ -758,10 +758,9 @@ describe("Reset Tracker Sync", () => {
     // Clear the form
     form.clear();
 
-    // After clear, initialData is {} but the DOM input reads "" (null → ""),
-    // so isModified() may return true — that's a pre-existing quirk of clear().
-    // What matters here is that the tracker was synced so subsequent changes
-    // are not silently deduplicated.
+    // clear() writes null, and this text input stores that as "". The modified
+    // check treats null, undefined and "" as one empty value, so isModified()
+    // stays false. The tracker is synced so the next edit is not dropped.
 
     emittedEvents.length = 0;
 

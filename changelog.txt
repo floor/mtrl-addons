@@ -26,6 +26,10 @@ initial commit → latest
     composition core from 'mtrl' moves it to 'mtrl/core/compose' (mtrl's
     migration table lists every name).
 
+  Changed
+
+  - null, undefined and "" are equal when the form decides it is modified.
+
 0.9.0
 
   For mtrl 0.10.5, which writes "text field" as two words.
