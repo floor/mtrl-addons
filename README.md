@@ -392,9 +392,6 @@ bun install
 # Build package (for distribution)
 bun run build
 
-# Build for mtrl-app integration
-bun run build:app
-
 # Run tests
 bun test
 
@@ -404,6 +401,17 @@ bun run dev
 # Link material for local development
 bun run link:material
 ```
+
+## Releasing
+
+Until the trusted publisher is bound, publish by hand:
+
+```bash
+npm run release:pack
+npm publish material-addons-<version>.tgz --access public --tag next
+```
+
+Use `--tag latest` for a stable release.
 
 ## Browser Support
 
