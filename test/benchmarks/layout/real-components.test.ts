@@ -91,7 +91,7 @@ benchmark("Real Component Integration Tests", () => {
       const iterations = 1000;
 
       console.log(`\n🔘 Real Button Components (${iterations} layouts):`);
-      console.log(`   Testing mtrl-addons layout + real mtrl.createButton()`);
+      console.log(`   Testing material-addons layout + real mtrl.createButton()`);
 
       const createButtonLayoutSchema = () => [
         "div",
@@ -723,7 +723,7 @@ benchmark("Real Component Integration Tests", () => {
       console.log(`   • Batch operations: Group component creation`);
       console.log(`   • Fragment optimization: Already implemented`);
 
-      console.log(`\n🏆 CONCLUSION: mtrl-addons + real mtrl components`);
+      console.log(`\n🏆 CONCLUSION: material-addons + real mtrl components`);
       console.log(
         `   perform excellently even with component creation overhead!`
       );

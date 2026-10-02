@@ -1,6 +1,6 @@
 /**
  * @module core/layout
- * @description Unified layout system for mtrl-addons
+ * @description Unified layout system for material-addons
  * Provides array, object, and JSX-based layout creation with integrated optimizations
  */
 

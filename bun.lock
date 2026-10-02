@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "mtrl-addons",
+      "name": "material-addons",
       "devDependencies": {
         "@types/jsdom": "^21.1.7",
         "@types/node": "^20.0.0",

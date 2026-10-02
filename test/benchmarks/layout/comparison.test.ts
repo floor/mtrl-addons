@@ -170,7 +170,7 @@ benchmark("Layout Performance Benchmarks", () => {
       const iterations = 1000;
       const schema = ["div", "test", { class: "simple-test" }];
 
-      // Test mtrl-addons
+      // Test material-addons
       addonsPerformance.clearAll();
       const addonsStart = performance.now();
       for (let i = 0; i < iterations; i++) {
@@ -190,7 +190,7 @@ benchmark("Layout Performance Benchmarks", () => {
       const mtrlTime = mtrlEnd - mtrlStart;
 
       console.log(`\n📊 Simple Layout Performance (${iterations} iterations):`);
-      console.log(`  mtrl-addons: ${addonsTime.toFixed(2)}ms`);
+      console.log(`  material-addons: ${addonsTime.toFixed(2)}ms`);
       console.log(`  mock-mtrl:   ${mtrlTime.toFixed(2)}ms`);
       console.log(`  Difference:  ${(addonsTime - mtrlTime).toFixed(2)}ms`);
       console.log(`  Ratio:       ${(addonsTime / mtrlTime).toFixed(2)}x`);
@@ -227,7 +227,7 @@ benchmark("Layout Performance Benchmarks", () => {
         ],
       ];
 
-      // Test mtrl-addons
+      // Test material-addons
       addonsPerformance.clearAll();
       const addonsStart = performance.now();
       for (let i = 0; i < iterations; i++) {
@@ -249,7 +249,7 @@ benchmark("Layout Performance Benchmarks", () => {
       console.log(
         `\n📊 Complex Layout Performance (${iterations} iterations):`
       );
-      console.log(`  mtrl-addons: ${addonsTime.toFixed(2)}ms`);
+      console.log(`  material-addons: ${addonsTime.toFixed(2)}ms`);
       console.log(`  mock-mtrl:   ${mtrlTime.toFixed(2)}ms`);
       console.log(`  Difference:  ${(addonsTime - mtrlTime).toFixed(2)}ms`);
       console.log(`  Ratio:       ${(addonsTime / mtrlTime).toFixed(2)}x`);

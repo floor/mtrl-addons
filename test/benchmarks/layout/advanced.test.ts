@@ -219,23 +219,23 @@ benchmark("Advanced Layout Benchmarks", () => {
   });
 
   describe("Comparative Performance", () => {
-    test("mtrl-addons vs mock original system", () => {
+    test("material-addons vs mock original system", () => {
       const iterations = 1000;
       const schema = ["div", "test", { class: "performance-test" }];
 
       memoryTracker.snapshot("Test Start");
 
-      // Test mtrl-addons
+      // Test material-addons
       addonsPerformance.clearAll();
       let addonsTime = 0;
       for (let i = 0; i < iterations; i++) {
-        const start = tracker.start("mtrl-addons");
+        const start = tracker.start("material-addons");
         const layout = createLayout(schema);
         layout.destroy();
-        addonsTime += tracker.end("mtrl-addons", start);
+        addonsTime += tracker.end("material-addons", start);
       }
 
-      memoryTracker.snapshot("After mtrl-addons");
+      memoryTracker.snapshot("After material-addons");
 
       // Test mock original
       let originalTime = 0;
@@ -251,7 +251,7 @@ benchmark("Advanced Layout Benchmarks", () => {
       const speedRatio = originalTime > 0 ? addonsTime / originalTime : 1;
 
       console.log(`\n⚡ Comparative Performance (${iterations} iterations):`);
-      console.log(`  mtrl-addons: ${addonsTime.toFixed(2)}ms`);
+      console.log(`  material-addons: ${addonsTime.toFixed(2)}ms`);
       console.log(`  mock-original: ${originalTime.toFixed(2)}ms`);
       console.log(`  Speed ratio: ${speedRatio.toFixed(2)}x`);
       console.log(`  Bundle size: 13,766 bytes (22.4% smaller)`);
@@ -647,7 +647,7 @@ benchmark("Advanced Layout Benchmarks", () => {
       }
 
       console.log(
-        `\n🏆 RESULT: mtrl-addons layout system successfully delivers`
+        `\n🏆 RESULT: material-addons layout system successfully delivers`
       );
       console.log(`   both performance optimizations AND smaller bundle size!`);
 

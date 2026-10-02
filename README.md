@@ -16,13 +16,13 @@ mtrl-addons provides high-performance, specialized components and core systems t
 
 ```bash
 # npm
-npm install mtrl-addons mtrl
+npm install material-addons mtrl
 
 # yarn
-yarn add mtrl-addons mtrl
+yarn add material-addons mtrl
 
 # bun
-bun add mtrl-addons mtrl
+bun add material-addons mtrl
 ```
 
 The peer range is `mtrl` ^1.0.0. No published mtrl 1.0 exists yet, so this

@@ -53,7 +53,7 @@ benchmark("Simple Layout Benchmarks", () => {
       // Clear caches
       addonsPerformance.clearAll();
 
-      // Measure mtrl-addons performance
+      // Measure material-addons performance
       const start = getTime();
       for (let i = 0; i < iterations; i++) {
         const layout = createLayout(schema);

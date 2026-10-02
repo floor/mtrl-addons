@@ -5,8 +5,8 @@
  *
  * NOTE: Constants are NOT exported here to enable tree-shaking.
  * Import constants directly from the component's constants file:
- *   import { COLORPICKER_EVENTS } from 'mtrl-addons/components/colorpicker/constants'
- *   import { FORM_EVENTS } from 'mtrl-addons/components/form/constants'
+ *   import { COLORPICKER_EVENTS } from 'material-addons/components/colorpicker/constants'
+ *   import { FORM_EVENTS } from 'material-addons/components/form/constants'
  */
 
 // Form component (functional form builder)

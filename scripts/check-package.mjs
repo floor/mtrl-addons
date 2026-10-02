@@ -12,13 +12,13 @@ const run = (command, args, cwd) => {
 
 // Exercise the tarball consumers receive, outside the source checkout.
 const root = process.cwd();
-const fixture = mkdtempSync(join(tmpdir(), "mtrl-addons-package-"));
+const fixture = mkdtempSync(join(tmpdir(), "material-addons-package-"));
 try {
   const result = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--cache", join(fixture, "cache"), "--pack-destination", fixture], root));
   // npm 11 returns an array; npm 12 keys the results by package name.
   const [packed] = Array.isArray(result) ? result : Object.values(result);
   const modules = join(fixture, "node_modules");
-  const addon = join(modules, "mtrl-addons");
+  const addon = join(modules, "material-addons");
   mkdirSync(addon, { recursive: true });
   run("tar", ["-xzf", join(fixture, packed.filename), "--strip-components=1", "-C", addon], root);
   symlinkSync(resolve(root, "node_modules/mtrl"), join(modules, "mtrl"), "junction");

@@ -1,5 +1,5 @@
 /**
- * mtrl-addons
+ * material-addons
  * Additional components and utilities for the mtrl system
  */
 
