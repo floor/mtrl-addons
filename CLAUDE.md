@@ -300,7 +300,7 @@ layout/
 
 **Usage Pattern:**
 ```typescript
-import { createLayout } from 'material-addons/core/layout'
+import { createLayout } from 'material-addons/layout'
 import { createButton } from 'material/components/button'
 
 // Array-based schema. material has no components/text entry.
@@ -339,7 +339,7 @@ document.body.appendChild(layout)
 
 **Usage Pattern:**
 ```typescript
-import { withGestures } from 'material-addons/core/gestures'
+import { withGestures } from 'material-addons/gestures'
 
 const component = pipe(
   createBaseComponent(config),
@@ -354,29 +354,6 @@ const component = pipe(
 )
 ```
 
-### Compose Utilities
-
-**Purpose:** Enhanced functional composition patterns
-
-**Key Features:**
-- Extended pipe and compose functions
-- Conditional composition helpers
-- Feature factory patterns
-- Component enhancement utilities
-
-**Usage Pattern:**
-```typescript
-import { pipe, composeFeatures } from 'material-addons/core/compose'
-
-const component = pipe(
-  createBase(config),
-  composeFeatures(
-    withFeature1(config.feature1),
-    config.feature2 && withFeature2(config.feature2),
-    withFeature3(config.feature3)
-  )
-)
-```
 
 ## Testing Strategy
 
