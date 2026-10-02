@@ -392,9 +392,6 @@ bun install
 # Build package (for distribution)
 bun run build
 
-# Build for mtrl-app integration
-bun run build:app
-
 # Run tests
 bun test
 
