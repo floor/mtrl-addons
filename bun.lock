@@ -10,13 +10,13 @@
         "bun-types": "^1.0.0",
         "jsdom": "^26.1.0",
         "madge": "^8.0.0",
-        "mtrl": "0.10.0-next.0",
+        "mtrl": "0.10.5",
         "sass": "^1.94.2",
         "standard": "^17.0.0",
         "typescript": "^5.8.0",
       },
       "peerDependencies": {
-        "mtrl": "^0.10.0-next.0",
+        "mtrl": "^0.10.5",
       },
     },
   },
@@ -563,7 +563,7 @@
 
     "ms": ["ms@2.1.3", "", {}, "sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA=="],
 
-    "mtrl": ["mtrl@0.10.0-next.0", "", {}, "sha512-Buma+6xnJ+DwVZ8sRkM9Owtay5me660Jktpkgy3DN4uLePl2GfScJ4bpgWbubE4pl3EvZTf0LyOBOv79+4FJvQ=="],
+    "mtrl": ["mtrl@0.10.5", "", { "peerDependencies": { "react": ">=18", "solid-js": ">=1.8", "svelte": ">=5", "vue": ">=3.3" }, "optionalPeers": ["react", "solid-js", "svelte", "vue"] }, "sha512-QVxzCX3BtIAMEcmk9aLWcpMMMxozKmE3+KQdopkbT8XSq53OGGVbxexrEiStGcqwMwebNPK//FSVUdog6F/sNw=="],
 
     "nanoid": ["nanoid@3.3.11", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w=="],
 

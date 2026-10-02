@@ -73,7 +73,7 @@ import {
 import {
   createButton,
   createCard,
-  createTextfield,
+  createTextField,
   createCheckbox,
   createSelect,
   createTabs,
@@ -242,7 +242,7 @@ benchmark("Real Component Integration Tests", () => {
             {
               component: {
                 creator: () =>
-                  createTextfield({
+                  createTextField({
                     label: "First Name",
                     placeholder: "Enter your first name",
                     required: true,
@@ -259,7 +259,7 @@ benchmark("Real Component Integration Tests", () => {
             {
               component: {
                 creator: () =>
-                  createTextfield({
+                  createTextField({
                     label: "Last Name",
                     placeholder: "Enter your last name",
                     required: true,
@@ -277,7 +277,7 @@ benchmark("Real Component Integration Tests", () => {
               layoutItem: { span: 2 },
               component: {
                 creator: () =>
-                  createTextfield({
+                  createTextField({
                     label: "Email",
                     type: "email",
                     placeholder: "user@example.com",
@@ -329,7 +329,7 @@ benchmark("Real Component Integration Tests", () => {
               layoutItem: { span: 1 },
               component: {
                 creator: () =>
-                  createTextfield({
+                  createTextField({
                     label: "Bio",
                     placeholder: "Tell us about yourself",
                     multiline: true,
