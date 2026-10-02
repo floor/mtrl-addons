@@ -6,6 +6,14 @@ material-addons — full changelog
 initial commit → latest
 239 commits · Apr 30, 2025 – Sep 16, 2026
 
+## [Unreleased]
+
+### Fixed
+
+- `setData(data, true)` loads a record: new baseline, not modified, Save stays disabled. `setData(data)` and `setFieldValue(name, value)` keep that baseline, recompute the modified state, and emit `state:change` when it changes. `isModified()` only reads.
+- `setData(data, true)` on a form the user has edited disables Save and Cancel.
+- A caller that relied on a non-silent `setData` leaving Save disabled now sees Save enable when the new values differ from the baseline: pass `true` to load a record. A non-silent `setData` whose values differ from the baseline also arms the unsaved-changes protection (the `beforeunload` warning, and `data:conflict` on the next non-silent `setData`). `setFieldValue(name, value, true)` emits `state:change` when the modified state flips.
+
 ## [3.0.0-next.0] - 2026-10-02
 
 There is no 1.0.0. material-addons 3.0.0 is this package's continuation

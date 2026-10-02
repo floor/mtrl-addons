@@ -1336,3 +1336,346 @@ describe("Radios null", () => {
     expect(form.getModifiedData()).toEqual({ tone: null });
   });
 });
+
+describe("Form setData modified state", () => {
+  // Real material fields and the controller, as the scratch test wires them.
+  // The file beforeEach builds a separate window; these tests need one window
+  // for the field, the button and the events they dispatch.
+  let scratchDom: JSDOM;
+
+  beforeEach(() => {
+    scratchDom = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
+      url: "http://localhost",
+      pretendToBeVisual: true,
+    });
+    const win = scratchDom.window as unknown as Record<string, unknown>;
+    const globals = globalThis as unknown as Record<string, unknown>;
+    for (const key of [
+      "window",
+      "document",
+      "navigator",
+      "HTMLElement",
+      "HTMLFormElement",
+      "HTMLInputElement",
+      "HTMLTextAreaElement",
+      "HTMLButtonElement",
+      "Element",
+      "Node",
+      "Event",
+      "MouseEvent",
+      "KeyboardEvent",
+      "FocusEvent",
+      "CustomEvent",
+      "MutationObserver",
+    ]) {
+      globals[key] = win[key];
+    }
+    globals.getComputedStyle = scratchDom.window.getComputedStyle.bind(
+      scratchDom.window,
+    );
+    globals.requestAnimationFrame = (callback: FrameRequestCallback) =>
+      setTimeout(() => callback(0), 0);
+    globals.cancelAnimationFrame = () => {};
+    globals.ResizeObserver = class {
+      observe() {}
+      disconnect() {}
+      unobserve() {}
+    };
+  });
+
+  afterEach(() => {
+    scratchDom.window.close();
+  });
+
+  type Emitted = { event: string; data: unknown };
+  type StateChange = { modified: boolean; state: string };
+
+  const stateChanges = (events: Emitted[]): StateChange[] =>
+    events
+      .filter((entry) => entry.event === FORM_EVENTS.STATE_CHANGE)
+      .map((entry) => {
+        const data = entry.data as StateChange;
+        return { modified: data.modified, state: data.state };
+      });
+
+  const make = async () => {
+    const { createTextField, createButton } = await import("material");
+    const { withFields } =
+      await import("../src/components/form/features/fields");
+    const { withData } = await import("../src/components/form/features/data");
+    const { withController } =
+      await import("../src/components/form/features/controller");
+
+    const name = createTextField({ label: "Name" });
+    const submit = createButton({ text: "Save" });
+    const cancel = createButton({ text: "Cancel" });
+    const events: Emitted[] = [];
+    const handlers: Record<string, Array<(data: unknown) => void>> = {};
+    const base = {
+      element: document.createElement("div"),
+      ui: { "info.name": name, submit, cancel },
+      emit(event: string, data: unknown) {
+        events.push({ event, data });
+        (handlers[event] ?? []).forEach((handler) => handler(data));
+      },
+      on(event: string, handler: (data: unknown) => void) {
+        (handlers[event] ??= []).push(handler);
+      },
+    };
+    const config = { useChanges: true };
+    const form = withController(config)(
+      withData(config)(withFields(config)(base as any) as any) as any,
+    ) as any;
+    const saveDisabled = () =>
+      (submit.element as HTMLButtonElement).disabled;
+    const cancelDisabled = () =>
+      (cancel.element as HTMLButtonElement).disabled;
+    return { form, name, events, saveDisabled, cancelDisabled };
+  };
+
+  const typeInto = (field: { input: HTMLInputElement }, value: string) => {
+    field.input.value = value;
+    field.input.dispatchEvent(
+      new scratchDom.window.Event("input", { bubbles: true }),
+    );
+  };
+
+  it("(a) setData that differs enables Save and emits state:change", async () => {
+    const { form, events, saveDisabled } = await make();
+    events.length = 0;
+    form.setData({ name: "Ada" });
+
+    expect({
+      modified: form.isModified(),
+      stateChange: stateChanges(events),
+      saveDisabled: saveDisabled(),
+      dataSet: events.filter((entry) => entry.event === FORM_EVENTS.DATA_SET)
+        .length,
+    }).toEqual({
+      modified: true,
+      stateChange: [{ modified: true, state: DATA_STATE.DIRTY }],
+      saveDisabled: false,
+      dataSet: 1,
+    });
+  });
+
+  it("(b) setData equal to the baseline emits no state:change", async () => {
+    // The form was not modified. The new values are the baseline.
+    const { form, events, saveDisabled } = await make();
+    form.setData({ name: "Ada" }, true);
+    events.length = 0;
+    form.setData({ name: "Ada" });
+
+    expect({
+      modified: form.isModified(),
+      stateChange: stateChanges(events),
+      saveDisabled: saveDisabled(),
+      dataSet: events.filter((entry) => entry.event === FORM_EVENTS.DATA_SET)
+        .length,
+    }).toEqual({
+      modified: false,
+      stateChange: [],
+      saveDisabled: true,
+      dataSet: 1,
+    });
+  });
+
+  it("(b) setData back to the baseline after an edit emits modified false", async () => {
+    // The form was modified by a user edit. Returning to the baseline
+    // emits one state:change with modified false.
+    const { form, name, events, saveDisabled } = await make();
+    form.setData({ name: "Ada" }, true);
+    typeInto(name, "Ada L");
+    expect(saveDisabled()).toBe(false);
+    events.length = 0;
+    form.setData({ name: "Ada" });
+
+    expect({
+      modified: form.isModified(),
+      stateChange: stateChanges(events),
+      saveDisabled: saveDisabled(),
+    }).toEqual({
+      modified: false,
+      stateChange: [{ modified: false, state: DATA_STATE.PRISTINE }],
+      saveDisabled: true,
+    });
+  });
+
+  it("(c) setData, isModified, then a user edit leaves Save enabled", async () => {
+    const { form, name, events, saveDisabled } = await make();
+    form.setData({ name: "Ada" });
+    form.isModified();
+    typeInto(name, "Ada L");
+
+    expect({
+      modified: form.isModified(),
+      stateChange: stateChanges(events),
+      saveDisabled: saveDisabled(),
+    }).toEqual({
+      modified: true,
+      stateChange: [{ modified: true, state: DATA_STATE.DIRTY }],
+      saveDisabled: false,
+    });
+  });
+
+  it("(c) setData, a user edit, then isModified leaves Save enabled", async () => {
+    const { form, name, events, saveDisabled } = await make();
+    form.setData({ name: "Ada" });
+    typeInto(name, "Ada L");
+    form.isModified();
+
+    expect({
+      modified: form.isModified(),
+      stateChange: stateChanges(events),
+      saveDisabled: saveDisabled(),
+    }).toEqual({
+      modified: true,
+      stateChange: [{ modified: true, state: DATA_STATE.DIRTY }],
+      saveDisabled: false,
+    });
+  });
+
+  it("(d) isModified twice emits nothing and changes nothing", async () => {
+    // After a differing setData. Public reads only: getDataState, Save,
+    // getFieldValue, getModifiedData. isModified itself is the call under test.
+    const { form, events, saveDisabled } = await make();
+    form.setData({ name: "Ada" });
+    events.length = 0;
+    const read = () => ({
+      dataState: form.getDataState(),
+      saveDisabled: saveDisabled(),
+      field: form.getFieldValue("name"),
+      modifiedData: form.getModifiedData(),
+    });
+    const before = read();
+    const first = form.isModified();
+    const second = form.isModified();
+    const after = read();
+
+    expect(events).toEqual([]);
+    expect(first).toBe(true);
+    expect(second).toBe(first);
+    expect(after).toEqual(before);
+  });
+
+  it("(e) setFieldValue that differs enables Save and emits state:change", async () => {
+    const { form, events, saveDisabled } = await make();
+    events.length = 0;
+    form.setFieldValue("name", "Ada");
+
+    expect({
+      modified: form.isModified(),
+      stateChange: stateChanges(events),
+      saveDisabled: saveDisabled(),
+      fieldChange: events.filter(
+        (entry) => entry.event === FORM_EVENTS.FIELD_CHANGE,
+      ).length,
+    }).toEqual({
+      modified: true,
+      stateChange: [{ modified: true, state: DATA_STATE.DIRTY }],
+      saveDisabled: false,
+      fieldChange: 1,
+    });
+  });
+
+  it("(e) setFieldValue back to the baseline emits modified false", async () => {
+    const { form, events, saveDisabled } = await make();
+    form.setFieldValue("name", "Ada");
+    events.length = 0;
+    form.setFieldValue("name", "");
+
+    expect({
+      modified: form.isModified(),
+      stateChange: stateChanges(events),
+      saveDisabled: saveDisabled(),
+      fieldChange: events.filter(
+        (entry) => entry.event === FORM_EVENTS.FIELD_CHANGE,
+      ).length,
+    }).toEqual({
+      modified: false,
+      stateChange: [{ modified: false, state: DATA_STATE.PRISTINE }],
+      saveDisabled: true,
+      fieldChange: 1,
+    });
+  });
+
+  it("silent setFieldValue that differs enables Save without field:change", async () => {
+    // silent still suppresses field:change and change. The modified
+    // flag flips, so state:change is emitted and Save enables.
+    const { form, events, saveDisabled } = await make();
+    events.length = 0;
+    form.setFieldValue("name", "Ada", true);
+
+    expect({
+      modified: form.isModified(),
+      stateChange: stateChanges(events),
+      saveDisabled: saveDisabled(),
+      fieldChange: events.filter(
+        (entry) => entry.event === FORM_EVENTS.FIELD_CHANGE,
+      ).length,
+      change: events.filter((entry) => entry.event === FORM_EVENTS.CHANGE)
+        .length,
+    }).toEqual({
+      modified: true,
+      stateChange: [{ modified: true, state: DATA_STATE.DIRTY }],
+      saveDisabled: false,
+      fieldChange: 0,
+      change: 0,
+    });
+  });
+
+  it("(f) silent setData loads a record and leaves Save disabled", async () => {
+    const { form, events, saveDisabled } = await make();
+    events.length = 0;
+    form.setData({ name: "Ada" }, true);
+
+    expect({
+      modified: form.isModified(),
+      value: form.getFieldValue("name"),
+      modifiedData: form.getModifiedData(),
+      stateChange: stateChanges(events),
+      modifiedTrue: events.filter(
+        (entry) =>
+          entry.event === FORM_EVENTS.STATE_CHANGE &&
+          (entry.data as StateChange).modified === true,
+      ).length,
+      saveDisabled: saveDisabled(),
+      dataSet: events.filter((entry) => entry.event === FORM_EVENTS.DATA_SET)
+        .length,
+    }).toEqual({
+      modified: false,
+      value: "Ada",
+      modifiedData: {},
+      stateChange: [],
+      modifiedTrue: 0,
+      saveDisabled: true,
+      dataSet: 0,
+    });
+  });
+
+  it("silent setData on an edited form disables Save and Cancel", async () => {
+    // A user edit enables Save. Loading the next record moves the
+    // baseline and must tell the controls: one state:change, modified
+    // false. data:set stays silent.
+    const { form, name, events, saveDisabled, cancelDisabled } = await make();
+    typeInto(name, "Ada");
+    expect(saveDisabled()).toBe(false);
+    events.length = 0;
+    form.setData({ name: "Grace" }, true);
+
+    expect({
+      modified: form.isModified(),
+      stateChange: stateChanges(events),
+      saveDisabled: saveDisabled(),
+      cancelDisabled: cancelDisabled(),
+      dataSet: events.filter((entry) => entry.event === FORM_EVENTS.DATA_SET)
+        .length,
+    }).toEqual({
+      modified: false,
+      stateChange: [{ modified: false, state: DATA_STATE.PRISTINE }],
+      saveDisabled: true,
+      cancelDisabled: true,
+      dataSet: 0,
+    });
+  });
+});
