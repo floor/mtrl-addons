@@ -402,6 +402,17 @@ bun run dev
 bun run link:material
 ```
 
+## Releasing
+
+Until the trusted publisher is bound, publish by hand:
+
+```bash
+npm run release:pack
+npm publish material-addons-<version>.tgz --access public --tag next
+```
+
+Use `--tag latest` for a stable release.
+
 ## Browser Support
 
 material-addons supports modern browsers:

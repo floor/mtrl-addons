@@ -43,7 +43,8 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      # prepublishOnly checks types, tests, production build and packed exports
+      # release:pack runs the gate once, then writes the tarball. Publishing that
+      # file does not run lifecycle scripts, so prepublishOnly does not run again.
       - name: Publish
         run: |
           version="$(node -p "require('./package.json').version")"
@@ -51,4 +52,5 @@ jobs:
             *-*) tag=next ;;
             *) tag=latest ;;
           esac
-          npm publish --provenance --access public --tag "$tag"
+          npm run release:pack
+          npm publish "material-addons-${version}.tgz" --provenance --access public --tag "$tag"

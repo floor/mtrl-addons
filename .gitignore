@@ -4,6 +4,9 @@ node_modules/
 # build output
 dist/
 
+# release tarball
+*.tgz
+
 # logs
 *.log
 npm-debug.log*
