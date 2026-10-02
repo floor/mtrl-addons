@@ -136,7 +136,7 @@ cd mtrl-addons
 bun install
 
 # Link mtrl for local development (if needed)
-bun link mtrl
+bun link material
 
 # Build package
 bun run build
@@ -206,7 +206,7 @@ function createListManager(config: any): any {  // NEVER DO THIS
 // src/components/swatchbook/swatchbook.ts
 
 // 1. Imports
-import { pipe, createBase, withElement, withEvents } from 'mtrl/core/compose'
+import { pipe, createBase, withElement, withEvents } from 'material/core/compose'
 import { createLayout } from '../../core/layout'
 
 // 2. Types
@@ -243,7 +243,7 @@ export const createSwatchbook = (config: SwatchbookConfig) => {
 
 **Build on mtrl's Pipe Pattern:**
 ```typescript
-import { pipe } from 'mtrl/core/compose'
+import { pipe } from 'material/core/compose'
 
 // Compose features using pipe
 const createEnhancedComponent = (config: Config) => {
@@ -301,7 +301,7 @@ layout/
 **Usage Pattern:**
 ```typescript
 import { createLayout } from 'mtrl-addons/core/layout'
-import { createButton } from 'mtrl/components/button'
+import { createButton } from 'material/components/button'
 
 // Array-based schema. mtrl has no components/text entry.
 const layout = createLayout([

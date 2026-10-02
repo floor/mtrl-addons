@@ -14,7 +14,7 @@ import type {
 } from "../types";
 import { DATA_STATE, FORM_EVENTS, FORM_CLASSES } from "../constants";
 import { FORM_DEFAULTS } from "../config";
-import type { EventCallback } from "mtrl/core/state";
+import type { EventCallback } from "material/core/state";
 import type { DataState } from "../types";
 
 /**

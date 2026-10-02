@@ -68,7 +68,7 @@ import {
   createLayout,
   performance as addonsPerformance,
 } from "../../../src/core/layout";
-import { createButton, createTextField, createCard } from "mtrl";
+import { createButton, createTextField, createCard } from "material";
 
 benchmark("Performance Comparison: Mock vs Real Components", () => {
   describe("Mock Components Baseline", () => {

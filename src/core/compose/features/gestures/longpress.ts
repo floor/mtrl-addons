@@ -4,9 +4,9 @@
  * @description Adds long press gesture recognition to components
  */
 
-import type { BaseComponent, ElementComponent } from "mtrl/core/compose";
+import type { BaseComponent, ElementComponent } from "material/core/compose";
 import { LongPressEvent, GestureHandler } from "../../../gestures";
-import { hasLifecycle, hasEmit } from "mtrl/core/compose";
+import { hasLifecycle, hasEmit } from "material/core/compose";
 
 /**
  * Configuration for long press gesture feature

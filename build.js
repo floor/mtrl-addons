@@ -70,7 +70,7 @@ const buildStyles = async () => {
       STYLES_ENTRY,
       CSS_OUTPUT,
       isProduction ? "--style=compressed" : "--style=expanded",
-      // mtrl's abstracts are used by @use "mtrl/src/styles/…"; it publishes
+      // material's abstracts are used by @use "material/src/styles/…"; it publishes
       // src/styles for exactly this. Without a load path sass would only find
       // them through a sibling checkout on disk, which is how this build came
       // to work on a developer's machine and nowhere else.
@@ -160,7 +160,7 @@ const buildModule = async (module) => {
     naming: {
       entry: `${basename}.mjs`,
     },
-    external: ["mtrl"],
+    external: ["material"],
   });
 
   if (!esmResult.success) {
@@ -186,7 +186,7 @@ const buildApp = async () => {
     // Create dist directory if it doesn't exist
     await mkdir(DIST_DIR, { recursive: true });
 
-    // ESM only since 1.0, as mtrl 1.0 (its subpaths have no require condition)
+    // ESM only, as material 3 (its subpaths have no require condition)
     // Build ESM version
     const esmResult = await Bun.build({
       entrypoints: [join(__dirname, "src/index.ts")],
@@ -198,7 +198,7 @@ const buildApp = async () => {
       naming: {
         entry: "index.mjs",
       },
-      external: ["mtrl"],
+      external: ["material"],
     });
 
     if (!esmResult.success) {

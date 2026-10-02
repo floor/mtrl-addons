@@ -11,9 +11,9 @@
 import type { FormConfig, FormComponent } from "./types";
 
 // Import mtrl compose system
-import { pipe } from "mtrl/core/compose";
-import { createBase, withElement } from "mtrl/core/compose";
-import { withEvents, withLifecycle } from "mtrl/core/compose";
+import { pipe } from "material/core/compose";
+import { createBase, withElement } from "material/core/compose";
+import { withEvents, withLifecycle } from "material/core/compose";
 
 // Import form features
 import {
@@ -38,7 +38,7 @@ import { createBaseConfig, getElementConfig } from "./config";
  * @example
  * ```typescript
  * import { createForm } from 'material-addons'
- * import { createTextField, createSwitch, createChips } from 'mtrl'
+ * import { createTextField, createSwitch, createChips } from 'material'
  *
  * const form = createForm({
  *   class: 'account-form',

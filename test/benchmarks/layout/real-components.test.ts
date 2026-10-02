@@ -78,7 +78,7 @@ import {
   createSelect,
   createTabs,
   createList,
-} from "mtrl";
+} from "material";
 
 benchmark("Real Component Integration Tests", () => {
   beforeAll(() => {

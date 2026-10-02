@@ -16,13 +16,13 @@ mtrl-addons provides high-performance, specialized components and core systems t
 
 ```bash
 # npm
-npm install material-addons mtrl
+npm install material-addons material
 
 # yarn
-yarn add material-addons mtrl
+yarn add material-addons material
 
 # bun
-bun add material-addons mtrl
+bun add material-addons material
 ```
 
 The peer range is `mtrl` ^1.0.0. No published mtrl 1.0 exists yet, so this
@@ -220,7 +220,7 @@ Flexible array-based layout schemas for declarative UI construction. Supports mt
 
 ```javascript
 import { createLayout } from 'mtrl-addons/layout';
-import { createButton, createTextField } from 'mtrl';
+import { createButton, createTextField } from 'material';
 
 // Array-based schema
 const layout = createLayout([
@@ -398,7 +398,7 @@ bun test
 bun run dev
 
 # Link mtrl for local development
-bun run link:mtrl
+bun run link:material
 ```
 
 ## Browser Support

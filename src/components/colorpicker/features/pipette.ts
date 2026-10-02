@@ -1,6 +1,6 @@
 // src/components/colorpicker/features/pipette.ts
 
-import { createIconButton } from "mtrl";
+import { createIconButton } from "material";
 import { COLORPICKER_EVENTS } from "../constants";
 import { ColorPickerConfig, ColorPickerState } from "../types";
 import { rgbToHex, hexToHsv } from "../utils";

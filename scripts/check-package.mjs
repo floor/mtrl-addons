@@ -21,7 +21,7 @@ try {
   const addon = join(modules, "material-addons");
   mkdirSync(addon, { recursive: true });
   run("tar", ["-xzf", join(fixture, packed.filename), "--strip-components=1", "-C", addon], root);
-  symlinkSync(resolve(root, "node_modules/mtrl"), join(modules, "mtrl"), "junction");
+  symlinkSync(resolve(root, "node_modules/material"), join(modules, "material"), "junction");
   const pkg = JSON.parse(readFileSync(join(addon, "package.json"), "utf8"));
   const specifiers = [];
   for (const [entry, conditions] of Object.entries(pkg.exports)) {
@@ -43,7 +43,7 @@ try {
     for (const specifier of ${JSON.stringify(specifiers)}) {
       const esm = await import(specifier);
       assert.ok(Object.keys(esm).length, specifier + ' has no exports');
-      // ESM only since 1.0, as mtrl 1.0: no require condition, so require does not resolve
+      // ESM only, as material 3: no require condition, so require does not resolve
       assert.throws(() => require(specifier), { code: 'ERR_PACKAGE_PATH_NOT_EXPORTED' }, specifier);
     }
   `], fixture);
