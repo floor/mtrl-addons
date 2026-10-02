@@ -242,27 +242,32 @@ export const withData = (config: FormConfig) => {
       registerBeforeUnload();
     }
 
+    /**
+     * Recomputes the modified flag against the baseline and emits
+     * state:change when it flips. The user-edit path, non-silent
+     * setData and setFieldValue share this, so the flag and the
+     * controls stay together. isModified() does not call it.
+     */
+    const syncModifiedState = (detail?: {
+      name: string;
+      value: FieldValue;
+    }): void => {
+      const wasModified = state.modified;
+      state.modified = hasDataChanged(state.initialData, state.currentData);
+      if (wasModified === state.modified) return;
+
+      updateBeforeUnloadState(state.modified);
+      component.emit?.(FORM_EVENTS.STATE_CHANGE, {
+        modified: state.modified,
+        state: state.modified ? DATA_STATE.DIRTY : DATA_STATE.PRISTINE,
+        ...detail,
+      });
+    };
+
     // Handler for field/file changes to update state
     const handleChange = (event: { name: string; value: FieldValue }) => {
       state.currentData[event.name] = event.value;
-      const wasModified = state.modified;
-      state.modified = hasDataChanged(state.initialData, state.currentData);
-
-      // Update beforeunload state when modified changes
-      if (wasModified !== state.modified) {
-        updateBeforeUnloadState(state.modified);
-      }
-
-      // Emit state:change event when modified state changes
-      // This allows the controller to enable/disable controls accordingly
-      if (wasModified !== state.modified) {
-        component.emit?.(FORM_EVENTS.STATE_CHANGE, {
-          modified: state.modified,
-          state: state.modified ? DATA_STATE.DIRTY : DATA_STATE.PRISTINE,
-          name: event.name,
-          value: event.value,
-        });
-      }
+      syncModifiedState({ name: event.name, value: event.value });
     };
 
     // Listen for field changes to update state
@@ -292,7 +297,10 @@ export const withData = (config: FormConfig) => {
         // Update beforeunload state since we're no longer modified
         updateBeforeUnloadState(false);
       } else {
+        // Values changed against the existing baseline. data:set stays;
+        // state:change follows only when the modified flag flips.
         component.emit?.(FORM_EVENTS.DATA_SET, state.currentData);
+        syncModifiedState();
       }
     };
 
@@ -441,10 +449,8 @@ export const withData = (config: FormConfig) => {
         if (field) {
           setFieldValue(field, value, silent);
           state.currentData[name] = value;
-          state.modified = hasDataChanged(state.initialData, state.currentData);
-
-          // Update beforeunload state
-          updateBeforeUnloadState(state.modified);
+          // Before field:change, so a listener sees the flag that just flipped.
+          syncModifiedState({ name, value });
 
           if (!silent) {
             component.emit?.(FORM_EVENTS.FIELD_CHANGE, { name, value });
@@ -454,12 +460,14 @@ export const withData = (config: FormConfig) => {
       },
 
       /**
-       * Check if form has been modified from initial state
+       * Check if form has been modified from initial state.
+       * A read: it does not write the flag and does not emit.
        */
       isModified(): boolean {
-        const currentData = collectFieldData(component.fields);
-        state.modified = hasDataChanged(state.initialData, currentData);
-        return state.modified;
+        return hasDataChanged(
+          state.initialData,
+          collectFieldData(component.fields),
+        );
       },
 
       /**
