@@ -313,8 +313,8 @@ describe("Form Field Utilities", () => {
     input.value = "";
 
     const element = document.createElement("div");
-    element.classList.add("mtrl-textfield");
-    element.classList.add("mtrl-textfield--empty");
+    element.classList.add("mtrl-text-field");
+    element.classList.add("mtrl-text-field--empty");
 
     const mockTextfield = {
       element,
@@ -330,12 +330,12 @@ describe("Form Field Utilities", () => {
     // Silent update should set value and remove --empty class
     setFieldValue(mockTextfield as any, "Hello", true);
     expect(input.value).toBe("Hello");
-    expect(element.classList.contains("mtrl-textfield--empty")).toBe(false);
+    expect(element.classList.contains("mtrl-text-field--empty")).toBe(false);
 
     // Setting empty value should add --empty class back
     setFieldValue(mockTextfield as any, "", true);
     expect(input.value).toBe("");
-    expect(element.classList.contains("mtrl-textfield--empty")).toBe(true);
+    expect(element.classList.contains("mtrl-text-field--empty")).toBe(true);
   });
 });
 
@@ -707,7 +707,7 @@ describe("Reset Tracker Sync", () => {
     textInput.value = "hello";
 
     const textElement = document.createElement("div");
-    textElement.classList.add("mtrl-textfield");
+    textElement.classList.add("mtrl-text-field");
 
     const mockTextfield = {
       element: textElement,
