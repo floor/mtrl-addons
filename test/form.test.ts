@@ -1599,6 +1599,31 @@ describe("Form setData modified state", () => {
     });
   });
 
+  it("silent setFieldValue that differs enables Save without field:change", async () => {
+    // silent still suppresses field:change and change. The modified
+    // flag flips, so state:change is emitted and Save enables.
+    const { form, events, saveDisabled } = await make();
+    events.length = 0;
+    form.setFieldValue("name", "Ada", true);
+
+    expect({
+      modified: form.isModified(),
+      stateChange: stateChanges(events),
+      saveDisabled: saveDisabled(),
+      fieldChange: events.filter(
+        (entry) => entry.event === FORM_EVENTS.FIELD_CHANGE,
+      ).length,
+      change: events.filter((entry) => entry.event === FORM_EVENTS.CHANGE)
+        .length,
+    }).toEqual({
+      modified: true,
+      stateChange: [{ modified: true, state: DATA_STATE.DIRTY }],
+      saveDisabled: false,
+      fieldChange: 0,
+      change: 0,
+    });
+  });
+
   it("(f) silent setData loads a record and leaves Save disabled", async () => {
     const { form, events, saveDisabled } = await make();
     events.length = 0;
