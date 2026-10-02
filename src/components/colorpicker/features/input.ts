@@ -1,6 +1,6 @@
 // src/components/colorpicker/features/input.ts
 
-import { createTextfield } from "mtrl";
+import { createTextField } from "mtrl";
 import { COLORPICKER_CLASSES, COLORPICKER_EVENTS } from "../constants";
 import { ColorPickerConfig, ColorPickerState } from "../types";
 import { isValidHex, normalizeHex, hexToHsv } from "../utils";
@@ -11,7 +11,7 @@ import { createInitialState } from "../config";
  */
 export interface InputFeature {
   element: HTMLElement;
-  textfield: ReturnType<typeof createTextfield> | null;
+  textfield: ReturnType<typeof createTextField> | null;
   preview: HTMLElement | null;
   update: () => void;
 }
@@ -77,7 +77,7 @@ export const withInput =
     row.className = getClass(COLORPICKER_CLASSES.VALUE);
 
     let previewEl: HTMLElement | null = null;
-    let textfieldComponent: ReturnType<typeof createTextfield> | null = null;
+    let textfieldComponent: ReturnType<typeof createTextField> | null = null;
     let inputEl: HTMLInputElement | null = null;
 
     // Create preview square
@@ -89,7 +89,7 @@ export const withInput =
 
     // Create textfield synchronously
     if (showInput) {
-      textfieldComponent = createTextfield({
+      textfieldComponent = createTextField({
         variant: "filled",
         density: "compact",
         label: config.inputLabel || "Hex",

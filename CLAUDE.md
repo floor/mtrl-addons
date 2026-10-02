@@ -302,12 +302,11 @@ layout/
 ```typescript
 import { createLayout } from 'mtrl-addons/core/layout'
 import { createButton } from 'mtrl/components/button'
-import { createText } from 'mtrl/components/text'
 
-// Array-based schema
+// Array-based schema. mtrl has no components/text entry.
 const layout = createLayout([
   [createButton, { variant: 'filled', text: 'Click me' }],
-  [createText, { text: 'Hello World' }],
+  ['p', { text: 'Hello World' }],
   ['div', { class: 'container' },
     [createButton, { variant: 'outlined', text: 'Nested' }]
   ]
@@ -571,34 +570,24 @@ export const createPinchRecognizer = (config: PinchConfig) => {
   "sideEffects": false,
   "exports": {
     ".": {
-      "development": "./src/index.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
     },
     "./layout": {
-      "development": "./src/core/layout/index.ts",
-      "import": "./dist/core/layout/index.mjs",
-      "require": "./dist/core/layout/index.js",
-      "types": "./dist/core/layout/index.d.ts"
+      "types": "./dist/core/layout/index.d.ts",
+      "import": "./dist/core/layout/index.mjs"
     },
     "./gestures": {
-      "development": "./src/core/gestures/index.ts",
-      "import": "./dist/core/gestures/index.mjs",
-      "require": "./dist/core/gestures/index.js",
-      "types": "./dist/core/gestures/index.d.ts"
+      "types": "./dist/core/gestures/index.d.ts",
+      "import": "./dist/core/gestures/index.mjs"
     },
     "./components": {
-      "development": "./src/components/index.ts",
-      "import": "./dist/components/index.mjs",
-      "require": "./dist/components/index.js",
-      "types": "./dist/components/index.d.ts"
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.mjs"
     },
     "./components/*/constants": {
-      "development": "./src/components/*/constants.ts",
-      "import": "./dist/components/*/constants.mjs",
-      "require": "./dist/components/*/constants.js",
-      "types": "./dist/components/*/constants.d.ts"
+      "types": "./dist/components/*/constants.d.ts",
+      "import": "./dist/components/*/constants.mjs"
     },
     "./styles": "./dist/styles.css"
   }

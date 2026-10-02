@@ -25,11 +25,8 @@ yarn add mtrl-addons mtrl
 bun add mtrl-addons mtrl
 ```
 
-For the prerelease compatible with `mtrl@next`:
-
-```bash
-npm install mtrl-addons@next mtrl@next
-```
+The peer range is `mtrl` ^1.0.0. No published mtrl 1.0 exists yet, so this
+package is not installable from the registry until that release does.
 
 ## Quick Start
 
@@ -223,7 +220,7 @@ Flexible array-based layout schemas for declarative UI construction. Supports mt
 
 ```javascript
 import { createLayout } from 'mtrl-addons/layout';
-import { createButton, createTextfield } from 'mtrl';
+import { createButton, createTextField } from 'mtrl';
 
 // Array-based schema
 const layout = createLayout([
@@ -233,9 +230,9 @@ const layout = createLayout([
       ['h2', { text: 'Contact Form' }]
     ],
     ['main', { class: 'form-body' },
-      [createTextfield, 'name', { label: 'Name' }],
-      [createTextfield, 'email', { label: 'Email', type: 'email' }],
-      [createTextfield, 'message', { label: 'Message', multiline: true }]
+      [createTextField, 'name', { label: 'Name' }],
+      [createTextField, 'email', { label: 'Email', type: 'email' }],
+      [createTextField, 'message', { label: 'Message', multiline: true }]
     ],
     ['footer', { class: 'form-footer' },
       [createButton, 'submit', { text: 'Send', variant: 'filled' }],
@@ -415,7 +412,7 @@ mtrl-addons supports modern browsers:
 
 ## Peer Dependencies
 
-- `mtrl` ^0.10.0-next.0 - Core Material Design 3 component library (prerelease)
+- `mtrl` ^1.0.0 - Core Material Design 3 component library. A published mtrl 1.0 does not exist yet.
 
 ## Related Packages
 
