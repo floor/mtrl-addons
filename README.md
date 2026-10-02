@@ -114,7 +114,7 @@ document.body.append(...results.map((result) => {
 
 ## Layout
 
-`createLayout` takes an array: a tag or a factory, then a name, then options, then children. It returns the root element and each named component.
+`createLayout` takes an array: a tag or a factory, a name when the item is to be read back, its options, then its children. It returns the root element and each named component.
 
 <!-- example: run, shows "Send" -->
 ```javascript
@@ -175,6 +175,7 @@ The gestures:
 | The form, the colour picker, the colour conversions | `material-addons` |
 | The layout | `material-addons/layout` |
 | The gestures | `material-addons/gestures` |
+| The same three, without the layout and gesture exports | `material-addons/components` |
 | A component's constants | `material-addons/components/form/constants`, `material-addons/components/colorpicker/constants` |
 | The stylesheet | `material-addons/styles` |
 
