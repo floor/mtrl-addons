@@ -3,7 +3,7 @@ initial commit → latest
 239 commits · Apr 30, 2025 – Sep 16, 2026
 
 
-Unreleased
+0.9.0
 
   For mtrl 0.10.5, which writes "text field" as two words.
 
