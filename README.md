@@ -25,11 +25,9 @@ yarn add mtrl-addons mtrl
 bun add mtrl-addons mtrl
 ```
 
-For the prerelease compatible with `mtrl@next`:
-
-```bash
-npm install mtrl-addons@next mtrl@next
-```
+mtrl-addons 0.9.x is for mtrl 0.10.x only: it needs mtrl 0.10.5 or a later 0.10 release (the
+peer range is `^0.10.5`, which excludes mtrl 1.0, an ESM-only release). mtrl 1.0 needs
+mtrl-addons 1.0.
 
 ## Quick Start
 
@@ -415,7 +413,7 @@ mtrl-addons supports modern browsers:
 
 ## Peer Dependencies
 
-- `mtrl` ^0.10.0-next.0 - Core Material Design 3 component library (prerelease)
+- `mtrl` ^0.10.5 (0.10.5 or a later 0.10.x) - Core Material Design 3 component library. mtrl-addons 0.9.x is for mtrl 0.10.x only; mtrl 1.0 needs mtrl-addons 1.0.
 
 ## Related Packages
 
