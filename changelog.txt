@@ -28,7 +28,8 @@ initial commit → latest
 
   Changed
 
-  - null, undefined and "" are equal when the form decides it is modified.
+  - null, undefined and "" are equal when the form decides it is modified,
+    including the fields getModifiedData returns.
 
 0.9.0
 

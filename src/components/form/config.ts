@@ -166,8 +166,11 @@ export const getModifiedFields = (
   const allKeys = new Set([...Object.keys(initial), ...Object.keys(current)]);
 
   for (const key of allKeys) {
-    if (!isValueEqual(initial[key], current[key])) {
-      modified[key] = current[key];
+    const left = initial[key];
+    const right = current[key];
+    if (sameEmptyForModified(left, right)) continue;
+    if (!isValueEqual(left, right)) {
+      modified[key] = right;
     }
   }
 
