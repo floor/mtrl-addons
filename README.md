@@ -46,15 +46,25 @@ const form = createForm({
 });
 ```
 
-The form's data, state and validation are methods:
+Two calls set the data, and they differ in what the form makes of it:
+
+| Call | Meaning | Afterwards |
+|------|---------|------------|
+| `form.setData(data, true)` | Load: the data is the new starting point | Not modified; the buttons are disabled |
+| `form.setData(data)`, `form.setFieldValue(name, value)` | Change values, as an edit does | Modified while the data differs from its starting point; the buttons are enabled |
 
 <!-- example: continues -->
 ```javascript
-form.setData({ name: 'Grace' });
-console.log(form.getData().name, form.isModified()); // 'Grace' true
+form.setData({ name: 'Grace', email: 'grace@example.com', newsletter: false }, true);
+console.log(form.isModified()); // false: loaded
+
+form.setData({ name: 'Grace H.' });
+console.log(form.isModified()); // true: changed, so Save is enabled
 
 const { valid, errors } = form.validate();
 ```
+
+`isModified()` only reads the state. The form emits `state:change` when the state changes.
 
 Options, methods and events: [md3.io/docs/components/form](https://md3.io/docs/components/form/).
 
