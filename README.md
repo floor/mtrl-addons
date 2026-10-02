@@ -61,6 +61,9 @@ material-addons is optimized for tree-shaking. Constants are exported separately
 
 Functional form builder with declarative field configuration, validation, and state management.
 
+`setData(data, true)` loads a record: new baseline, not modified.
+`setData(data)` and `setFieldValue(name, value)` change values against that baseline.
+
 #### Features
 - 📋 Declarative field definitions
 - ✅ Built-in validation rules
@@ -120,7 +123,7 @@ form.on(FORM_EVENTS.DATA_CONFLICT, ({ currentData, newData, cancel, proceed }) =
 });
 
 // API
-form.setData({ email: 'user@example.com' });
+form.setData({ email: 'user@example.com' }, true);
 const data = form.getData();
 const isValid = form.validate();
 form.reset();
