@@ -74,9 +74,10 @@ export const setFieldValue = (
 ): void => {
   const fieldAny = field as unknown as Record<string, unknown>;
 
-  // Check if this is a select component (has textfield property)
-  // Select components must always use setValue to update internal state
-  const isSelectComponent = "textfield" in fieldAny && "menu" in fieldAny;
+  // A select has getOptions on mtrl 0.10 and 1.0. 1.0 names the field
+  // textField and has no menu member, so "textfield" && "menu" is never true.
+  // Silent updates must still call setValue, or the selected option stays put.
+  const isSelectComponent = typeof fieldAny.getOptions === "function";
 
   if (silent && !isSelectComponent) {
     // Silent update: set directly on input to avoid triggering change events
