@@ -1,16 +1,17 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+Published as `mtrl-addons` up to 0.9.x. This file has written notes from 0.8.0, and the commit history below for everything earlier.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+material-addons — full changelog
+initial commit → latest
+239 commits · Apr 30, 2025 – Sep 16, 2026
 
 ## [3.0.0-next.0] - 2026-10-02
 
 There is no 1.0.0. material-addons 3.0.0 is this package's continuation
 for material 3. It was published as mtrl-addons up to 0.9.x, for mtrl 0.10.x.
 
-### Changed
+### Breaking changes
 
 - The package name is material-addons. The version is 3.0.0-next.0.
 - The peer range is material ^3.0.0-next.0 while 3.0.0-next.0 is the
@@ -31,7 +32,7 @@ package root.
   from its root. material-addons imports them from material/core/compose,
   and EventCallback from material/core/state.
 
-### Changed
+### Migration
 
 - Import material-addons with import, not require.
 - Upgrade material to 3 alongside it. Code of your own that imported the
@@ -43,11 +44,11 @@ package root.
 - null, undefined and "" are equal when the form decides it is modified,
   including the fields getModifiedData returns.
 
-## [0.9.0]
+## [0.9.0] - 2026-10-02
 
 For mtrl 0.10.5, which writes "text field" as two words.
 
-### Changed
+### Breaking changes
 
 - The peer range is mtrl ^0.10.5 (it was ^0.10.0-next.0). mtrl-addons
   now imports createTextField, which mtrl exports from 0.10.5; an
@@ -63,13 +64,13 @@ For mtrl 0.10.5, which writes "text field" as two words.
 - The form's doc example gives its chips a label, not a text: mtrl
   1.0 removes a chip's text.
 
-0.8.0
+## [0.8.0] - 2026-09-16
 
 vlist and the viewport leave the package. mtrl-addons is the layout
 schema, the gesture system, the compose utilities, the form builder and
 the colour picker.
 
-### Changed
+### Breaking changes
 
 - createVList, VListConfig, VListComponent and the
   mtrl-addons/components/vlist/constants entry are removed, with the
@@ -90,522 +91,446 @@ the colour picker.
 - README, CLAUDE.md and AI.md describe what the package still contains;
   their examples use the layout system.
 
-## [0.8.0]
+## Commit history
 
-### Changed
+Every commit from the first to 0.9.0, newest first, with the tags marked where they were made.
+
+**→ v0.8.0**
+
+### 2026-09-16
+
 - chore(build): drop the viewport build entry and the last list-manager mentions
-### Added
 - feat(viewport)!: remove the viewport and the last list-manager references
-### Added
 - feat(vlist)!: remove the virtual list component
 
-### Changed
+### 2026-09-07
+
 - test: benchmarks stop failing the suite when the machine is busy
-### Changed
 - chore(ci): pin the runners to bun 1.4, the version we develop on
-### Fixed
 - fix(build): the stylesheets resolve mtrl as a package, not as a sibling folder
-ci: run the tests and the build on every push and pull request
-ci: publish from a version tag, as mtrl does
-### Fixed
+- ci: run the tests and the build on every push and pull request
+- ci: publish from a version tag, as mtrl does
 - fix(package): drop the development condition from every export
 
-## [0.7.2] - 2026-09-07
+**→ v0.7.2**
 
-### Added
+### 2026-06-16
+
 - feat(form): add blocking-overlay disable that can't re-enable Apply
 
-### Fixed
+### 2026-03-30
+
 - fix(stats): use first visible item position (start+1) instead of last (end+1)
-### Fixed
 - fix(test): remove orphaned collection and selection test files
-### Fixed
 - fix(test): add 30s timeout to memory pressure stress benchmark
 
-## [0.7.0] - 2026-03-30
+**→ v0.7.0**
 
-### Fixed
+### 2026-03-23
+
 - fix(form): sync field value tracker on reset and clear
-### Fixed
 - fix(form): use per-instance field value tracker instead of shared singleton
 
-### Added
+### 2026-02-07
+
 - feat(vlist): add markPendingRemoval method for early pending marking
 
-## [0.6.0] - 2026-02-03
+### 2026-02-03
 
-### Changed
+**→ v0.6.0**
+
 - docs: add tree-shaking documentation and comprehensive README
-### Added
 - feat(components): improve tree-shaking with constants subpath exports
 
-## [0.5.6] - 2026-01-29
+### 2026-01-29
 
-### Fixed
+**→ v0.5.6**
+
 - fix(vlist): reset viewport state and prevent scrolling on clear()
-### Fixed
 - fix(viewport): reset scrolled state on clear and reload
-### Fixed
 - fix(viewport): force visible range recalculation after data loads
-## [0.5.5] - 2026-01-29
 
-### Changed
+**→ v0.5.5**
+
 - perf(viewport): add RAF-based render throttling for scroll events
-### Changed
 - chore(viewport): remove performance debug logging
-### Changed
 - perf(vlist): fix scroll blocking caused by duplicate event listeners
-### Changed
 - perf(viewport): add performance logging that mysteriously fixes scroll blocking
-### Changed
 - perf(viewport): fix scroll blocking by not awaiting loadMissingRanges
-### Fixed
 - fix(viewport): correct position display at bottom of large compressed lists
-### Added
 - feat(viewport): add ResizeObserver to handle container resize
-### Fixed
 - fix(vlist): show last visible item position in stats footer
 
-## [0.5.4] - 2026-01-28
+### 2026-01-28
 
-### Fixed
+**→ v0.5.4**
+
 - fix(viewport): only fetch missing data when visible range has gaps
-### Fixed
 - fix(vlist): scrolled shadow
-### Added
 - feat(core): emove debug logs
-### Fixed
 - fix(vlist): fix scroll restore extra page 1 request
-### Added
 - feat(vlist): add withStats, withVelocity, withScrollRestore features
-### Added
 - feat(vlist): auto-inject search/filters to collection adapter
 
-### Fixed
+### 2026-01-27
+
 - fix(vlist): prevent scroll reset when using scrollbar
-### Fixed
 - fix(vlist): fix reloadAt selection not applying --selected class
-### Changed
 - perf(viewport): optimize sparse array operations for large lists
-### Added
 - feat(vlist): add withSearch, withFilter, withLayout features
 
-## [0.5.3] - 2026-01-25
+### 2026-01-25
 
-### Changed
+**→ v0.5.3**
+
 - chore(deps): update mtrl peer dependency to ^0.6.2
-### Changed
 - chore(deps): update mtrl peer dependency to ^0.6.0
-## [0.5.2] - 2026-01-25
 
-### Fixed
+**→ v0.5.2**
+
 - fix(types): resolve all TypeScript declaration errors
-### Fixed
 - fix(colorpicker): resolve TypeScript declaration errors
-### Fixed
 - fix(colorpicker): prevent unintended closing of dropdown/dialog picker
-## [0.5.0] - 2026-01-25
 
-### Added
+**→ v0.5.0**
+
 - feat(colorpicker): add compact density, opacity bar, and improved hue bar
-### Added
 - feat(colorpicker): add pipette feature for pixel color sampling
-## [0.4.4] - 2026-01-25
 
-### Changed
+**→ v0.4.4**
+
 - refactor(colorpicker): use mtrl core composition pattern and improve UX
-### Added
 - feat(colorpicker): add colorpicker component with area, hue slider, swatches, and dropdown variants
 
-## [0.4.3] - 2026-01-24
+### 2026-01-24
 
-### Fixed
+**→ v0.4.3**
+
 - fix(form): don't auto-disable controls after custom onSubmit handler
-## [0.4.2] - 2026-01-24
 
-### Added
+**→ v0.4.2**
+
 - feat(form): expose snapshot() method in public API
-### Fixed
 - fix(form): disable buttons during submit and fix protection overlay removal
 
-## [0.4.0] - 2026-01-23
+### 2026-01-23
 
-### Added
+**→ v0.4.0**
+
 - feat(vlist): add reload() and clear() methods for efficient list refresh
 
-## [0.3.9] - 2026-01-18
+### 2026-01-18
 
-### Fixed
+**→ v0.3.9**
+
 - fix(form): improve protection overlay behavior
-### Added
 - feat(form): add change protection with blocking overlay
 
-### Added
-- feat(vlist): add reload() method for efficient search updates
-## [0.3.8] - 2026-01-17
+### 2026-01-17
 
-### Added
+- feat(vlist): add reload() method for efficient search updates
+
+**→ v0.3.8**
+
 - feat(vlist): add MD3-compliant keyboard navigation and accessibility
 
-### Fixed
+### 2026-01-16
+
 - fix(types): resolve TypeScript declaration errors
 
-### Fixed
+### 2026-01-12
+
 - fix(form): show server error message instead of HTTP status
-### Added
 - feat(form): add automatic field validation with error display
-## [0.3.5] - 2026-01-12
 
-### Added
+**→ v0.3.5**
+
 - feat(form): add scroll indicator when body is scrolled
-## [0.3.4] - 2026-01-12
 
-### Added
+**→ v0.3.4**
+
 - feat(vlist): add subtle scroll indicator when list is not at top
-## [0.3.3] - 2026-01-12
 
-### Fixed
+**→ v0.3.3**
+
 - fix(viewport): priority request handling for slow networks
 
-## [0.3.2] - 2026-01-11
+### 2026-01-11
 
-### Added
+**→ v0.3.2**
+
 - feat(viewport): improve momentum scrolling and make it configurable
-## [0.3.1] - 2026-01-11
 
-### Added
+**→ v0.3.1**
+
 - feat(viewport): add configurable cache settings and fix eviction bug
-### Fixed
 - fix(form): trigger dirty state on file input changes
-### Fixed
 - fix(viewport): add touch scrolling support and fix momentum direction
 
-### Added
+### 2026-01-09
+
 - feat(viewport): add maintainDomOrder option for correct CSS selector support
-### Added
 - feat(vlist): add addItem and addItems API methods
 
-### Fixed
+### 2026-01-08
+
 - fix(form): properly handle select components in setFieldValue
 
-## [0.2.6] - 2026-01-06
+### 2026-01-06
 
-### Added
+**→ v0.2.6**
+
 - feat(viewport): add stopOnClick option to scrolling config
 
-## [0.2.5] - 2026-01-05
+### 2026-01-05
 
-### Fixed
+**→ v0.2.5**
+
+### 2026-01-03
+
 - fix(form): support silent setValue for components without input element
-### Fixed
 - fix(form): event deduplication, silent setData sync, and textfield --empty class
-### Changed
 - refactor(form): simplify with DATA_STATE and auto-wire controls
-### Added
 - feat(form): add functional form component with mtrl composition
-### Fixed
 - fix: correct package exports to point to dist files
-### Changed
 - chore: include src/styles in npm package for SCSS imports
 
-### Added
+### 2026-01-01
+
 - feat(vlist): add autoSelectFirst option and data-id attribute support
 
-## [0.2.2] - 2025-12-31
-### Added
+### 2025-12-31
+
+- 0.2.2
 - feat(vlist): add pending removals tracking to prevent race conditions
-### Added
 - feat(vlist): add silent parameter to selectById to prevent triggering selection events
 
-### Fixed
+### 2025-12-29
+
 - fix(viewport): fix memory leak and optimize HTML template rendering
-### Changed
 - perf(rendering): optimize string template parsing
-### Added
 - feat(viewport): add cache eviction and memory diagnostics
-### Fixed
 - fix(viewport): fix memory leaks in collection and rendering features
-### Fixed
 - fix(vlist): fix multi-item removal causing double decrement and stale data
-### Added
 - feat(vlist): add selectAtIndex, selectNext, selectPrevious methods
-### Fixed
 - fix(viewport): fix item removal and empty list handling
 
-### Fixed
+### 2025-12-28
+
 - fix(viewport): update items container height on virtual size change
-### Added
 - feat(vlist): add removeItem and removeItemById methods
 
-### Fixed
+### 2025-12-09
+
 - fix(vlist): only merge defined values in updateItemById
-### Added
 - feat(vlist): add updateItemById for in-place item updates
 
-### Fixed
+### 2025-12-08
+
 - fix(collection): emit selectId event when initialScrollIndex is 0
-### Fixed
 - fix(viewport): correct initialScrollIndex for compressed virtual space
-### Changed
 - chore(vlist): remove debug logs
-### Added
 - feat(vlist): add selectId config for auto-selection after initial load
 
-### Changed
+### 2025-11-28
+
 - wip(vlist): simplify selection feature - apply on render events
-### Changed
 - wip(viewport): sync scroll position between virtual and scrolling features
 
-### Added
+### 2025-11-27
+
 - feat(viewport): add AbortController support to collection feature
 
-### Fixed
+### 2025-11-17
+
 - fix(docs): update CLAUDE.md to reflect actual package structure
-### Changed
 - docs: consolidate AI assistant documentation into CLAUDE.md
 
-## [0.2.1] - 2025-08-29
+### 2025-08-29
 
-### Changed
+**→ v0.2.1**
+
 - chore: fix type declarations and exports/imports
-### Changed
 - chore: enhance build script
 
-## [0.2.0] - 2025-08-07
+### 2025-08-07
 
-## [0.2.0] - 2025-08-07
+**→ v0.2.0**
 
-### Added
+**→ v0.2.0**
+
 - feat(core): add gestures
-## [0.1.3] - 2025-08-07
 
-### Added
+**→ v0.1.3**
+
 - feat(styles): enhance styles
-### Added
 - feat(core): implement rawClass option
-### Added
 - feat(core): enhance viewport scroll sensitivity
 
-### Added
+### 2025-07-29
+
 - feat(components): remove vlist selection feature debug logs
-### Added
 - feat(core): comment viewport debug logs
-### Added
 - feat(core): enhance view port items position at the end of the list using proper padding based on styles
-### Fixed
 - fix(core): viewport last range items position
-### Added
 - feat(core): implement viewport cursor pagination strategy
 
-### Added
+### 2025-07-27
+
 - feat(core): remove collection merging requests for now
 
-### Added
+### 2025-07-26
+
 - feat(core): enhance viewport classes
-### Added
 - feat(core): simplify auto detect item size
-### Added
 - feat(core): enhance auto detect item size calculation
-### Added
 - feat(core): normalize item size variable name
-### Added
 - feat(core): remove config backward compatibility
-### Added
 - feat(core): enhance viewport and vlist config structure
-### Added
 - feat(core): use BEM class system and generic names for the viewport items
 
-### Fixed
+### 2025-07-25
+
 - fix: view port items rendering on slow network
-### Added
 - feat(styles): remove unused list styles
-### Added
 - feat(core): remove debug consoles
-### Fixed
 - fix(core): prevent too much request when using the scrollbar indicator
-### Added
 - feat(core): prevent extra request when we start scrolling using the mouse wheel
-### Added
 - feat(core): enhance scrollbar scrolling using velocity to prevent massive number of requests
-### Fixed
 - fix(core): scroll to page not showing the placeholder
 
-### Added
+### 2025-07-24
+
 - feat(core): optimize view port
-### Added
 - feat(core): viewpport optimization
-### Added
 - feat(core): remove unused collection module
 
-### Added
+### 2025-07-23
+
 - feat(core). temporary collection bridge
-### Changed
 - test(core): remove unused tests
-### Added
 - feat(chore): enhance package.json, build and add bun.lock in .gitignore
-### Fixed
 - fix(core): viewport collection feature
-### Added
 - feat(core): add adapter collection feature
-### Added
 - feat(core): add momentum view port feature
-### Added
 - feat(core): clean up view port and collection refactoring
-### Added
 - feat(core): refactor the collection module to use a usual composable pattern
 
-### Added
+### 2025-07-22
+
 - feat(core): clean up view port debug logs
-### Added
 - feat(core): uncoupled viewport scrollbar
-### Added
 - feat(core): optimize view port scrollbar smoothness
-### Fixed
 - fix(core): viewport scrollbar
-### Fixed
 - fix(core): placeholders not replaced
-### Added
 - feat(core): new api function scrollToPage
-### Added
 - feat(core): optimize viewport placeholders rendering
-### Added
 - feat(core): implement the view port placeholders
-### Added
 - feat(core): optimize viewport loading
 
-### Added
+### 2025-07-21
+
 - feat(core): remove viewport deferred cleanup
-### Fixed
 - fix(core): items position after a fast mouse wheel scrolling session
-### Added
 - feat(core): reactor view port phase 3
 
-### Added
+### 2025-07-20
+
 - feat(core): refactor viewport phase 2
-### Added
 - feat(core): refactor viewport
-### Added
 - feat(core): viewport is working with placeholders
-### Added
 - feat(core): view port first working iteration
-### Added
 - feat(core): prepare core viewport and vlist
 
-## [0.1.1] - 2025-07-19
+### 2025-07-19
 
-### Added
+**→ v0.1.1**
+
+### 2025-07-18
+
 - feat(core): enhance default list manager constants
-### Fixed
 - fix(core): list manager viewport rendering constants
-### Added
 - feat(chore): add AI.md
-### Added
 - feat(scripts): add analyze orphaned functions
-### Added
 - feat(core): clean list manager viewport constants
-### Added
 - feat(core): list manager update default constants
-### Added
 - feat(core): clean list manager constants and console logs
-### Added
 - feat(core): remove unused constants from list manager
-### Added
 - feat(styles): enhance list item placeholder
-### Added
 - feat(core): enhance viewport placeholders
 
-### Added
+### 2025-07-17
+
 - feat(core): implement list manager viewport item placeholders
-### Added
 - feat(core): optimize and clean list manager modules
-### Added
 - feat(core): prevent massive number of requests during scrolling by using queue
-### Fixed
 - fix(core): remove transition on scrollbar indicator
-### Fixed
 - fix(core): list manager viewport scrollbar delay
-### Added
 - feat(core): update totalItems for static list
-### Added
 - feat(core): remove debug console
-### Added
 - feat(core): remove debug logs
-### Added
 - feat(core): remove all reference to standard scrolling
-### Added
 - feat(core): list manager viewport to use unified scrolling method
-### Fixed
 - fix(core): list-manager not showing the last item of the list
-### Fixed
 - fix(core): fix list not seeing the last items properly
-### Added
 - feat(core): enhance list manager when scrolling to the very bottom using the scrollbar indicator
-### Added
 - feat(core): enhance scrolling position after using scrollbar indicator
 
-### Added
+### 2025-07-16
+
 - feat(core): handle list-manager scrollbar
-### Fixed
 - fix(core): fix list manager scrolling mechanism
-### Changed
 - test(core): add collection and list manager specific tests
-### Added
 - feat(core): refactor list manager viewport
-### Added
 - feat(core): remove deferred collection mechanism
-### Added
 - feat(core): enhance list manager manual scrolling
 
-### Added
+### 2025-07-15
+
 - feat(core): enhance list manager manual scrolling with recycled elements
 
-### Added
+### 2025-07-12
+
 - feat(core): work on virtual scrolling
 
-### Added
+### 2025-07-10
+
 - feat(core): enhance list manager view port organization
 
-### Added
+### 2025-07-09
+
 - feat(core): scrollToPage and scrolToIndex functions are proactive, not reactive
-### Added
 - feat(core): enhance api pagination terms and item-size
-### Changed
 - chore(rules): add .cursorrules
-### Added
 - feat(components): enhance list component by using feature list-manager
-### Added
 - feat(core): add refactored list manager
 
-### Added
+### 2025-07-08
+
 - feat(core): list manager pure virtual scrolling management
 
-### Added
+### 2025-07-07
+
 - feat(test): add collection test
-### Added
 - feat(test): add collection, list and compose tests
-### Added
 - feat(core): modularize collection
-### Fixed
 - fix(core): scroll and loading synchronisation
-### Added
 - feat(styles): add list component scss definition
-### Added
 - feat(core): add compose features
-### Added
 - feat(components): list initial commit
-### Added
 - feat(core): list manager initial commit
-### Added
 - feat(core): collection initial commit
-### Fixed
 - fix(core): layout style
 
-### Changed
+### 2025-07-06
+
 - chore(test): add layout system tests and benchmarks
-### Added
 - feat(core): add optimized layout system
 
-### Changed
+### 2025-04-30
+
 - add build script
 
-initial commit
+### 2025-04-30
+
+- initial commit
