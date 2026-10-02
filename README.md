@@ -1,406 +1,206 @@
 # material-addons
 
-> Extended components and utilities for [material](https://github.com/nicholasgriffintn/mtrl), a Material Design 3 component library
+A form builder, a colour picker, a layout schema and gesture recognition for [material](https://github.com/floor/material), the Material Design 3 component library. Written in TypeScript; its only dependency is `material`, as a peer.
 
-material-addons provides high-performance, specialized components and core systems that extend material's capabilities for building modern web applications. Built with the same functional composition philosophy and zero external dependencies (except material as a peer dependency).
+- **Form.** Builds a set of fields from a layout and keeps their data: it reads and sets it, knows when it has changed, validates it and submits it.
+- **Colour picker.** An HSV area, a hue slider, swatches, a hex field and an eyedropper; inline, as a dropdown or as a dialog.
+- **Layout.** Builds a tree of elements and components from an array, and gives each named component back.
+- **Gestures.** Tap, swipe, long press, pan, pinch and rotate, on touch and mouse.
 
-## Where this came from
+The form and the colour picker have a page with live examples on [md3.io](https://md3.io/docs/components/form/).
 
-Published as `mtrl-addons` up to 0.9.x, for `mtrl` 0.10.x. This is its continuation for `material` 3.
+## Install
 
-## Features
-
-- 📝 **Form Builder** - Declarative form creation with validation and state management
-- 🎨 **Color Picker** - Full-featured HSV picker with swatches, pipette, and variants
-- 📐 **Layout System** - Flexible array-based layout schemas with JSX support
-- 👆 **Gesture Recognition** - Touch and mouse gesture detection (tap, swipe, pinch, etc.)
-- 🌳 **Tree-Shaking Optimized** - Import only what you need
-
-## Installation
-
+<!-- install -->
 ```bash
-# npm
-npm install material-addons material
-
-# yarn
-yarn add material-addons material
-
-# bun
-bun add material-addons material
+npm install material-addons material@next
 ```
 
-The peer range is `material` ^3.0.0-next.0. `material@3.0.0-next.0` is not on npm yet, so this
-package is not installable from the registry until that version is published. The 3.0.0 release moves the peer to `^3.0.0`.
+`material` 3.0.0 is in pre-release, on its `next` tag; this package's peer range is `^3.0.0-next.0`. The 3.0.0 release moves the peer to `^3.0.0`.
+<!-- /install -->
 
-## Quick Start
+Both packages are ESM only. The examples below import stylesheets, so they need a bundler that handles CSS imports, such as Vite.
 
+## Form
+
+The layout is an array of `[factory, name, options]`. A field named `info.<key>` is the data's `<key>`. Buttons named `submit` and `cancel` submit and reset the form; they are enabled once the user has changed a field.
+
+<!-- example: run, shows "Save" -->
 ```javascript
-import { createForm, createColorPicker } from 'material-addons';
-```
-
-## Tree-Shaking Optimized Imports
-
-material-addons is optimized for tree-shaking. Constants are exported separately from component creators to minimize bundle size.
-
-### Import Patterns
-
-| Import Type | Path |
-|-------------|------|
-| Component creators | `import { createColorPicker } from 'material-addons'` |
-| ColorPicker constants | `import { COLORPICKER_EVENTS } from 'material-addons/components/colorpicker/constants'` |
-| Form constants | `import { FORM_EVENTS, DATA_STATE } from 'material-addons/components/form/constants'` |
-| Color utilities | `import { hsvToRgb, rgbToHex } from 'material-addons'` |
-| Layout system | `import { createLayout } from 'material-addons/layout'` |
-| Gestures | `import { createGestureManager } from 'material-addons/gestures'` |
-
----
-
-## Components
-
-### Form
-
-Functional form builder with declarative field configuration, validation, and state management.
-
-#### Features
-- 📋 Declarative field definitions
-- ✅ Built-in validation rules
-- 🔄 Dirty/pristine state tracking
-- 🛡️ Unsaved changes protection
-- 📤 Submit handling with loading states
-- 🎯 Field-level error handling
-
-#### Basic Usage
-
-```javascript
+import 'material/styles';
+import 'material-addons/styles';
 import { createForm } from 'material-addons';
-import { FORM_EVENTS, DATA_STATE } from 'material-addons/components/form/constants';
+import { createTextField, createSwitch, createButton } from 'material';
 
 const form = createForm({
-  fields: [
-    { name: 'email', type: 'email', label: 'Email', required: true },
-    { name: 'password', type: 'password', label: 'Password', required: true },
-    { name: 'remember', type: 'checkbox', label: 'Remember me' }
+  layout: [
+    [createTextField, 'info.name', { label: 'Name' }],
+    [createTextField, 'info.email', { label: 'Email', type: 'email' }],
+    [createSwitch, 'info.newsletter', { label: 'Newsletter' }],
+    [createButton, 'cancel', { text: 'Cancel', variant: 'text' }],
+    [createButton, 'submit', { text: 'Save', variant: 'filled' }],
   ],
-  
-  // Protect unsaved changes
-  protectChanges: {
-    beforeUnload: true,      // Warn on page close
-    onDataOverwrite: true    // Emit event when setData() called with changes
-  },
-  
-  onSubmit: async (data) => {
-    await api.login(data);
-  }
+  data: { name: 'Ada', email: 'ada@example.com', newsletter: true },
+  onSubmit: async (data) => console.log('Saved', data),
+  container: document.body,
 });
-
-// Mount to container
-document.getElementById('login-form').appendChild(form.element);
-
-// Events
-form.on(FORM_EVENTS.CHANGE, ({ field, value }) => {
-  console.log(`${field} changed to:`, value);
-});
-
-form.on(FORM_EVENTS.STATE_CHANGE, ({ state }) => {
-  if (state === DATA_STATE.DIRTY) {
-    console.log('Form has unsaved changes');
-  }
-});
-
-form.on(FORM_EVENTS.SUBMIT, (data) => {
-  console.log('Form submitted:', data);
-});
-
-form.on(FORM_EVENTS.DATA_CONFLICT, ({ currentData, newData, cancel, proceed }) => {
-  if (confirm('Discard unsaved changes?')) {
-    proceed();
-  } else {
-    cancel();
-  }
-});
-
-// API
-form.setData({ email: 'user@example.com' });
-const data = form.getData();
-const isValid = form.validate();
-form.reset();
-form.disable();
-form.enable();
 ```
 
----
+Two calls set the data, and they differ in what the form makes of it:
 
-### ColorPicker
+| Call | Meaning | Afterwards |
+|------|---------|------------|
+| `form.setData(data, true)` | Load: the data is the new starting point | Not modified; the buttons are disabled |
+| `form.setData(data)`, `form.setFieldValue(name, value)` | Change values, as an edit does | Modified while the data differs from its starting point; the buttons are enabled |
 
-Full-featured color picker with HSV color area, hue slider, swatches, and multiple display variants.
-
-#### Features
-- 🎨 HSV color area with saturation/brightness
-- 📊 Hue slider
-- 🔲 Opacity/alpha slider (optional)
-- 💎 Color swatches with add/remove
-- 💉 Pipette/eyedropper (native API or canvas sampling)
-- 📝 Hex input field
-- 🖼️ Multiple variants: inline, dropdown, dialog
-- 📱 Compact density mode
-
-#### Basic Usage
-
+<!-- example: continues -->
 ```javascript
+form.setData({ name: 'Grace', email: 'grace@example.com', newsletter: false }, true);
+console.log(form.isModified()); // false: loaded
+
+form.setData({ name: 'Grace H.' });
+console.log(form.isModified()); // true: changed, so Save is enabled
+
+const { valid, errors } = form.validate();
+```
+
+`isModified()` only reads the state. The form emits `state:change` when the state changes.
+
+Options, methods and events: [md3.io/docs/components/form](https://md3.io/docs/components/form/).
+
+## Colour picker
+
+<!-- example: run, shows "#6750a4" -->
+```javascript
+import 'material/styles';
+import 'material-addons/styles';
 import { createColorPicker } from 'material-addons';
-import { COLORPICKER_EVENTS, COLORPICKER_VARIANTS } from 'material-addons/components/colorpicker/constants';
-
-// Inline picker (always visible)
-const picker = createColorPicker({
-  value: '#6200ee',
-  showSwatches: true,
-  swatches: ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff']
-});
-
-document.getElementById('color-picker').appendChild(picker.element);
-
-// Events
-picker.on(COLORPICKER_EVENTS.CHANGE, ({ value }) => {
-  console.log('Color selected:', value);
-});
-
-picker.on(COLORPICKER_EVENTS.INPUT, ({ value }) => {
-  // Live preview during drag
-  document.body.style.backgroundColor = value;
-});
-
-// API
-picker.setValue('#ff5722');
-const hex = picker.getValue();        // '#ff5722'
-const hsv = picker.getHSV();          // { h: 14, s: 86, v: 100 }
-const rgb = picker.getRGB();          // { r: 255, g: 87, b: 34 }
-
-picker.addSwatch('#9c27b0', 'Purple');
-picker.setOpacity(0.5);
-```
-
-#### Dropdown Variant
-
-```javascript
-const trigger = document.getElementById('color-button');
 
 const picker = createColorPicker({
-  value: '#6200ee',
-  variant: COLORPICKER_VARIANTS.DROPDOWN,
-  trigger: trigger,
-  closeOnSelect: true
+  value: '#6750a4',
+  swatches: ['#6750a4', '#625b71', '#7d5260', '#b3261e'],
 });
 
-// Toggle programmatically
-picker.open();
-picker.close();
-picker.toggle();
+const chosen = document.createElement('p');
+chosen.textContent = picker.getValue();
+picker.on('change', (color) => { chosen.textContent = String(color); });
+
+document.body.append(picker.element, chosen);
 ```
 
-#### With Pipette (Color Sampling)
+Variants, sizes, opacity and the eyedropper: [md3.io/docs/components/colorpicker](https://md3.io/docs/components/colorpicker/).
 
+The colour conversions the picker uses are exported too:
+
+<!-- example: run, shows "#ff0080" -->
 ```javascript
-const picker = createColorPicker({
-  value: '#ffffff',
-  showPipette: true,
-  // Optional: provide image for canvas-based sampling
-  imageSource: document.getElementById('my-image'),
-  
-  onPipetteStart: () => console.log('Sampling started'),
-  onPipetteEnd: (color) => console.log('Picked:', color)
-});
+import { hsvToRgb, rgbToHsv, rgbToHex, hexToRgb, normalizeHex, getContrastColor } from 'material-addons';
 
-// Trigger programmatically
-const pickedColor = await picker.pickColor();
+const results = [
+  hsvToRgb(330, 100, 100),      // { r: 255, g: 0, b: 128 }
+  rgbToHsv(255, 0, 128),        // { h: 330, s: 100, v: 100 }
+  rgbToHex(255, 0, 128),        // '#ff0080'
+  hexToRgb('#ff0080'),          // { r: 255, g: 0, b: 128 }
+  normalizeHex('f00'),          // '#ff0000'
+  getContrastColor('#ffffff'),  // '#000000'
+];
+
+document.body.append(...results.map((result) => {
+  const line = document.createElement('p');
+  line.textContent = typeof result === 'string' ? result : JSON.stringify(result);
+  return line;
+}));
 ```
 
----
+## Layout
 
-## Core Systems
+`createLayout` takes an array: a tag or a factory, a name when the item is to be read back, its options, then its children. It returns the root element and each named component.
 
-### Layout System
-
-Flexible array-based layout schemas for declarative UI construction. Supports material components, HTML elements, and nested structures.
-
+<!-- example: run, shows "Send" -->
 ```javascript
+import 'material/styles';
 import { createLayout } from 'material-addons/layout';
 import { createButton, createTextField } from 'material';
 
-// Array-based schema
 const layout = createLayout([
-  'div', { class: 'form-container' },
-  [
-    ['header', { class: 'form-header' },
-      ['h2', { text: 'Contact Form' }]
-    ],
-    ['main', { class: 'form-body' },
-      [createTextField, 'name', { label: 'Name' }],
-      [createTextField, 'email', { label: 'Email', type: 'email' }],
-      [createTextField, 'message', { label: 'Message', multiline: true }]
-    ],
-    ['footer', { class: 'form-footer' },
-      [createButton, 'submit', { text: 'Send', variant: 'filled' }],
-      [createButton, 'cancel', { text: 'Cancel', variant: 'outlined' }]
-    ]
-  ]
+  'section', { class: 'contact' },
+  [createTextField, 'name', { label: 'Name' }],
+  [createButton, 'send', { text: 'Send', variant: 'filled' }],
 ]);
 
-// Access named components
-layout.name.setValue('John Doe');
-layout.submit.on('click', handleSubmit);
+layout.get('send').on('click', () => console.log(layout.get('name').getValue()));
 
-// Append to DOM
-document.body.appendChild(layout.element);
+document.body.append(layout.element);
 ```
 
-#### Convenience Functions
+## Gestures
 
-```javascript
-import { layout, row, stack, grid } from 'material-addons/layout';
-
-// Vertical stack
-const stackLayout = stack({ gap: '1rem' });
-
-// Horizontal row (mobile-stacks automatically)
-const rowLayout = row({ gap: '1rem', mobileStack: true });
-
-// Responsive grid
-const gridLayout = grid('auto-fit', { gap: '1rem' });
-```
-
----
-
-### Gesture System
-
-Touch and mouse gesture recognition with support for tap, swipe, long-press, pinch, rotate, and pan.
-
+<!-- example: run, shows "Tap or swipe me" -->
 ```javascript
 import { createGestureManager } from 'material-addons/gestures';
 
-const gestures = createGestureManager(element, {
-  // Tap detection
-  onTap: ({ x, y, target }) => {
-    console.log('Tapped at', x, y);
-  },
-  
-  // Swipe detection
-  onSwipe: ({ direction, velocity, distance }) => {
-    console.log(`Swiped ${direction} with velocity ${velocity}`);
-  },
-  
-  // Long press
-  onLongPress: ({ x, y, duration }) => {
-    console.log('Long pressed for', duration, 'ms');
-  },
-  
-  // Pinch (zoom)
-  onPinch: ({ scale, center }) => {
-    element.style.transform = `scale(${scale})`;
-  },
-  
-  // Rotation
-  onRotate: ({ angle, center }) => {
-    element.style.transform = `rotate(${angle}deg)`;
-  },
-  
-  // Pan (drag)
-  onPan: ({ deltaX, deltaY, state }) => {
-    if (state === 'move') {
-      element.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-    }
-  }
-});
+const card = document.createElement('div');
+card.textContent = 'Tap or swipe me';
+document.body.append(card);
 
-// Configuration
-const gestures = createGestureManager(element, {
-  tap: { maxDuration: 300 },
-  swipe: { minDistance: 50, minVelocity: 0.3 },
-  longPress: { duration: 500 },
-  pinch: { minScale: 0.5, maxScale: 3 }
-});
+const gestures = createGestureManager(card);
 
-// Cleanup
+gestures.on('tap', ({ x, y }) => { card.textContent = `Tapped at ${x}, ${y}`; });
+gestures.on('swipe', ({ direction }) => { card.textContent = `Swiped ${direction}`; });
+gestures.on('longpress', () => { card.textContent = 'Long press'; });
+```
+
+When the element goes away, release the listeners:
+
+<!-- example: continues -->
+```javascript
 gestures.destroy();
 ```
 
-#### Individual Gesture Detectors
+The gestures:
 
-```javascript
-import { detectTap, detectSwipe, detectPinch } from 'material-addons/gestures';
+| Event | Fires on |
+|-------|----------|
+| `tap` | A press and release in place |
+| `swipe`, and `swipeleft`, `swiperight`, `swipeup`, `swipedown` | A quick move in one direction |
+| `longpress` | A press held, 500 ms by default |
+| `pan` | A drag |
+| `pinch` | Two fingers moving together or apart |
+| `rotate` | Two fingers turning |
 
-// Use specific detectors for lighter bundles
-const tapDetector = detectTap(element, { onTap: handleTap });
-const swipeDetector = detectSwipe(element, { onSwipe: handleSwipe });
-```
+## Entry points
 
----
+| Import | From |
+|--------|------|
+| The form, the colour picker, the colour conversions | `material-addons` |
+| The layout | `material-addons/layout` |
+| The gestures | `material-addons/gestures` |
+| The same three, without the layout and gesture exports | `material-addons/components` |
+| A component's constants | `material-addons/components/form/constants`, `material-addons/components/colorpicker/constants` |
+| The stylesheet | `material-addons/styles` |
 
-## Color Utilities
+## Upgrading
 
-Pure functions for color conversion (tree-shakeable, included in main bundle).
-
-```javascript
-import {
-  hsvToRgb,
-  rgbToHsv,
-  hsvToHex,
-  hexToHsv,
-  rgbToHex,
-  hexToRgb,
-  isValidHex,
-  normalizeHex,
-  getContrastColor
-} from 'material-addons';
-
-// HSV ↔ RGB
-const rgb = hsvToRgb({ h: 200, s: 80, v: 90 }); // { r: 46, g: 184, b: 230 }
-const hsv = rgbToHsv({ r: 255, g: 128, b: 0 }); // { h: 30, s: 100, v: 100 }
-
-// Hex conversions
-const hex = rgbToHex({ r: 255, g: 0, b: 128 }); // '#ff0080'
-const rgb2 = hexToRgb('#ff0080'); // { r: 255, g: 0, b: 128 }
-
-// Validation & normalization
-isValidHex('#ff0080');      // true
-isValidHex('ff0080');       // true
-normalizeHex('f00');        // '#ff0000'
-normalizeHex('#F00');       // '#ff0000'
-
-// Contrast color (for text on colored backgrounds)
-getContrastColor('#ffffff'); // '#000000'
-getContrastColor('#000000'); // '#ffffff'
-```
-
----
-
-## Upgrading from 0.7
-
-0.8.0 drops two systems from the package:
-
-- **vlist** is gone: `createVList`, its types, its constants entry and its styles. For virtual lists, use the standalone [vlist](https://www.npmjs.com/package/vlist) package.
-- **The viewport** is gone with it: `createViewport`, the feature enhancers including `withCollection`, the viewport types and the `mtrl-addons/viewport` entry point. Nothing in the package used them once vlist left, and no test covered them.
-- **The list manager**, removed in an earlier release, leaves no references behind.
-
-What remains is unchanged: the layout schema, the gesture system, the compose utilities, the form builder and the colour picker. The form now works with mtrl 0.8 as well as 0.7.
+The package was published as `mtrl-addons` up to 0.9.x. What each release changed, and what 0.8.0 removed (the virtual list and the viewport), is in the [changelog](CHANGELOG.md).
 
 ## Development
 
 ```bash
-# Install dependencies
-bun install
-
-# Build package (for distribution)
-bun run build
-
-# Run tests
-bun test
-
-# Watch mode
-bun run dev
-
-# Link material for local development
-bun run link:material
+bun install                 # dependencies
+bun test                    # the tests
+bun run ts:check            # the types
+bun run dev                 # build into dist/, and again on each change
+bun run build --production  # the build a release ships
+bun run check:package       # the packed package: its files, its manifest, its entry points
+bun run readme:check        # this file's examples, in Chromium
+bun run link:material       # use the material checkout in ../material
 ```
+
+Three of them need something first:
+
+- `check:package` compares the packed files with the release's list, so it needs the production build.
+- `readme:check` needs a build, and Chromium once: `npx playwright install chromium`.
+- `link:material` needs `../material` to be built.
 
 ## Releasing
 
@@ -413,36 +213,11 @@ npm publish material-addons-<version>.tgz --access public --tag next
 
 Use `--tag latest` for a stable release.
 
-## Browser Support
+## Related
 
-material-addons supports modern browsers:
-
-- Chrome (latest)
-- Firefox (latest)
-- Safari (latest)
-- Edge (latest)
-
-## Peer Dependencies
-
-- `material` ^3.0.0-next.0 - Core Material Design 3 component library. `material@3.0.0-next.0` is not on npm yet. The 3.0.0 release moves the peer to `^3.0.0`.
-
-## Related Packages
-
-- [material](https://github.com/floor/mtrl) - Core Material Design 3 component library
-- [mtrl-app](https://github.com/floor/mtrl-app) - Documentation and showcase application
+- [material](https://github.com/floor/material): the Material Design 3 component library this package extends.
+- [md3.io](https://md3.io): the documentation and showcase site.
 
 ## License
 
-MIT
-
-## Contributing
-
-Contributions are welcome! Please follow the existing code style and include tests for new features.
-
-```bash
-# Run tests before submitting
-bun test
-
-# Build to verify no errors
-bun run build
-```
+MIT, see [LICENSE](LICENSE).
