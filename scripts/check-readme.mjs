@@ -153,7 +153,9 @@ try {
     if (/^(?:create|detect)[A-Z]\w*$/.test(span) && !report.names.includes(span)) fail(`\`${span}\` is not an export of ${manifest.name}`);
   }
 
-  // The examples, in Chromium.
+  // The examples, in Chromium. An unresolved specifier is reported above, by its
+  // name; the bundler would only fail on it less clearly.
+  if (failures.length) throw new Error("not built: see the failures");
   const input = {};
   for (const [index, example] of examples.entries()) {
     writeFileSync(join(fixture, `readme-${index}.js`), example.code);
@@ -196,6 +198,8 @@ try {
       await page.close();
     }
   }
+} catch (error) {
+  if (!failures.length) throw error;
 } finally {
   await browser?.close();
   await new Promise((done) => (server ? server.httpServer.close(() => done()) : done()));
