@@ -86,7 +86,7 @@ mtrl-addons is an extension library for the mtrl Material Design 3 component sys
 - Do not start development servers (bun/node)
 - Follow conventional commit format
 - Use `bun run build` for package builds
-- Ensure compatibility with both ES modules and CommonJS
+- The package is ESM-only: import it, do not require() it
 
 ## Performance & Optimization
 
