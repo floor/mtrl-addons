@@ -1,30 +1,40 @@
-mtrl-addons — full changelog
+material-addons — full changelog
 initial commit → latest
 239 commits · Apr 30, 2025 – Sep 16, 2026
 
 
-1.0.0 (unreleased)
+3.0.0 (unreleased)
 
-  For mtrl 1.0. mtrl-addons is ESM-only, and takes mtrl's composition
-  core from its subpaths, as mtrl 1.0 removes it from the package root.
+  There is no 1.0.0. material-addons 3.0.0 is this package's continuation
+  for material 3. It was published as mtrl-addons up to 0.9.x, for mtrl 0.10.x.
 
   Breaking changes
 
+  - The package name is material-addons. The version is 3.0.0-next.0.
+  - The peer range is material ^3.0.0-next.0 while 3.0.0-next.0 is the
+    only release. The 3.0.0 release moves the peer to ^3.0.0.
+  - The text field's classes are mtrl-text-field… and the tag is
+    <m-text-field>. The colour picker's styles select those classes.
+
+  For material 3. material-addons is ESM-only, and takes material's
+  composition core from its subpaths, as material 3 removes it from the
+  package root.
+
   - ESM only. The CommonJS builds (dist/**/*.cjs) and every require
-    condition are removed; main is dist/index.mjs. require('mtrl-addons')
-    no longer resolves: use import, or await import('mtrl-addons') from
-    CommonJS. mtrl 1.0 made the same change.
-  - The peer range is mtrl ^1.0.0. mtrl 1.0 removed pipe, createBase,
-    withElement, withEvents, withLifecycle, withDisabled, hasEmit,
-    hasLifecycle and their types from its root. mtrl-addons now imports
-    them from mtrl/core/compose, and EventCallback from mtrl/core/state.
+    condition are removed; main is dist/index.mjs. require('material-addons')
+    no longer resolves: use import, or await import('material-addons') from
+    CommonJS. material 3 made the same change.
+  - material 3 removed pipe, createBase, withElement, withEvents,
+    withLifecycle, withDisabled, hasEmit, hasLifecycle and their types
+    from its root. material-addons imports them from material/core/compose,
+    and EventCallback from material/core/state.
 
   Migration
 
-  - Import mtrl-addons with import, not require.
-  - Upgrade mtrl to 1.0 alongside it. Code of your own that imported the
-    composition core from 'mtrl' moves it to 'mtrl/core/compose' (mtrl's
-    migration table lists every name).
+  - Import material-addons with import, not require.
+  - Upgrade material to 3 alongside it. Code of your own that imported the
+    composition core from 'material' moves it to 'material/core/compose'
+    (material's migration table lists every name).
 
   Changed
 

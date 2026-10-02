@@ -1,35 +1,35 @@
-# mtrl-addons - Extended Components for mtrl
+# material-addons - Extended Components for material
 
 ## Project Overview
 
-mtrl-addons is an extension library for the mtrl Material Design 3 component system, providing specialized elements and extended functionality for modern applications. It maintains the same "less is more" philosophy with zero external dependencies (mtrl as peer dependency only).
+material-addons is an extension library for material, the Material Design 3 component system, providing specialized elements and extended functionality for modern applications. It maintains the same "less is more" philosophy with zero external dependencies (material as peer dependency only).
 
 **Key Details:**
 - License: MIT
 - Language: TypeScript (strict mode)
 - Runtime: Bun (native TypeScript execution)
-- Dependencies: mtrl (peer dependency only)
+- Dependencies: material (peer dependency only)
 - Framework: Agnostic - works with any JavaScript framework or vanilla JS
 
 ## Architecture
 
 ### Package Ecosystem
 
-mtrl-addons is part of the mtrl ecosystem:
+material-addons is part of the material ecosystem:
 
 ```
-mtrl ecosystem/
-├── mtrl/              # Core Material Design 3 components
-├── mtrl-addons/       # Extended components (this package)
+material ecosystem/
+├── material/              # Core Material Design 3 components
+├── material-addons/       # Extended components (this package)
 └── mtrl-app/          # Documentation hub and showcase
 ```
 
 **Package Relationships:**
 ```
-mtrl (Foundation)
+material (Foundation)
     ↑
-mtrl-addons (Extensions)
-    ├── Peer dependency on mtrl
+material-addons (Extensions)
+    ├── Peer dependency on material
     ├── Virtual scrolling and collections
     ├── Layout schema system
     └── Performance optimizations
@@ -39,15 +39,15 @@ mtrl-addons (Extensions)
 Clone related packages as siblings for easier cross-package development:
 ```
 ~/Code/
-├── mtrl/              # Core components
-├── mtrl-addons/       # This package
+├── material/              # Core components
+├── material-addons/       # This package
 └── mtrl-app/          # Documentation
 ```
 
 ### Package Structure
 
 ```
-mtrl-addons/
+material-addons/
 ├── src/
 │   ├── components/           # Extended components
 │   ├── core/                # Advanced core features
@@ -84,17 +84,17 @@ mtrl-addons/
 ### Core Principles
 
 1. **"Less is More"** - Minimalist but complete implementation
-2. **Zero Dependencies** - Only mtrl as peer dependency
+2. **Zero Dependencies** - Only material as peer dependency
 3. **Performance First** - Optimized for large datasets and smooth scrolling
-4. **Functional Composition** - Build on mtrl's composition patterns
+4. **Functional Composition** - Build on material's composition patterns
 5. **Extensibility** - Design for modularity and customization
-6. **Integration** - Seamless integration with mtrl core components
+6. **Integration** - Seamless integration with material core components
 
 ### Design Decisions
 
 - **Why Layout Schema?** Declarative, composable UI patterns (JSX-like without JSX)
 - **Why Gestures?** Rich interaction patterns for touch devices
-- **Why Extend mtrl?** Specialized features not needed in base library
+- **Why Extend material?** Specialized features not needed in base library
 - **Why Peer Dependency?** Maintain single source of truth for core components
 
 ## Development Setup
@@ -129,13 +129,13 @@ mtrl-addons/
 
 ```bash
 # Clone repository
-git clone <repository-url> mtrl-addons
-cd mtrl-addons
+git clone <repository-url> material-addons
+cd material-addons
 
 # Install dependencies
 bun install
 
-# Link mtrl for local development (if needed)
+# Link material for local development (if needed)
 bun link material
 
 # Build package
@@ -241,7 +241,7 @@ export const createSwatchbook = (config: SwatchbookConfig) => {
 
 ### Functional Composition
 
-**Build on mtrl's Pipe Pattern:**
+**Build on material's Pipe Pattern:**
 ```typescript
 import { pipe } from 'material/core/compose'
 
@@ -300,10 +300,10 @@ layout/
 
 **Usage Pattern:**
 ```typescript
-import { createLayout } from 'mtrl-addons/core/layout'
+import { createLayout } from 'material-addons/core/layout'
 import { createButton } from 'material/components/button'
 
-// Array-based schema. mtrl has no components/text entry.
+// Array-based schema. material has no components/text entry.
 const layout = createLayout([
   [createButton, { variant: 'filled', text: 'Click me' }],
   ['p', { text: 'Hello World' }],
@@ -339,7 +339,7 @@ document.body.appendChild(layout)
 
 **Usage Pattern:**
 ```typescript
-import { withGestures } from 'mtrl-addons/core/gestures'
+import { withGestures } from 'material-addons/core/gestures'
 
 const component = pipe(
   createBaseComponent(config),
@@ -366,7 +366,7 @@ const component = pipe(
 
 **Usage Pattern:**
 ```typescript
-import { pipe, composeFeatures } from 'mtrl-addons/core/compose'
+import { pipe, composeFeatures } from 'material-addons/core/compose'
 
 const component = pipe(
   createBase(config),
@@ -435,7 +435,7 @@ describe('Layout Performance', () => {
 3. **Mock data sources** - Create realistic mock datasets
 4. **Test performance** - Use benchmarks for critical paths
 5. **Test edge cases** - Empty datasets, loading failures, boundary conditions
-6. **Test integration** - Verify mtrl component integration
+6. **Test integration** - Verify material component integration
 
 ## Performance Optimization
 
@@ -496,7 +496,7 @@ const createNewItem = (): HTMLElement => {
 
 ### Documentation Location
 
-**❌ Do NOT create documentation in mtrl-addons package**
+**❌ Do NOT create documentation in material-addons package**
 - No README files for features
 - No .md files for components
 - No inline documentation beyond JSDoc
@@ -510,8 +510,8 @@ const createNewItem = (): HTMLElement => {
 
 **Always use layout schema:**
 ```typescript
-// In mtrl-app, not in mtrl-addons
-import { createAdvancedList } from 'mtrl-addons/components/list'
+// In mtrl-app, not in material-addons
+import { createAdvancedList } from 'material-addons/components/list'
 
 const showcase = [
   [AdvancedList, {
@@ -565,7 +565,7 @@ export const createPinchRecognizer = (config: PinchConfig) => {
 **package.json exports (tree-shaking optimized):**
 ```json
 {
-  "name": "mtrl-addons",
+  "name": "material-addons",
   "type": "module",
   "sideEffects": false,
   "exports": {
@@ -600,20 +600,20 @@ Constants are **NOT** exported from main entry points to enable tree-shaking. Im
 
 | Import Type | Path |
 |-------------|------|
-| Component creators | `import { createColorPicker } from 'mtrl-addons'` |
-| ColorPicker constants | `import { COLORPICKER_EVENTS } from 'mtrl-addons/components/colorpicker/constants'` |
-| Form constants | `import { FORM_EVENTS, DATA_STATE } from 'mtrl-addons/components/form/constants'` |
-| Color utilities | `import { hsvToRgb, rgbToHex } from 'mtrl-addons'` (pure functions, kept in main) |
-| Layout system | `import { createLayout } from 'mtrl-addons/layout'` |
+| Component creators | `import { createColorPicker } from 'material-addons'` |
+| ColorPicker constants | `import { COLORPICKER_EVENTS } from 'material-addons/components/colorpicker/constants'` |
+| Form constants | `import { FORM_EVENTS, DATA_STATE } from 'material-addons/components/form/constants'` |
+| Color utilities | `import { hsvToRgb, rgbToHex } from 'material-addons'` (pure functions, kept in main) |
+| Layout system | `import { createLayout } from 'material-addons/layout'` |
 
 **Example:**
 ```typescript
 // ✅ Optimal - tree-shakeable
-import { createColorPicker } from 'mtrl-addons';
-import { COLORPICKER_EVENTS, PALETTE_SWATCH_ORDER } from 'mtrl-addons/components/colorpicker/constants';
+import { createColorPicker } from 'material-addons';
+import { COLORPICKER_EVENTS, PALETTE_SWATCH_ORDER } from 'material-addons/components/colorpicker/constants';
 
 // ❌ No longer works - constants removed from main entry
-import { createColorPicker, COLORPICKER_EVENTS } from 'mtrl-addons';
+import { createColorPicker, COLORPICKER_EVENTS } from 'material-addons';
 ```
 
 ### Build Commands
@@ -654,26 +654,26 @@ bun run ts:check
 
 **Issue:** Components not composing correctly
 **Solution:**
-- Check import order from mtrl
+- Check import order from material
 - Verify peer dependency version matches
 - Test in isolation first
 
-**Issue:** TypeScript errors with mtrl types
+**Issue:** TypeScript errors with material types
 **Solution:**
-- Ensure mtrl types are properly exported
+- Ensure material types are properly exported
 - Check tsconfig.json moduleResolution
 - Verify type imports use correct paths
 
 ## Related Packages
 
-### mtrl
+### material
 
 **Purpose:** Core Material Design 3 component library
-- Foundation for all mtrl-addons features
+- Foundation for all material-addons features
 - Provides base components and utilities
 - Zero dependencies
 
-**Documentation:** `mtrl/CLAUDE.md`
+**Documentation:** `material/CLAUDE.md`
 
 ### mtrl-app
 
@@ -704,11 +704,11 @@ bun run ts:check
 
 **❌ NEVER do these:**
 - Use React or any framework (pure TypeScript/JavaScript only)
-- Add external dependencies beyond mtrl peer dependency
+- Add external dependencies beyond material peer dependency
 - Create markdown documentation files in this package
 - Hardcode prefix in TypeScript or SCSS files
 - Use `any` type in TypeScript
-- Duplicate mtrl core functionality
+- Duplicate material core functionality
 - Enhance components while fixing bugs (stay focused)
 - Run development servers (Bun/Node)
 - Use global Window object to store things
@@ -717,9 +717,9 @@ bun run ts:check
 **✅ ALWAYS do these:**
 - Write tests before implementing features
 - Use TypeScript strict mode
-- Follow mtrl patterns and conventions
+- Follow material patterns and conventions
 - Optimize for performance (size, memory, speed)
-- Ensure mtrl integration works seamlessly
+- Ensure material integration works seamlessly
 - Ask before creating .md files
 - Ask before committing changes
 - Ask before pushing to remote
@@ -728,7 +728,7 @@ bun run ts:check
 
 1. Follow all coding standards and guidelines
 2. Write comprehensive tests including performance benchmarks
-3. Ensure seamless mtrl integration
+3. Ensure seamless material integration
 4. Document in mtrl-app (not here)
 5. Run type checking before committing
 6. Ask for permission before git operations
@@ -744,9 +744,9 @@ perf(scrolling): improve scroll performance by 30%
 test(layout): add schema building benchmarks
 docs(readme): update installation guide
 style(list): fix formatting
-chore(deps): update mtrl peer dependency
+chore(deps): update material peer dependency
 ```
 
 ---
 
-**Remember:** This package extends mtrl with advanced features. Every line of code matters. Stay minimal, stay fast, stay integrated with mtrl core. 🚀
+**Remember:** This package extends material with advanced features. Every line of code matters. Stay minimal, stay fast, stay integrated with material core. 🚀
