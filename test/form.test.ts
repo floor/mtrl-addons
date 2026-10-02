@@ -1268,7 +1268,7 @@ describe("Select field", () => {
 });
 
 describe("Radios null", () => {
-  it("pins an empty radios field: null and '' are not a modification", async () => {
+  it("pins an empty radios field: null and '' leave no modified data", async () => {
     const { withFields } =
       await import("../src/components/form/features/fields");
     const { withData } = await import("../src/components/form/features/data");
@@ -1312,12 +1312,14 @@ describe("Radios null", () => {
     form.setFieldValue("tone", "");
     expect(form.getData()).toEqual({ tone: "" });
     expect(form.isModified()).toBe(false);
+    expect(form.getModifiedData()).toEqual({});
 
     form.setData({ tone: "" }, true);
     expect(form.isModified()).toBe(false);
     form.setFieldValue("tone", null);
     expect(form.getData()).toEqual({ tone: null });
     expect(form.isModified()).toBe(false);
+    expect(form.getModifiedData()).toEqual({});
 
     form.setData({ tone: "high" }, true);
     expect(form.isModified()).toBe(false);
@@ -1331,5 +1333,6 @@ describe("Radios null", () => {
     ]);
     expect(form.getData()).toEqual({ tone: null });
     expect(form.isModified()).toBe(true);
+    expect(form.getModifiedData()).toEqual({ tone: null });
   });
 });
