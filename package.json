@@ -74,7 +74,7 @@
     "bun-types": "^1.0.0",
     "jsdom": "^26.1.0",
     "madge": "^8.0.0",
-    "mtrl": "0.10.0-next.0",
+    "mtrl": "0.10.5",
     "sass": "^1.94.2",
     "standard": "^17.0.0",
     "typescript": "^5.8.0"

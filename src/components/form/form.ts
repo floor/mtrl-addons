@@ -38,7 +38,7 @@ import { createBaseConfig, getElementConfig } from "./config";
  * @example
  * ```typescript
  * import { createForm } from 'mtrl-addons'
- * import { createTextfield, createSwitch, createChips } from 'mtrl'
+ * import { createTextField, createSwitch, createChips } from 'mtrl'
  *
  * const form = createForm({
  *   class: 'account-form',
@@ -46,13 +46,13 @@ import { createBaseConfig, getElementConfig } from "./config";
  *   layout: [
  *     ['section', { class: 'user-section' },
  *       ['div', { class: 'section-title', text: 'User' }],
- *       [createTextfield, 'info.username', { label: 'Username' }],
+ *       [createTextField, 'info.username', { label: 'Username' }],
  *       [createChips, 'info.role', {
  *         label: 'Role',
  *         chips: [
- *           { text: 'registered', value: 'registered' },
- *           { text: 'admin', value: 'admin' },
- *           { text: 'premium', value: 'premium' }
+ *           { label: 'registered', value: 'registered' },
+ *           { label: 'admin', value: 'admin' },
+ *           { label: 'premium', value: 'premium' }
  *         ]
  *       }],
  *       [createSwitch, 'info.enabled', { label: 'Enabled' }]
