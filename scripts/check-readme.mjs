@@ -12,8 +12,13 @@
 //   <!-- example: continues -->
 //     The fence goes on from the one before it, in the same script.
 //
-// A fence with no mark is a fragment and is not run. Also checked, without a
-// browser: every `material-addons` and `material` specifier in a fence or in
+//   <!-- example: fragment -->
+//     The fence is part of something and is not run. The text beside it should
+//     read that way.
+//
+// A `javascript`, `typescript` or `html` fence with none of the three marks fails
+// the check: an example added without its mark would otherwise ship unchecked. A
+// `bash` fence needs no mark. Also checked, without a browser: every `material-addons` and `material` specifier in a fence or in
 // inline code resolves from the packed package; every `createX` named in inline
 // code is an export of one of this package's entries; relative links name a file
 // of the repository and anchors a heading of the README; the install line names
@@ -21,7 +26,9 @@
 //
 // Readability, as material's README: no paragraph or list item over 440
 // characters as rendered (about four lines), no sentence with more than two
-// inline code spans. Tables, fences and headings are not prose.
+// inline code spans. A colon or a semicolon ends a sentence for this count, on
+// purpose: the rule is about how many names a reader holds before a pause.
+// Tables, fences and headings are not prose.
 //
 //   node scripts/check-readme.mjs            (after `bun run build --production`)
 import assert from "node:assert/strict";
@@ -41,6 +48,8 @@ const text = readFileSync(join(root, FILE), "utf8");
 const manifest = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const failures = [];
 const fail = (message) => { failures.push(message); };
+/** The languages of code a reader can copy and run; a shell command is not one. */
+const CODE = ["javascript", "js", "typescript", "ts", "tsx", "jsx", "html"];
 
 // ── The fences and the prose ──────────────────────────────────────
 const lines = text.split("\n");
@@ -55,8 +64,12 @@ for (let index = 0; index < lines.length; index++) {
   assert(index < lines.length, `${FILE}:${start + 1}: the code block is not closed`);
   const mark = /^<!-- example: (.+) -->$/.exec(lines[start - 1] ?? "")?.[1];
   const shows = mark === undefined ? undefined : /^run, shows "([^"]+)"$/.exec(mark)?.[1];
-  assert(mark === undefined || mark === "continues" || shows !== undefined,
-    `${FILE}:${start}: the mark is \`example: run, shows "<visible text>"\` or \`example: continues\`, not "${mark}"`);
+  assert(mark === undefined || mark === "continues" || mark === "fragment" || shows !== undefined,
+    `${FILE}:${start}: the mark is \`example: run, shows "<visible text>"\`, \`example: continues\` or \`example: fragment\`, not "${mark}"`);
+  // Code a reader can copy is never skipped in silence: it runs, or it says it is a fragment.
+  if (mark === undefined && CODE.includes(open[1])) {
+    fail(`${FILE}:${start + 1}: a \`${open[1]}\` fence with no mark. Put \`<!-- example: run, shows "…" -->\`, \`<!-- example: continues -->\` or \`<!-- example: fragment -->\` on the line above it`);
+  }
   blocks.push({ line: start + 1, lang: open[1], code: code.join("\n"), shows, continues: mark === "continues" });
 }
 const prose = proseLines.join("\n");
